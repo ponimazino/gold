@@ -49,7 +49,7 @@ TE_FIXTURE = """
 """
 
 
-def test_te_parse(_):
+def test_te_parse():
     # ganti requests.get dengan fixture
     import requests as _r
 

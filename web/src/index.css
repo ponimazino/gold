@@ -28,7 +28,7 @@ button { cursor: pointer; }
 button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid var(--lime); outline-offset: 2px; }
 
 .app-shell { min-height: 100vh; display: flex; background: radial-gradient(circle at 73% -10%, rgba(104, 74, 255, .11), transparent 28%), var(--bg); }
-.sidebar { width: 236px; flex: 0 0 236px; min-height: 100vh; padding: 27px 16px 18px; border-right: 1px solid rgba(255,255,255,.055); display: flex; flex-direction: column; background: rgba(20,20,27,.78); position: sticky; top: 0; height: 100vh; z-index: 60; }
+.sidebar { width: 236px; flex: 0 0 236px; min-height: 100vh; padding: 27px 16px 18px; border-right: 1px solid rgba(255,255,255,.055); display: flex; flex-direction: column; background: #14141b; position: sticky; top: 0; height: 100vh; z-index: 60; }
 .brand { display: flex; gap: 11px; align-items: center; padding: 0 11px 31px; }
 .brand-mark { width: 28px; height: 28px; border-radius: 9px; background: var(--lime); position: relative; transform: rotate(-8deg); display: grid; place-items: center; box-shadow: 0 0 22px rgba(213,255,63,.14); }
 .brand-mark::before, .brand-mark::after, .brand-mark span { content: ""; position: absolute; height: 2px; width: 16px; background: #121216; border-radius: 4px; transform: rotate(-32deg); }
@@ -108,4 +108,13 @@ body::before { content: ""; position: fixed; inset: 0; pointer-events: none; opa
 .pdf-modal-actions { display: flex; gap: 8px; margin-left: auto; }
 .pdf-frame-box { flex: 1; min-height: 0; background: #1c1c23; border: 1px solid #353541; border-radius: 10px; overflow: hidden; }
 .pdf-frame-box iframe { width: 100%; height: 100%; border: 0; display: block; background: #fff; }
-@media (max-width: 760px) { .pdf-modal { padding: 8px; } .pdf-modal-head b { max-width: 100%; } }
+/* fallback iOS: Safari iPhone/iPad tidak merender PDF dalam iframe */
+.pdf-ios-fallback { display: grid; place-items: center; align-content: center; gap: 10px; text-align: center; padding: 24px; color: #8e8e9b; }
+.pdf-ios-fallback p { margin: 0; font-size: 11.5px; max-width: 300px; }
+.pdf-ios-fallback .secondary-button { font-size: 11px; padding: 7px 14px; }
+/* Laporan terbaru tampil inline di panel (langsung terbuka, tanpa klik) */
+.pdf-inline { display: flex; flex-direction: column; }
+.pdf-inline .pdf-frame-box { height: 560px; flex: none; }
+.pdf-inline .pdf-ios-fallback { height: auto; min-height: 220px; }
+.pdf-inline .secondary-button { display: inline-flex; align-items: center; gap: 5px; font-size: 10px; padding: 5px 10px; }
+@media (max-width: 760px) { .pdf-modal { padding: 8px; } .pdf-modal-head b { max-width: 100%; } .pdf-inline .pdf-frame-box { height: 420px; } }

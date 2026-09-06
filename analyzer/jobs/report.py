@@ -1,9 +1,11 @@
 """Job mingguan: laporan PDF detail untuk review manual.
 
-Isi: ringkasan eksekutif, pergerakan harga mingguan + grafik, statistik
-backtest per pola, pembacaan pola berdasarkan history, hasil feedback loop
-(rekomendasi vs harga aktual), track event 3-star minggu depan, dan
-sorotan berita.
+Isi: halaman sampul bergaya resmi (banner hitam + aksen lime + tag
+CONFIDENTIAL), ringkasan eksekutif, pergerakan harga mingguan + grafik,
+ringkasan bulan-bulan sebelumnya (price action per bulan), statistik
+backtest per pola, pembacaan pola berdasarkan history, hasil feedback
+loop (rekomendasi vs harga aktual), track event 3-star minggu depan,
+dan sorotan berita. Setiap halaman diberi watermark diagonal CONFIDENTIAL.
 
 Local:  python -m analyzer.jobs.report
 GitHub: workflow report.yml, cron 21:23 UTC Minggu = 04:23 WIB Senin.
@@ -24,29 +26,94 @@ from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import mm
 from reportlab.graphics.shapes import Drawing, PolyLine, String
-from reportlab.platypus import (HRFlowable, Paragraph, SimpleDocTemplate,
-                                Spacer, Table, TableStyle)
+from reportlab.platypus import (Flowable, HRFlowable, Paragraph,
+                                SimpleDocTemplate, Spacer, Table, TableStyle)
 
 from .. import store
 
 WIB = ZoneInfo("Asia/Jakarta")
-LIME = colors.HexColor("#6b7d2a")   # lime gelap agar terbaca di kertas
+INK = colors.HexColor("#101014")     # hitam pekat (banner / header tabel)
+LIME = colors.HexColor("#6b7d2a")    # lime gelap agar terbaca di kertas
+LIME_BRIGHT = colors.HexColor("#a8c93f")
 DARK = colors.HexColor("#16161c")
 GRAY = colors.HexColor("#666674")
 AMBER = colors.HexColor("#a06a10")
+ZEBRA = colors.HexColor("#f0f0f3")
+RULE = colors.HexColor("#d8d8de")
 
 S_H1 = ParagraphStyle("h1", fontName="Helvetica-Bold", fontSize=17,
                       textColor=DARK, spaceAfter=2)
-S_H2 = ParagraphStyle("h2", fontName="Helvetica-Bold", fontSize=12,
-                      textColor=DARK, spaceBefore=10, spaceAfter=4)
+S_H2 = ParagraphStyle("h2", fontName="Helvetica-Bold", fontSize=11,
+                     textColor=DARK, leading=14)
 S_BODY = ParagraphStyle("body", fontName="Helvetica", fontSize=9,
-                        leading=13, textColor=DARK)
+                        leading=13.5, textColor=DARK, spaceAfter=4)
 S_SMALL = ParagraphStyle("small", fontName="Helvetica", fontSize=7,
                          leading=10, textColor=GRAY)
 S_KICK = ParagraphStyle("kick", fontName="Helvetica-Bold", fontSize=7,
                         textColor=GRAY, spaceBefore=12)
+S_BADGE = ParagraphStyle("badge", fontName="Helvetica-Bold", fontSize=10,
+                         textColor=LIME_BRIGHT, alignment=1)
+S_COVER_SUB = ParagraphStyle("coversub", fontName="Helvetica", fontSize=8,
+                             leading=12, textColor=colors.HexColor("#b9b9c4"))
 
 KEEP = 52  # jumlah laporan di index.json
+
+
+class _CoverBanner(Flowable):
+    """Banner sampul: blok hitam, wordmark lime + brand-mark, subjudul,
+    dan tag CONFIDENTIAL di kanan atas."""
+
+    def __init__(self, width: float, date_txt: str, height: float = 46 * mm):
+        super().__init__()
+        self.width = width
+        self.height = height
+        self.date_txt = date_txt
+
+    def draw(self) -> None:
+        c = self.canv
+        w, h = self.width, self.height
+        c.saveState()
+        c.setFillColor(INK)
+        c.roundRect(0, 0, w, h, 3 * mm, stroke=0, fill=1)
+        # brand-mark: persegi lime miring + garis gelap (replika sidebar)
+        c.saveState()
+        c.translate(12 * mm, h - 20 * mm)
+        c.rotate(-8)
+        c.setFillColor(LIME_BRIGHT)
+        c.roundRect(-4 * mm, -4 * mm, 11 * mm, 11 * mm, 3 * mm,
+                    stroke=0, fill=1)
+        c.setStrokeColor(INK)
+        c.setLineWidth(2.2)
+        c.saveState()
+        c.rotate(-32)
+        c.line(-2.6 * mm, 0.6 * mm, 3.4 * mm, 0.6 * mm)
+        c.restoreState()
+        c.restoreState()
+        # wordmark + judul
+        c.setFillColor(LIME_BRIGHT)
+        c.setFont("Helvetica-Bold", 21)
+        c.drawString(24 * mm, h - 15 * mm, "GOLDPULSE")
+        c.setFillColor(colors.white)
+        c.setFont("Helvetica-Bold", 10.5)
+        c.drawString(24 * mm, h - 22 * mm, "LAPORAN MINGGUAN XAUUSD")
+        # garis info di bawah banner
+        c.setFillColor(colors.HexColor("#b9b9c4"))
+        c.setFont("Helvetica", 7.5)
+        c.drawString(24 * mm, h - 29 * mm,
+                     f"Periode: {self.date_txt}  |  Semua waktu WIB (UTC+7)")
+        c.drawString(24 * mm, h - 34.5 * mm,
+                     "Analisis otomatis dari data historis - bukan saran finansial")
+        # tag CONFIDENTIAL kanan atas
+        tag_w = 36 * mm
+        c.setStrokeColor(colors.HexColor("#ff7799"))
+        c.setLineWidth(0.9)
+        c.setFillColor(colors.HexColor("#ff7799"))
+        c.roundRect(w - tag_w - 8 * mm, h - 15.5 * mm, tag_w, 7 * mm,
+                    1.8 * mm, stroke=1, fill=0)
+        c.setFont("Helvetica-Bold", 8)
+        c.drawCentredString(w - tag_w / 2 - 8 * mm, h - 13.4 * mm,
+                            "CONFIDENTIAL")
+        c.restoreState()
 
 
 def _read_json(name: str) -> dict:
@@ -75,19 +142,47 @@ def _fmt_rec_status(s: str) -> str:
             "entry": "baru dicatat"}.get(s, s)
 
 
-def _table(data: list[list], widths: list[float], align_right_from: int = 1) -> Table:
+def _section(num: int, title: str) -> Table:
+    """Header seksi: badge nomor lime di blok hitam + judul + garis aksen."""
+    t = Table(
+        [[Paragraph(f"{num:02d}", S_BADGE), Paragraph(title, S_H2)]],
+        colWidths=[11 * mm, None], hAlign="LEFT")
+    t.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (0, 0), INK),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("ALIGN", (0, 0), (0, 0), "CENTER"),
+        ("LEFTPADDING", (1, 0), (1, 0), 8),
+        ("LEFTPADDING", (0, 0), (0, 0), 0),
+        ("RIGHTPADDING", (0, 0), (0, 0), 0),
+        ("TOPPADDING", (0, 0), (-1, -1), 3),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+        ("LINEBELOW", (0, 0), (-1, 0), 1.4, LIME),
+        ("LINEBELOW", (0, 0), (-1, 0), 0.4, RULE),
+    ]))
+    return t
+
+
+def _table(data: list[list], widths: list[float],
+           align_right_from: int = 1) -> Table:
+    """Tabel bergaya resmi: header blok hitam teks putih, zebra rows,
+    angka rata kanan."""
     t = Table(data, colWidths=widths, hAlign="LEFT")
     style = [
-        ("FONT", (0, 0), (-1, 0), "Helvetica-Bold", 8),
-        ("FONT", (0, 1), (-1, -1), "Helvetica", 8),
-        ("TEXTCOLOR", (0, 0), (-1, 0), DARK),
+        ("BACKGROUND", (0, 0), (-1, 0), INK),
+        ("FONT", (0, 0), (-1, 0), "Helvetica-Bold", 7.5),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+        ("FONT", (0, 1), (-1, -1), "Helvetica", 7.5),
         ("TEXTCOLOR", (0, 1), (-1, -1), colors.HexColor("#33333c")),
-        ("LINEBELOW", (0, 0), (-1, 0), 0.6, DARK),
-        ("LINEBELOW", (0, 1), (-1, -1), 0.25, colors.HexColor("#d8d8de")),
         ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-        ("TOPPADDING", (0, 0), (-1, -1), 2.5),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 2.5),
+        ("TOPPADDING", (0, 0), (-1, -1), 3),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+        ("LINEBELOW", (0, 0), (-1, 0), 1.0, LIME),
+        ("LINEBELOW", (0, 1), (-1, -1), 0.25, RULE),
+        ("LINEBELOW", (0, -1), (-1, -1), 0.6, DARK),
     ]
+    for row in range(1, len(data)):
+        if row % 2 == 0:
+            style.append(("BACKGROUND", (0, row), (-1, row), ZEBRA))
     for col in range(align_right_from, len(widths)):
         style.append(("ALIGN", (col, 0), (col, -1), "RIGHT"))
     t.setStyle(TableStyle(style))
@@ -143,6 +238,71 @@ def _week_summary(bars: list[dict], now: datetime) -> tuple[dict, list[dict]]:
     return summary, chart
 
 
+def _monthly_recap(bars: list[dict], now: datetime,
+                   months: int = 6) -> tuple[list[dict], list[dict]]:
+    """Ringkasan bulanan: OHLC + perubahan % per bulan WIB (6 bulan terakhir).
+
+    Return (rows_untuk_tabel, list_bulan). Persen dihitung terhadap close
+    bulan sebelumnya; bulan pertama terhadap open bulan itu sendiri.
+    """
+    by_month: dict[str, dict] = {}
+    for b in bars:
+        t = store.parse(b["t"]).astimezone(WIB)
+        key = t.strftime("%Y-%m")
+        m = by_month.setdefault(key, {"label": t.strftime("%b %Y"),
+                                      "open": b["o"], "high": b["h"],
+                                      "low": b["l"], "close": b["c"]})
+        m["high"] = max(m["high"], b["h"])
+        m["low"] = min(m["low"], b["l"])
+        m["close"] = b["c"]
+    keys = sorted(by_month)[-months:]
+    out = [by_month[k] for k in keys]
+    prev_close: float | None = None
+    for i, m in enumerate(out):
+        base = prev_close if prev_close is not None else m["open"]
+        m["pct"] = (m["close"] - base) / base * 100 if base else 0.0
+        m["is_current"] = i == len(out) - 1
+        prev_close = m["close"]
+    return out, out
+
+
+def _monthly_narrative(months: list[dict]) -> str:
+    """Kalimat ringkas: bulan terbaik/terburuk, streak, dan MTD bulan berjalan."""
+    done = [m for m in months if not m.get("is_current")]
+    txt = ""
+    if len(done) >= 2:
+        best = max(done, key=lambda m: m["pct"])
+        worst = min(done, key=lambda m: m["pct"])
+        up = sum(1 for m in done if m["pct"] > 0)
+        txt += (f"Dari {len(done)} bulan terakhir yang tuntas, {up} bulan "
+                f"ditutup positif. Bulan terbaik: <b>{best['label']}</b> "
+                f"({best['pct']:+.2f}%, ditutup {best['close']:,.2f}); "
+                f"terburuk: <b>{worst['label']}</b> ({worst['pct']:+.2f}%, "
+                f"ditutup {worst['close']:,.2f}). ")
+        # streak arah pada bulan-bulan tuntas (terakhir ke belakang)
+        streak = 0
+        direction = 0
+        for m in reversed(done):
+            d = 1 if m["pct"] > 0 else (-1 if m["pct"] < 0 else 0)
+            if direction == 0 and d != 0:
+                direction, streak = d, 1
+            elif d != 0 and d == direction:
+                streak += 1
+            elif d != 0:
+                break
+        if streak >= 2:
+            kata = "kenaikan" if direction > 0 else "penurunan"
+            txt += (f"{streak} bulan terakhir membentuk rangkaian {streak} bulan "
+                    f"{kata} berturut-turut. ")
+    cur = months[-1] if months else None
+    if cur and cur.get("is_current"):
+        kata = "naik" if cur["pct"] > 0 else "turun"
+        txt += (f"Bulan berjalan ({cur['label']}): {kata} {abs(cur['pct']):.2f}% "
+                f"month-to-date, tertinggi {cur['high']:,.2f} dan terendah "
+                f"{cur['low']:,.2f}.")
+    return txt or "Belum cukup data bulanan untuk direkap."
+
+
 def build(now: datetime | None = None) -> dict:
     now = now or datetime.now(timezone.utc)
     bars1h = store.load("1h")
@@ -154,30 +314,31 @@ def build(now: datetime | None = None) -> dict:
     news = _read_json("news.json")
 
     week, chart_bars = _week_summary(bars4h, now)
+    month_rows, months = _monthly_recap(bars4h, now)
     stats = tracking.get("stats", {})
     results = sorted(
         patterns.get("results", []),
         key=lambda r: (r.get("tf", ""), -(r.get("oos_win_rate") or 0)))
 
+    periode_txt = (
+        f"{(now - timedelta(days=7)).astimezone(WIB).strftime('%d %b')} - "
+        f"{now.astimezone(WIB).strftime('%d %b %Y')}")
+
     # ---------- isi PDF ----------
     story: list = []
-    story.append(Paragraph("GOLDPULSE - LAPORAN MINGGUAN XAUUSD", S_H1))
-    story.append(Paragraph(
-        f"Dibuat {_wib(now)}  |  Periode laporan: "
-        f"{(now - timedelta(days=7)).astimezone(WIB).strftime('%d %b')} - "
-        f"{now.astimezone(WIB).strftime('%d %b %Y')}  |  Semua waktu WIB", S_SMALL))
-    story.append(HRFlowable(width="100%", thickness=0.8, color=DARK,
-                            spaceBefore=4, spaceAfter=8))
+    story.append(_CoverBanner(174 * mm, periode_txt))
+    story.append(Spacer(1, 10))
 
-    # 1. Ringkasan eksekutif
     status = rec.get("status", "-")
     bias = rec.get("bias", "-")
     conf = rec.get("confidence")
     conf_txt = f"{round(conf * 100)}%" if isinstance(conf, float) else "belum ada"
     trend = (rec.get("h4_context") or {}).get("trend", "-")
+    hit = stats.get("hit_rate")
+
+    # 1. Ringkasan eksekutif
     if week:
-        chg = _pct(week["close"],
-                   week["prev_close"] or week["open"])
+        chg = _pct(week["close"], week["prev_close"] or week["open"])
         exec_txt = (
             f"Minggu ini XAUUSD bergerak dari {week['open']:,.2f} ke "
             f"{week['close']:,.2f} ({chg} terhadap close minggu lalu), "
@@ -186,24 +347,52 @@ def build(now: datetime | None = None) -> dict:
             f"status <b>{status.upper()}</b>, bias {bias}, peluang historis {conf_txt}. ")
     else:
         exec_txt = "Data harga minggu ini belum tersedia. "
-    hit = stats.get("hit_rate")
     if hit is not None:
         exec_txt += (f"Rekam jejak feedback loop: {round(hit * 100)}% rekomendasi "
                      f"teresolve kena TP1 ({stats.get('wins', 0)}/{stats.get('resolved', 0)}).")
     else:
         exec_txt += ("Feedback loop belum punya sampel teresolve yang cukup - "
                      "laporan berikutnya akan mulai memuat hit-rate aktual.")
-    story.append(Paragraph("1. RINGKASAN EKSEKUTIF", S_H2))
+    story.append(_section(1, "RINGKASAN EKSEKUTIF"))
+    story.append(Spacer(1, 5))
     story.append(Paragraph(exec_txt, S_BODY))
 
     # 2. Grafik harga
-    story.append(Paragraph("2. PERGERAKAN HARGA (4 MINGGU TERAKHIR, CLOSE H4)", S_H2))
+    story.append(Spacer(1, 4))
+    story.append(_section(2, "PERGERAKAN HARGA - 4 MINGGU TERAKHIR (CLOSE H4)"))
+    story.append(Spacer(1, 5))
     if chart_bars:
         story.append(_price_chart(chart_bars[-168:], 170 * mm, 52 * mm))
         story.append(Spacer(1, 6))
 
-    # 3. Statistik backtest
-    story.append(Paragraph("3. STATISTIK BACKTEST PER POLA (HASIL TERBARU)", S_H2))
+    # 3. Ringkasan bulan sebelumnya
+    story.append(Spacer(1, 4))
+    story.append(_section(3, "RINGKASAN BULAN SEBELUMNYA - PRICE ACTION PER BULAN"))
+    story.append(Spacer(1, 5))
+    if month_rows:
+        rows = [["Bulan", "Open", "High", "Low", "Close", "Perubahan"]]
+        for m in month_rows:
+            label = m["label"] + (" (berjalan)" if m.get("is_current") else "")
+            rows.append([
+                label,
+                f"{m['open']:,.2f}", f"{m['high']:,.2f}",
+                f"{m['low']:,.2f}", f"{m['close']:,.2f}",
+                f"{m['pct']:+.2f}%",
+            ])
+        story.append(_table(rows, [34 * mm, 28 * mm, 28 * mm, 28 * mm, 28 * mm,
+                                   28 * mm]))
+        story.append(Paragraph(_monthly_narrative(months), S_BODY))
+        story.append(Paragraph(
+            "Perubahan dihitung terhadap close bulan sebelumnya; bulan berjalan "
+            "bersifat month-to-date dan masih berubah sampai akhir bulan.",
+            S_SMALL))
+    else:
+        story.append(Paragraph("Data bulanan belum tersedia.", S_BODY))
+
+    # 4. Statistik backtest
+    story.append(Spacer(1, 4))
+    story.append(_section(4, "STATISTIK BACKTEST PER POLA (HASIL TERBARU)"))
+    story.append(Spacer(1, 5))
     if results:
         head = ["TF", "Pola", "n", "Resolved", "Win%", "OOS n",
                 "OOS Win%", "Avg R"]
@@ -227,8 +416,10 @@ def build(now: datetime | None = None) -> dict:
     else:
         story.append(Paragraph("Statistik pola belum tersedia.", S_BODY))
 
-    # 4. Pembacaan pola dari history
-    story.append(Paragraph("4. PEMBACAAN POLA BERDASARKAN HISTORY", S_H2))
+    # 5. Pembacaan pola dari history
+    story.append(Spacer(1, 4))
+    story.append(_section(5, "PEMBACAAN POLA BERDASARKAN BACKTEST / HISTORY"))
+    story.append(Spacer(1, 5))
     with_n = [r for r in results if (r.get("n") or 0) >= 50]
     if with_n:
         by_oos = sorted(with_n,
@@ -255,8 +446,10 @@ def build(now: datetime | None = None) -> dict:
         story.append(Paragraph(
             "Belum cukup sampel pola (n>=50) untuk pembacaan yang berarti.", S_BODY))
 
-    # 5. Feedback loop
-    story.append(Paragraph("5. FEEDBACK LOOP - REKOMENDASI VS HARGA AKTUAL", S_H2))
+    # 6. Feedback loop
+    story.append(Spacer(1, 4))
+    story.append(_section(6, "FEEDBACK LOOP - REKOMENDASI VS HARGA AKTUAL"))
+    story.append(Spacer(1, 5))
     story.append(Paragraph(
         f"Total rekomendasi tercatat: {stats.get('total', 0)}  |  "
         f"WIN: {stats.get('wins', 0)}  |  LOSS: {stats.get('losses', 0)}  |  "
@@ -279,8 +472,10 @@ def build(now: datetime | None = None) -> dict:
         story.append(_table(rows, [30 * mm, 24 * mm, 42 * mm, 20 * mm, 40 * mm],
                             align_right_from=3))
 
-    # 6. Track event minggu depan
-    story.append(Paragraph("6. EVENT EKONOMI 3-STAR US MINGGU DEPAN", S_H2))
+    # 7. Track event minggu depan
+    story.append(Spacer(1, 4))
+    story.append(_section(7, "EVENT EKONOMI 3-STAR US MINGGU DEPAN"))
+    story.append(Spacer(1, 5))
     events = []
     for e in calendar.get("events", []):
         try:
@@ -310,8 +505,10 @@ def build(now: datetime | None = None) -> dict:
             "Tidak ada event 3-star US terjadwal dalam 7 hari ke depan "
             "(berdasarkan kalender tersimpan).", S_BODY))
 
-    # 7. Sorotan berita
-    story.append(Paragraph("7. SOROTAN BERITA TERVALIDASI (7 HARI TERAKHIR)", S_H2))
+    # 8. Sorotan berita
+    story.append(Spacer(1, 4))
+    story.append(_section(8, "SOROTAN BERITA TERVALIDASI (7 HARI TERAKHIR)"))
+    story.append(Spacer(1, 5))
     items = []
     for n in news.get("items", []):
         ts = n.get("published_utc")
@@ -334,7 +531,8 @@ def build(now: datetime | None = None) -> dict:
         story.append(Paragraph(
             "Tidak ada berita whitelist dalam 7 hari terakhir.", S_BODY))
 
-    # 8. Disclaimer
+    # Disclaimer
+    story.append(Spacer(1, 6))
     story.append(Paragraph("DISCLAIMER", S_KICK))
     story.append(Paragraph(
         "Laporan ini dibuat otomatis dari data historis dan statistik probabilitas. "
@@ -355,15 +553,34 @@ def build(now: datetime | None = None) -> dict:
         title=f"GoldPulse Weekly {date_wib}",
         author="goldpulse analyzer")
 
-    def _footer(canvas, _doc):
+    def _page(canvas, _doc):
+        # watermark diagonal CONFIDENTIAL di setiap halaman
+        canvas.saveState()
+        canvas.translate(A4[0] / 2, A4[1] / 2)
+        canvas.rotate(38)
+        canvas.setFont("Helvetica-Bold", 40)
+        canvas.setFillColor(colors.Color(0.55, 0.55, 0.60, alpha=0.09))
+        canvas.drawCentredString(0, -6 * mm, "C O N F I D E N T I A L")
+        canvas.restoreState()
+        # footer: garis aksen lime + identitas + nomor halaman
+        canvas.setStrokeColor(LIME)
+        canvas.setLineWidth(1)
+        canvas.line(18 * mm, 12.5 * mm, A4[0] - 18 * mm, 12.5 * mm)
         canvas.setFont("Helvetica", 6.5)
         canvas.setFillColor(GRAY)
-        canvas.drawString(18 * mm, 9 * mm,
-                          f"GoldPulse weekly report {date_wib} - bukan saran finansial")
-        canvas.drawRightString(A4[0] - 18 * mm, 9 * mm,
+        canvas.drawString(18 * mm, 8.5 * mm,
+                          f"GoldPulse weekly report {date_wib} - "
+                          f"CONFIDENTIAL - bukan saran finansial")
+        canvas.drawRightString(A4[0] - 18 * mm, 8.5 * mm,
                                f"Hal. {canvas.getPageNumber()}")
+        # identitas tepi atas halaman lanjutan
+        if canvas.getPageNumber() > 1:
+            canvas.setFont("Helvetica-Bold", 6.5)
+            canvas.setFillColor(GRAY)
+            canvas.drawString(18 * mm, A4[1] - 10 * mm,
+                              f"GOLDPULSE - LAPORAN MINGGUAN - {periode_txt}")
 
-    doc.build(story, onFirstPage=_footer, onLaterPages=_footer)
+    doc.build(story, onFirstPage=_page, onLaterPages=_page)
 
     index_path = out_dir / "index.json"
     try:

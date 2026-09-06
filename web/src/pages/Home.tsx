@@ -19,7 +19,6 @@ import {
   Activity,
   AlertTriangle,
   ArrowUpRight,
-  Bell,
   BookOpen,
   CalendarDays,
   Check,
@@ -30,6 +29,7 @@ import {
   Database,
   ExternalLink,
   FileCheck2,
+  FileText,
   FlaskConical,
   Gauge,
   Globe2,
@@ -84,6 +84,7 @@ const acceptedSources = [
 
 const navItems: { key: ViewKey; label: string; icon: typeof LayoutDashboard }[] = [
   { key: "overview", label: "Overview", icon: LayoutDashboard },
+  { key: "summary", label: "Apa kata hari ini", icon: Sparkles },
   { key: "analysis", label: "Daily analysis", icon: Crosshair },
   { key: "backtest", label: "Backtest lab", icon: FlaskConical },
   { key: "calendar", label: "Fundamentals", icon: Newspaper },
@@ -780,6 +781,33 @@ function AnalysisView({ data, now }: { data: DashboardData; now: number }) {
 
 // ---- view: Backtest lab (patterns.json + tracking.json) ----
 
+// iOS Safari tidak merender PDF di dalam <iframe> (tampil kosong) — di
+// iPhone/iPad tampilkan kartu "buka tab baru" sebagai gantinya.
+const IOS_PDF_BLOCKED =
+  typeof navigator !== "undefined" &&
+  (/iP(hone|ad|od)/.test(navigator.userAgent) ||
+    (navigator.platform === "MacIntel" &&
+      (navigator.maxTouchPoints ?? 0) > 1)); // iPadOS 13+ "macOS mode"
+
+function PdfFrame({ name, title }: { name: string; title: string }) {
+  if (!IOS_PDF_BLOCKED) {
+    return (
+      <div className="pdf-frame-box">
+        <iframe src={reportUrl(name)} title={title} />
+      </div>
+    );
+  }
+  return (
+    <div className="pdf-frame-box pdf-ios-fallback">
+      <FileText size={24} />
+      <p>Browser ini tidak menampilkan PDF langsung di halaman.</p>
+      <a className="secondary-button" href={reportUrl(name)} target="_blank" rel="noreferrer">
+        Buka laporan <ExternalLink size={13} />
+      </a>
+    </div>
+  );
+}
+
 function BacktestView({ data }: { data: DashboardData }) {
   const [tf, setTf] = useState<"4h" | "1h">("4h");
   const [selected, setSelected] = useState<string | null>(null);
@@ -862,17 +890,30 @@ function BacktestView({ data }: { data: DashboardData }) {
           <p style={{ fontSize: 11, color: "#8e8e9b", margin: "2px 0 12px" }}>
             Report lengkap tiap pekan: statistik backtest per pola, pembacaan pola berdasarkan history, hasil feedback loop (rekomendasi vs harga aktual), jadwal event 3★ AS, dan sorotan berita tervalidasi.
           </p>
-          {(reports?.files ?? []).length ? (
-            <div className="source-list">
-              {reports!.files!.map((f) => (
-                <button className="source-row" style={{ width: "100%", background: "transparent", border: 0, cursor: "pointer", textAlign: "left", font: "inherit", color: "inherit", padding: "12px 0" }} key={f.name} onClick={() => f.name && setOpenPdf(f)}>
-                  <div className="source-logo"><FileCheck2 size={15} /></div>
-                  <div><b>{f.date_wib ?? f.name}</b><small>{f.kb != null ? `${f.kb} KB` : ""}{f.summary ? ` · ${f.summary}` : ""} · klik untuk baca</small></div>
-                  <ExternalLink size={14} />
-                </button>
-              ))}
-            </div>
-          ) : (
+          {(reports?.files ?? []).length ? (<>
+            {/* Laporan terbaru langsung terbuka inline — tanpa klik */}
+            {reports!.files![0]?.name && (
+              <div className="pdf-inline">
+                <div className="pdf-modal-head">
+                  <b>{reports!.files![0].date_wib ?? reports!.files![0].name}</b>
+                  <a className="secondary-button" href={reportUrl(reports!.files![0].name!)} target="_blank" rel="noreferrer">Tab baru <ExternalLink size={13} /></a>
+                </div>
+                <PdfFrame name={reports!.files![0].name!} title="Laporan mingguan GoldPulse" />
+              </div>
+            )}
+            {reports!.files!.length > 1 && (<>
+              <div className="panel-kicker" style={{ margin: "14px 0 2px" }}>Arsip laporan</div>
+              <div className="source-list">
+                {reports!.files!.slice(1).map((f) => (
+                  <button className="source-row" style={{ width: "100%", background: "transparent", border: 0, cursor: "pointer", textAlign: "left", font: "inherit", color: "inherit", padding: "12px 0" }} key={f.name} onClick={() => f.name && setOpenPdf(f)}>
+                    <div className="source-logo"><FileCheck2 size={15} /></div>
+                    <div><b>{f.date_wib ?? f.name}</b><small>{f.kb != null ? `${f.kb} KB` : ""}{f.summary ? ` · ${f.summary}` : ""} · klik untuk baca</small></div>
+                    <ExternalLink size={14} />
+                  </button>
+                ))}
+              </div>
+            </>)}
+          </>) : (
             <div className="empty-feed" style={{ padding: "14px 0" }}>
               <div className="empty-icon"><BookOpen size={20} /></div>
               <h3>Belum ada laporan</h3>
@@ -888,9 +929,7 @@ function BacktestView({ data }: { data: DashboardData }) {
                   <button className="icon-button" aria-label="Tutup laporan" onClick={() => setOpenPdf(null)}><X size={16} /></button>
                 </div>
               </div>
-              <div className="pdf-frame-box">
-                <iframe src={reportUrl(openPdf.name)} title="Laporan mingguan GoldPulse" />
-              </div>
+              <PdfFrame name={openPdf.name} title="Laporan mingguan GoldPulse" />
             </div>
           )}
         </div>
@@ -992,7 +1031,7 @@ export default function Home() {
   const [view, setView] = useState<ViewKey>("overview");
   const [mobileOpen, setMobileOpen] = useState(false);
   const [noticeHidden, setNoticeHidden] = useState(false);
-  const activeLabel = view === "summary" ? "Ringkasan harian" : navItems.find((item) => item.key === view)?.label ?? "Overview";
+  const activeLabel = navItems.find((item) => item.key === view)?.label ?? "Overview";
   const rec = data?.recommendation ?? null;
   const status = rec?.status ?? null;
 
@@ -1037,10 +1076,6 @@ export default function Home() {
               );
             })}
           </nav>
-        </div>
-        <div className="sidebar-section">
-          <span className="sidebar-label">System</span>
-          <button className="nav-item" onClick={() => setView("calendar")}><Bell size={17} /><span>Alerts</span>{data?.recommendation?.next_event && <span className="nav-status" />}</button>
         </div>
         <div className="sidebar-bottom">
           <div className="data-health">

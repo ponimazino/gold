@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<title>GoldPulse — Spesifikasi Produk &amp; Teknis</title>
+<style>
+  @page { size: A4; margin: 16mm 15mm; }
+  * { box-sizing: border-box; }
+  body {
+    font-family: "Segoe UI", -apple-system, Roboto, Arial, sans-serif;
+    color: #1c1c22; font-size: 10.5pt; line-height: 1.55; margin: 0;
+  }
+  h1 { font-size: 21pt; margin: 0 0 2mm; letter-spacing: -0.5px; }
+  h2 { font-size: 13.5pt; margin: 9mm 0 2mm; padding-bottom: 1.5mm;
+       border-bottom: 2px solid #16161c; page-break-after: avoid; }
+  h2 .num { color: #d5ff3f; background: #16161c; padding: 1mm 2.5mm;
+            border-radius: 2mm; margin-right: 3mm; font-size: 10pt; vertical-align: 1px; }
+  h3 { font-size: 11pt; margin: 5mm 0 1.5mm; page-break-after: avoid; }
+  p { margin: 0 0 2.5mm; }
+  ul, ol { margin: 0 0 3mm; padding-left: 6mm; }
+  li { margin-bottom: 1mm; }
+  table { width: 100%; border-collapse: collapse; margin: 2mm 0 4mm; font-size: 9pt; }
+  th { background: #16161c; color: #fff; text-align: left; padding: 2mm 3mm; font-weight: 600; }
+  td { padding: 1.8mm 3mm; border-bottom: 0.4pt solid #d8d8de; vertical-align: top; }
+  tr:nth-child(even) td { background: #f6f6f8; }
+  .cover { text-align: left; border-left: 5mm solid #16161c; padding: 4mm 0 4mm 6mm; margin-bottom: 8mm; }
+  .cover .logo { display: inline-block; background: #16161c; color: #d5ff3f;
+                 font-weight: 800; font-size: 20pt; padding: 2mm 4mm; border-radius: 2mm;
+                 letter-spacing: -0.5px; margin-bottom: 3mm; }
+  .cover .sub { color: #666674; font-size: 10pt; }
+  .meta { font-size: 9pt; color: #666674; margin-top: 2mm; }
+  .tag { display: inline-block; font-size: 8pt; font-weight: 700; padding: 0.8mm 2.5mm;
+         border-radius: 3mm; margin-right: 1.5mm; }
+  .tag.dark { background: #16161c; color: #d5ff3f; }
+  .tag.lime { background: #d5ff3f; color: #16161c; }
+  .tag.violet { background: #8f76ff; color: #fff; }
+  .tag.amber { background: #ffc85a; color: #16161c; }
+  .tag.outline { border: 0.6pt solid #9a9aa5; color: #55555e; }
+  .card { border: 0.7pt solid #d5d5dc; border-radius: 2.5mm; padding: 3mm 4mm; margin: 0 0 3mm; }
+  .card.lime { border-left: 1.6mm solid #d5ff3f; }
+  .card.violet { border-left: 1.6mm solid #8f76ff; }
+  .card.amber { border-left: 1.6mm solid #ffc85a; }
+  .card.red { border-left: 1.6mm solid #ff7799; }
+  .card b { display: block; margin-bottom: 0.8mm; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 3mm; }
+  .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 3mm; }
+  .grid4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 3mm; }
+  figure { margin: 3mm 0 5mm; page-break-inside: avoid; }
+  figcaption { font-size: 8.5pt; color: #666674; margin-top: 1mm; }
+  .figure-title { font-size: 9.5pt; font-weight: 700; margin-bottom: 1.5mm; }
+  svg text { font-family: "Segoe UI", Arial, sans-serif; }
+  .break { page-break-before: always; }
+  .avoid { page-break-inside: avoid; }
+  code, .mono { font-family: Consolas, "Courier New", monospace; font-size: 8.5pt;
+                background: #f0f0f4; padding: 0.3mm 1.2mm; border-radius: 1mm; }
+  .footer-note { margin-top: 8mm; padding-top: 2mm; border-top: 0.7pt solid #d8d8de;
+                 font-size: 8pt; color: #666674; }
+  .arrow { stroke: #8f76ff; stroke-width: 1.6; fill: none; marker-end: url(#ah); }
+</style>
+</head>
+<body>
+
+<!-- ================= COVER ================= -->
+<div class="cover">
+  <div class="logo">GOLDPULSE</div>
+  <h1>Spesifikasi Produk &amp; Teknis</h1>
+  <p class="sub">Analyzer harian XAUUSD — serverless, jujur secara statistik, web-based only.</p>
+  <p class="meta">
+    <span class="tag dark">v1.0</span>
+    <span class="tag lime">P1–P5 selesai</span>
+    <span class="tag violet">5 view PWA</span>
+    <span class="tag amber">4 workflow otomatis</span>
+    <span class="tag outline">Dokumen internal — 06 Sep 2026 WIB</span>
+  </p>
+</div>
+
+<!-- ================= 1. PRODUCT SPEC ================= -->
+<h2><span class="num">1</span>Spesifikasi Produk</h2>
+
+<h3>1.1 Apa ini</h3>
+<p>GoldPulse adalah <b>asisten analisa harian XAUUSD (gold)</b> berbentuk aplikasi web mobile (PWA).
+Setiap pagi kerja sistem memeriksa chart, event ekonomi, dan statistik pola historis, lalu
+memberi <b>satu rekomendasi jelas</b> — masuk (entry), tunda (tunggu), atau diam (netral) —
+lengkap dengan level entry, batas rugi, dan target. Setiap rekomendasi kemudian
+<b>dinilai jujur terhadap pergerakan harga aktual</b> dan hasilnya ditampilkan terbuka,
+termasuk saat sistem salah.</p>
+
+<h3>1.2 Prinsip produk (tidak boleh dilanggar)</h3>
+<div class="grid2">
+  <div class="card lime"><b>1. Jujur secara statistik</b>Confidence = win-rate historis pola (out-of-sample diprioritaskan). Tidak ada janji akurasi; hit-rate nyata ditampilkan apa adanya, termasuk yang buruk.</div>
+  <div class="card lime"><b>2. Web-based only</b>Semua informasi hidup di web/PWA. Tidak ada notifikasi apa pun (Telegram, email, push) — user membuka kapan pun perlu.</div>
+  <div class="card violet"><b>3. Serverless &amp; gratis</b>Tanpa VM/server: GitHub Actions sebagai compute, JSON di repo sebagai database, static hosting untuk frontend. Semua tools tier gratis.</div>
+  <div class="card violet"><b>4. WIB, H4 dulu</b>Semua waktu tampil dalam WIB (UTC+7), penyimpanan UTC. Analisa utama timeframe H4, pemicu H1.</div>
+  <div class="card amber"><b>5. Sumber tervalidasi saja</b>Fundamental hanya event 3★ AS (Trading Economics) dan berita wire/whitelist (Reuters dkk) — tanpa opini, tanpa media sosial.</div>
+  <div class="card amber"><b>6. Aman secara default</b>Nol secret di frontend; kredensial hanya di .env lokal (gitignored) dan GitHub Secrets. Bukan saran finansial — disclaimer selalu tampil.</div>
+</div>
+
+<h3>1.3 Target pengguna</h3>
+<ul>
+  <li>Trader ritel XAUUSD yang ingin disiplin aturan, bukan insting.</li>
+  <li>Butuh ringkasan cepat di HP (<b>tab Ringkasan</b>, bahasa awam, &lt;1 menit bacaan) sekaligus detail teknis bila ingin mendalami (tab lain).</li>
+  <li>Selalu di HP → dirancang mobile-first, bisa di-install ke home screen (PWA), offline-ready.</li>
+</ul>
+
+<h3>1.4 Fitur lengkap (per view aplikasi)</h3>
+<table>
+  <tr><th style="width:22%">View</th><th style="width:48%">Fitur</th><th>Sumber data</th></tr>
+  <tr><td><b>Ringkasan</b> (tab pembuka)</td>
+      <td>Bahasa awam total: verdict peluang (ada/tunda/diam), arah pasar, risiko vs potensi untung dalam dolar + rasio, interpretasi jujur confidence ("45% artinya lebih sering gagal"), event yang diwaspadai, berita, disclaimer</td>
+      <td>recommendation.json, tracking.json, calendar.json, news.json, spot live</td></tr>
+  <tr><td><b>Overview</b></td>
+      <td>Spot live (poll 30 dtk), 4 metric card, chart harga EMA20/50 <b>yang bisa digeser &amp; zoom</b> (scroll = zoom, drag = pan, tombol ±/reset; window 15–1000 bar), zona entry pada chart, decision map (gauge confidence), signal stack (EMA/RSI/macro), Rule monitor feedback loop + sparkline</td>
+      <td>semua JSON + XAUS.com</td></tr>
+  <tr><td><b>Daily analysis</b></td>
+      <td>Skenario + bobot probabilitas, kartu level (entry zone / TP1 / SL), evidence ledger (alasan engine, apa adanya), invalidation map arah-aware, risk protocol, catatan pribadi (localStorage)</td>
+      <td>recommendation.json</td></tr>
+  <tr><td><b>Backtest lab</b></td>
+      <td>Statistik nyata per pola: avg R, win-rate, win-rate OOS, n; pilih pola &amp; timeframe; bar chart perbandingan pola; asumsi aturan tersimpan; limitations; <b>panel laporan mingguan PDF</b> (buka/tabs baru)</td>
+      <td>patterns.json, reports/index.json</td></tr>
+  <tr><td><b>Fundamentals</b></td>
+      <td>Event 3★ AS dengan countdown WIB + nilai fcst/prev/act, banner jeda entry saat blackout aktif (−2h..+1h), berita whitelist dengan link, source map (Twelve Data, XAUS, Trading Economics, Reuters), timestamp pipeline</td>
+      <td>calendar.json, news.json</td></tr>
+  <tr><td><b>Cross-cutting</b></td>
+      <td>PWA installable + offline (shell cache-first, data network-first + fallback cache), jam WIB live di topbar, data health sidebar (status, jumlah bar, jam sync), refresh otomatis tiap 10 menit, aksesibilitas dasar (aria-label)</td>
+      <td>manifest + service worker</td></tr>
+</table>
+
+<!-- ================= 2. ARSITEKTUR ================= -->
+<h2 class="break"><span class="num">2</span>Spesifikasi Teknis — Arsitektur</h2>
+
+<figure>
+  <div class="figure-title">Diagram 1 — Arsitektur sistem end-to-end</div>
+  <svg viewBox="0 0 760 250" width="100%">
+    <defs>
+      <marker id="ah" markerWidth="7" markerHeight="7" refX="6" refY="3" orient="auto">
+        <path d="M0,0 L7,3 L0,6 Z" fill="#8f76ff"/>
+      </marker>
+    </defs>
+    <!-- sumber -->
+    <rect x="8" y="14" width="120" height="30" rx="5" fill="#f6f6f8" stroke="#9a9aa5"/>
+    <text x="68" y="33" text-anchor="middle" font-size="9" fill="#1c1c22">Twelve Data API</text>
+    <rect x="8" y="70" width="120" height="30" rx="5" fill="#f6f6f8" stroke="#9a9aa5"/>
+    <text x="68" y="89" text-anchor="middle" font-size="9" fill="#1c1c22">Trading Economics</text>
+    <rect x="8" y="126" width="120" height="30" rx="5" fill="#f6f6f8" stroke="#9a9aa5"/>
+    <text x="68" y="145" text-anchor="middle" font-size="9" fill="#1c1c22">Google News + GDELT</text>
+    <rect x="8" y="196" width="120" height="30" rx="5" fill="#f6f6f8" stroke="#9a9aa5"/>
+    <text x="68" y="215" text-anchor="middle" font-size="9" fill="#1c1c22">XAUS.com (spot)</text>
+    <!-- actions -->
+    <rect x="190" y="60" width="150" height="120" rx="7" fill="#16161c"/>
+    <text x="265" y="88" text-anchor="middle" font-size="10" fill="#d5ff3f" font-weight="bold">GitHub Actions</text>
+    <text x="265" y="106" text-anchor="middle" font-size="8" fill="#ffffff">sync (per jam)</text>
+    <text x="265" y="120" text-anchor="middle" font-size="8" fill="#ffffff">fundamental (per 4 jam)</text>
+    <text x="265" y="134" text-anchor="middle" font-size="8" fill="#ffffff">daily (05:37 WIB)</text>
+    <text x="265" y="148" text-anchor="middle" font-size="8" fill="#ffffff">report (Senin 04:23)</text>
+    <text x="265" y="162" text-anchor="middle" font-size="8" fill="#ffffff">backfill (manual)</text>
+    <!-- repo -->
+    <rect x="400" y="70" width="130" height="100" rx="7" fill="#d5ff3f"/>
+    <text x="465" y="100" text-anchor="middle" font-size="10" font-weight="bold" fill="#16161c">Repo GitHub</text>
+    <text x="465" y="116" text-anchor="middle" font-size="8" fill="#16161c">ponimazino/gold</text>
+    <text x="465" y="132" text-anchor="middle" font-size="8" fill="#16161c">data/*.json (8 file)</text>
+    <text x="465" y="146" text-anchor="middle" font-size="8" fill="#16161c">data/reports/*.pdf</text>
+    <text x="465" y="160" text-anchor="middle" font-size="8" fill="#16161c">commit oleh bot</text>
+    <!-- raw -->
+    <rect x="400" y="186" width="130" height="30" rx="5" fill="#f6f6f8" stroke="#9a9aa5"/>
+    <text x="465" y="205" text-anchor="middle" font-size="8.5" fill="#1c1c22">raw.githubusercontent</text>
+    <!-- pwa -->
+    <rect x="600" y="60" width="150" height="120" rx="7" fill="#8f76ff"/>
+    <text x="675" y="90" text-anchor="middle" font-size="10" font-weight="bold" fill="#ffffff">GoldPulse PWA</text>
+    <text x="675" y="106" text-anchor="middle" font-size="8" fill="#ffffff">React 19 + Vite</text>
+    <text x="675" y="120" text-anchor="middle" font-size="8" fill="#ffffff">hosting: Vercel</text>
+    <text x="675" y="134" text-anchor="middle" font-size="8" fill="#ffffff">offline: service worker</text>
+    <text x="675" y="148" text-anchor="middle" font-size="8" fill="#ffffff">spot live: XAUS (fetch)</text>
+    <!-- arrows -->
+    <line class="arrow" x1="128" y1="29" x2="188" y2="80"/>
+    <line class="arrow" x1="128" y1="85" x2="188" y2="100"/>
+    <line class="arrow" x1="128" y1="141" x2="188" y2="130"/>
+    <line class="arrow" x1="340" y1="120" x2="398" y2="120"/>
+    <line class="arrow" x1="465" y1="170" x2="465" y2="184"/>
+    <line class="arrow" x1="530" y1="200" x2="598" y2="150"/>
+    <line class="arrow" x1="128" y1="211" x2="598" y2="175" stroke-dasharray="4 3"/>
+    <text x="360" y="232" font-size="7.5" fill="#666674" text-anchor="middle">garis putus-putus = spot live langsung dari XAUS.com ke browser (tidak pernah disimpan)</text>
+  </svg>
+  <figcaption>Compute terjadi di GitHub Actions (repo public = menit runner gratis tak terbatas); "database" adalah JSON di repo yang dibaca frontend via raw.githubusercontent.com (CORS terbuka). Frontend nol backend, nol secret.</figcaption>
+</figure>
+
+<h3>2.1 Stack teknologi</h3>
+<table>
+  <tr><th style="width:26%">Lapisan</th><th style="width:37%">Teknologi</th><th>Peran</th></tr>
+  <tr><td>Pipeline data</td><td>Python 3.12, requests, pandas, numpy, reportlab</td><td>Fetch API, indikator (EMA/RSI/ATR), deteksi pola, backtest, generator PDF</td></tr>
+  <tr><td>Scheduler/compute</td><td>GitHub Actions (checkout@v5, setup-python@v6)</td><td>5 workflow; langkah commit selalu <code>git pull --rebase</code> dulu (anti race-condition antar job)</td></tr>
+  <tr><td>Database</td><td>JSON di repo: <code>data/*.json</code></td><td>meta, xauusd_1h, xauusd_4h, patterns, calendar, news, recommendation, tracking + reports/</td></tr>
+  <tr><td>Frontend</td><td>React 19, Vite 7, TypeScript, recharts, lucide-react</td><td>SPA GoldPulse (~188 KB gzip); desain custom CSS (tanpa Tailwind)</td></tr>
+  <tr><td>Hosting</td><td>Vercel (Root Directory <code>web</code>)</td><td>Build <code>npm run build</code> → dist; auto-deploy tiap push ke main</td></tr>
+  <tr><td>PWA</td><td>manifest.webmanifest + sw.js</td><td>Navigasi network-first, data network-first + cache fallback, asset cache-first</td></tr>
+</table>
+
+<h3>2.2 Sumber data &amp; kebijakan</h3>
+<table>
+  <tr><th style="width:20%">Sumber</th><th style="width:42%">Digunakan untuk</th><th>Kebijakan</th></tr>
+  <tr><td>Twelve Data</td><td>OHLCV H1/H4 historis 3 tahun (20.493 bar H1, 5.323 bar H4) via API key (GitHub Secrets)</td><td>Key tidak pernah muncul di kode/frontend; backfill idempotent + merging</td></tr>
+  <tr><td>XAUS.com</td><td>Spot live untuk kartu harga (poll 30 detik)</td><td>Tanpa key; display only — tidak pernah disimpan ke data/</td></tr>
+  <tr><td>Trading Economics</td><td>Kalender ekonomi; hanya event <b>importance 3★, country US</b></td><td>Filter ketat sebelum disimpan ke calendar.json</td></tr>
+  <tr><td>Google News RSS + GDELT</td><td>Berita 36 jam terakhir</td><td>Whitelist wire terverifikasi (Reuters, Bloomberg, dkk); tanpa opini/media sosial</td></tr>
+</table>
+
+<h3>2.3 Skema data (data/*.json)</h3>
+<table>
+  <tr><th style="width:20%">File</th><th style="width:26%">Diperbarui</th><th>Isi ringkas</th></tr>
+  <tr><td>meta.json</td><td>setiap job</td><td>status, coverage per timeframe (from/to/bars), updated_at_wib</td></tr>
+  <tr><td>xauusd_1h.json / xauusd_4h.json</td><td>sync per jam</td><td>bars: {t (UTC ISO), o, h, l, c} — merge by timestamp</td></tr>
+  <tr><td>patterns.json</td><td>daily</td><td>per pola+TF: n, resolved, win_rate, timeout_pct, avg_r, oos_n, oos_win_rate; params (SL/TP × ATR, horizon)</td></tr>
+  <tr><td>recommendation.json</td><td>daily (05:37 WIB, Sen–Jum)</td><td>id (tanggal WIB), status entry/tunggu/netral, bias, confidence (+note), levels {entry, sl, tp1, tp2, atr14}, h4_context {trend, rsi14}, blackout, next_event, rationale[], params</td></tr>
+  <tr><td>calendar.json</td><td>fundamental per 4 jam</td><td>events[]: title, t_utc, forecast, previous, actual, importance, country</td></tr>
+  <tr><td>news.json</td><td>fundamental per 4 jam</td><td>items[]: title, url, source (whitelist), published_utc</td></tr>
+  <tr><td>tracking.json</td><td>daily</td><td>history[] (semua rekomendasi entry + status akhirnya), stats {total, wins, losses, timeouts, active, resolved, hit_rate}</td></tr>
+  <tr><td>reports/index.json + weekly-*.pdf</td><td>Senin 04:23 WIB</td><td>daftar maks 52 laporan: name, date_wib, kb, summary, rec_status</td></tr>
+</table>
+
+<!-- ================= 3. LOGIKA INTI ================= -->
+<h2 class="break"><span class="num">3</span>Logika Inti</h2>
+
+<h3>3.1 Mesin rekomendasi harian</h3>
+<figure>
+  <div class="figure-title">Diagram 2 — Flow keputusan rekomendasi</div>
+  <svg viewBox="0 0 760 400" width="100%">
+    <defs>
+      <marker id="ah2" markerWidth="7" markerHeight="7" refX="6" refY="3" orient="auto">
+        <path d="M0,0 L7,3 L0,6 Z" fill="#8f76ff"/>
+      </marker>
+    </defs>
+    <rect x="290" y="8" width="180" height="34" rx="17" fill="#16161c"/>
+    <text x="380" y="30" text-anchor="middle" font-size="9.5" fill="#d5ff3f">Daily job 05:37 WIB</text>
+    <line class="arrow" x1="380" y1="42" x2="380" y2="66"/>
+    <rect x="255" y="66" width="250" height="48" rx="6" fill="#f6f6f8" stroke="#9a9aa5"/>
+    <text x="380" y="86" text-anchor="middle" font-size="9">1. Refresh statistik pola (walk-forward,</text>
+    <text x="380" y="99" text-anchor="middle" font-size="9">data sampai detik ini) → patterns.json</text>
+    <line class="arrow" x1="380" y1="114" x2="380" y2="138"/>
+    <rect x="230" y="138" width="300" height="34" rx="17" fill="#ffc85a"/>
+    <text x="380" y="160" text-anchor="middle" font-size="9.5" font-weight="bold" fill="#16161c">2. Ada pola H1 di 2 bar terakhir?</text>
+    <line class="arrow" x1="230" y1="155" x2="120" y2="155"/>
+    <text x="172" y="149" text-anchor="middle" font-size="8" fill="#666674">tidak</text>
+    <rect x="30" y="138" width="90" height="34" rx="6" fill="#f6f6f8" stroke="#9a9aa5"/>
+    <text x="75" y="159" text-anchor="middle" font-size="9" font-weight="bold">NETRAL</text>
+    <line class="arrow" x1="530" y1="155" x2="640" y2="155"/>
+    <text x="585" y="149" text-anchor="middle" font-size="8" fill="#666674">ada</text>
+    <rect x="550" y="138" width="180" height="34" rx="17" fill="#ffc85a"/>
+    <text x="640" y="153" text-anchor="middle" font-size="9" font-weight="bold" fill="#16161c">3. Searah trend H4?</text>
+    <text x="640" y="166" text-anchor="middle" font-size="8" fill="#16161c">(EMA20 vs EMA50)</text>
+    <line class="arrow" x1="550" y1="185" x2="550" y2="185"/>
+    <line class="arrow" x1="640" y1="172" x2="640" y2="196"/>
+    <text x="655" y="188" text-anchor="middle" font-size="8" fill="#666674">ya</text>
+    <line class="arrow" x1="730" y1="155" x2="748" y2="155" />
+    <text x="700" y="188" font-size="8" fill="#666674" text-anchor="end">tidak → NETRAL</text>
+    <rect x="230" y="196" width="300" height="34" rx="17" fill="#ffc85a"/>
+    <text x="380" y="218" text-anchor="middle" font-size="9.5" font-weight="bold" fill="#16161c">4. Dalam jendela jeda event 3★? (−2h..+1h)</text>
+    <line class="arrow" x1="380" y1="230" x2="380" y2="254"/>
+    <text x="394" y="247" font-size="8" fill="#666674">tidak</text>
+    <line class="arrow" x1="530" y1="213" x2="640" y2="213"/>
+    <text x="590" y="207" font-size="8" fill="#666674">ya</text>
+    <rect x="640" y="196" width="90" height="34" rx="6" fill="#f6f6f8" stroke="#9a9aa5"/>
+    <text x="685" y="217" text-anchor="middle" font-size="9" font-weight="bold">TUNGGU</text>
+    <rect x="230" y="254" width="300" height="52" rx="6" fill="#d5ff3f"/>
+    <text x="380" y="274" text-anchor="middle" font-size="10" font-weight="bold" fill="#16161c">ENTRY</text>
+    <text x="380" y="290" text-anchor="middle" font-size="8.5" fill="#16161c">confidence = win-rate OOS pola · levels: entry=close terakhir,</text>
+    <text x="380" y="301" text-anchor="middle" font-size="8.5" fill="#16161c">SL 1×ATR14, TP1 1,5×ATR, TP2 3×ATR (ATR = H1 14-period)</text>
+    <line class="arrow" x1="380" y1="306" x2="380" y2="330"/>
+    <rect x="230" y="330" width="300" height="48" rx="6" fill="#8f76ff"/>
+    <text x="380" y="350" text-anchor="middle" font-size="9" fill="#ffffff">status "entry" → dicatat ke tracking.json</text>
+    <text x="380" y="365" text-anchor="middle" font-size="9" fill="#ffffff">→ besok dinilai jujur oleh feedback loop</text>
+  </svg>
+  <figcaption>Aturan tidak bisa ditawar: pola harus muncul di 2 bar H1 terakhir DAN searah trend H4, dan tidak boleh berada dalam jendela rilis. Kalau salah satu gagal → netral (diam) atau tunggu.</figcaption>
+</figure>
+
+<h3>3.2 Feedback loop (yang membuat sistem jujur)</h3>
+<figure>
+  <div class="figure-title">Diagram 3 — Siklus penilaian rekomendasi</div>
+  <svg viewBox="0 0 760 150" width="100%">
+    <rect x="10" y="45" width="120" height="46" rx="6" fill="#d5ff3f"/>
+    <text x="70" y="64" text-anchor="middle" font-size="9" font-weight="bold" fill="#16161c">Rekomendasi entry</text>
+    <text x="70" y="78" text-anchor="middle" font-size="8" fill="#16161c">dicatat hari ini</text>
+    <rect x="180" y="45" width="130" height="46" rx="6" fill="#f6f6f8" stroke="#9a9aa5"/>
+    <text x="245" y="64" text-anchor="middle" font-size="9" font-weight="bold">Dinilai per bar H1</text>
+    <text x="245" y="78" text-anchor="middle" font-size="8" fill="#666674">SL dicek duluan (konservatif)</text>
+    <rect x="360" y="10" width="140" height="40" rx="6" fill="#d5ff3f"/>
+    <text x="430" y="34" text-anchor="middle" font-size="9" font-weight="bold" fill="#16161c">WIN — kena TP1 dulu</text>
+    <rect x="360" y="56" width="140" height="40" rx="6" fill="#ffc85a"/>
+    <text x="430" y="80" text-anchor="middle" font-size="9" font-weight="bold" fill="#16161c">LOSS — kena SL dulu</text>
+    <rect x="360" y="102" width="140" height="40" rx="6" fill="#f6f6f8" stroke="#9a9aa5"/>
+    <text x="430" y="126" text-anchor="middle" font-size="9" font-weight="bold">TIMEOUT — 24 bar kosong</text>
+    <rect x="550" y="45" width="190" height="46" rx="6" fill="#8f76ff"/>
+    <text x="645" y="64" text-anchor="middle" font-size="9" font-weight="bold" fill="#ffffff">hit-rate nyata → UI</text>
+    <text x="645" y="78" text-anchor="middle" font-size="8" fill="#ffffff">Rule monitor + Ringkasan + PDF</text>
+    <line class="arrow" x1="130" y1="68" x2="178" y2="68"/>
+    <line class="arrow" x1="310" y1="60" x2="358" y2="34"/>
+    <line class="arrow" x1="310" y1="68" x2="358" y2="76"/>
+    <line class="arrow" x1="310" y1="80" x2="358" y2="118"/>
+    <line class="arrow" x1="500" y1="30" x2="548" y2="56"/>
+    <line class="arrow" x1="500" y1="76" x2="548" y2="68"/>
+    <line class="arrow" x1="500" y1="122" x2="548" y2="84"/>
+  </svg>
+  <figcaption>Siklus penuh: rekomendasi hari ini menjadi sampel statistik esok. Hasilnya (win/loss/timeout) diakumulasikan menjadi hit-rate yang ditampilkan apa adanya di aplikasi dan laporan PDF — inilah feedback loop yang membuat klaim "45%" bisa diverifikasi.</figcaption>
+</figure>
+
+<h3>3.3 Jadwal operasional (semua otomatis)</h3>
+<table>
+  <tr><th style="width:26%">Workflow</th><th style="width:22%">Jadwal (WIB)</th><th>Output</th></tr>
+  <tr><td>Sync Data</td><td>tiap jam, :17 (Sen–Sab)</td><td>xauusd_1h/4h.json + meta.json — juga menjaga repo tetap aktif (anti auto-disable 60 hari)</td></tr>
+  <tr><td>Fundamental</td><td>tiap 4 jam, :43</td><td>calendar.json + news.json</td></tr>
+  <tr><td>Analisa Harian</td><td>Sen–Jum 05:37</td><td>patterns.json → resolve tracking → recommendation.json → tracking.json</td></tr>
+  <tr><td>Laporan Mingguan</td><td>Senin 04:23</td><td>data/reports/weekly-YYYY-MM-DD.pdf + index.json (maks 52)</td></tr>
+  <tr><td>Backfill</td><td>manual saja</td><td>isi ulang 3 tahun (idempotent, merging) — hanya saat ada gap besar / awal setup</td></tr>
+</table>
+
+<h3>3.4 Isi laporan mingguan (PDF)</h3>
+<ol>
+  <li>Ringkasan eksekutif (pergerakan minggu + status rekomendasi + hit-rate)</li>
+  <li>Grafik harga 4 minggu (close H4)</li>
+  <li>Tabel statistik backtest semua pola + aturan entry</li>
+  <li>Pembacaan pola berdasarkan history (terbaik/terlemah + peringatan jujur bila tak ada yang &gt;50% OOS)</li>
+  <li>Feedback loop: statistik + 12 rekomendasi terakhir dengan hasil finalnya</li>
+  <li>Track event: kalender 3★ AS 7 hari ke depan + jendela jeda</li>
+  <li>Sorotan berita tervalidasi 7 hari</li>
+  <li>Disclaimer (selalu)</li>
+</ol>
+
+<!-- ================= 4. HOW-TO ================= -->
+<h2 class="break"><span class="num">4</span>How-To (Panduan Operasional)</h2>
+
+<h3>4.1 Setup awal (sudah selesai — untuk dokumentasi/ulang)</h3>
+<ol>
+  <li>Clone repo, buat <code>.env</code> berisi <code>TWELVEDATA_API_KEY=...</code> (file ini di-gitignore, tidak pernah di-commit).</li>
+  <li>Di GitHub → Settings → Secrets and variables → Actions → tambah secret <code>TWELVEDATA_API_KEY</code>.</li>
+  <li>Jalankan manual sekali: workflow <b>Backfill</b> (isi 3 tahun), lalu <b>Fundamental</b> dan <b>Analisa Harian</b>.</li>
+  <li>Import repo ke Vercel: Root Directory = <code>web</code> (preset Vite, build otomatis). Deploy.</li>
+  <li>Buka URL di HP → Add to Home Screen (PWA ter-install).</li>
+</ol>
+
+<h3>4.2 Penggunaan harian (sebagai user)</h3>
+<ol>
+  <li>Buka app → langsung mendarat di <b>Ringkasan</b>: baca verdict 1 menit (ada/tunda/diam peluang + angka risiko).</li>
+  <li>Mau detail? <b>Overview</b> untuk chart (scroll = zoom, tarik = geser ke sejarah), <b>Daily analysis</b> untuk level &amp; alasan, <b>Fundamentals</b> untuk event/berita.</li>
+  <li>Serius verifikasi klaim sistem? <b>Backtest lab</b> (statistik pola) + panel <b>Deep-dive PDF</b> (laporan mingguan).</li>
+  <li>Spot harga di kartu update tiap 30 detik; data lain refresh tiap 10 menit atau tarik-refresh browser.</li>
+</ol>
+
+<h3>4.3 Pemeliharaan (kalau ada masalah)</h3>
+<table>
+  <tr><th style="width:34%">Gejala</th><th>Periksa / solusi</th></tr>
+  <tr><td>Tab Actions ada run merah ✗</td><td>Buka run-nya → baca error → biasanya cukup Run again (re-race sudah diantisipasi dengan pull --rebase). Kalau Twelve Data quota habis: tunggu reset atau kurangi frekuensi sync.</td></tr>
+  <tr><td>Chart/harga tidak update</td><td>Cek workflow <b>Sync Data</b> hijau terakhir; cek data/meta.json via raw URL. Buka app dengan tarik-refresh (SW sengaja prioritaskan network untuk data).</td></tr>
+  <tr><td>Hit-rate lama kosong</td><td>Normal di awal — butuh ≥1 rekomendasi teresolve (±1 hari kerja setelah rekomendasi entry dicatat).</td></tr>
+  <tr><td>Ingin deploy ulang frontend</td><td>Cukup push ke main — Vercel auto-deploy (~1 menit); pengguna otomatis dapat versi baru (navigasi SW network-first).</td></tr>
+  <tr><td>Data mau diisi ulang total</td><td>Jalankan <b>Backfill</b> manual — idempotent, tidak dobel (merge by timestamp).</td></tr>
+</table>
+
+<h3>4.4 Keamanan — aturan tetap</h3>
+<ul>
+  <li>API key hanya di <code>.env</code> (gitignored) lokal dan GitHub Secrets. <b>Tidak pernah</b> hardcoded, di-commit, ditulis ke data/, atau masuk frontend.</li>
+  <li>Frontend hanya memuat URL publik: raw.githubusercontent (data), XAUS.com (spot tanpa key), Google Fonts.</li>
+  <li>Repo public = semua yang di-commit itu publik permanen — review sebelum push (aturan: push hanya atas perintah owner).</li>
+  <li>Link eksternal di app memakai <code>rel="noreferrer"</code>; input user (catatan analisa) hanya di localStorage perangkat.</li>
+</ul>
+
+<h3>4.5 Batasan sistem (yang perlu diingat)</h3>
+<ul>
+  <li>Backtest tidak memodelkan spread/slippage/swap — angka nyata selalu lebih rendah dari angka backtest.</li>
+  <li>Win-rate pola dengan sampel kecil (n &lt; 30) tidak signifikan secara statistik.</li>
+  <li>Data kalender/berita seefektif sumbernya; rilis mendadak (geopolitik) bisa datang tanpa jadwal.</li>
+  <li>Sistem memberi probabilitas, bukan prediksi — 45% berarti lebih sering meleset, dan itu ditampilkan jujur.</li>
+</ul>
+
+<div class="footer-note">
+  GoldPulse v1.0 — dokumen spesifikasi internal · disusun otomatis 06 Sep 2026 WIB ·
+  repo: github.com/ponimazino/gold · Semua waktu dalam WIB (UTC+7) ·
+  Bukan saran finansial — alat bantu analisa probabilistik.
+</div>
+
+</body>
+</html>
