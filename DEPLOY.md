@@ -104,28 +104,32 @@ sedikit.
 
 ---
 
-## Bagian 5 — Deploy frontend (pilih SATU)
+## Bagian 5 — Deploy frontend GoldPulse (pilih SATU)
 
-Frontend ini murni static (HTML/CSS/JS vanilla, tanpa build) — root repo
-sudah siap deploy apa adanya.
+Frontend produksi ada di folder **`web/`** — React + Vite, build sekali
+di server deploy (tidak perlu `npm run build` lokal). Ia membaca data
+dari `raw.githubusercontent.com/ponimazino/gold/main/data/*.json` + spot
+live XAUS.com, jadi static hosting mana pun cukup.
 
 ### Opsi A — Vercel
-1. vercel.com → **Add New → Project** → import repo `gold-analyzer`.
-2. Konfigurasi: Framework Preset = **Other**, Build Command = *(kosong)*,
-   Output Directory = *(kosong / `./`)*.
-3. Deploy. Domain: `gold-analyzer.vercel.app` (bisa custom domain di
+1. vercel.com → **Add New → Project** → import repo `gold` (ponimazino).
+2. Konfigurasi: **Root Directory = `web`** (Vercel otomatis mendeteksi
+   Vite: Build Command `npm run build`, Output `dist`).
+3. Deploy. Domain: `gold-xxxx.vercel.app` (bisa custom domain di
    Settings → Domains).
 
 ### Opsi B — Cloudflare Pages
 1. dash.cloudflare.com → **Workers & Pages → Create → Pages → Connect to
    Git** → pilih repo.
-2. Build configuration: Framework preset = **None**, Build command =
-   *(kosong)*, Build output directory = `/`.
+2. Build configuration: Root directory = `web`, Framework preset =
+   **Vite**, Build command = `npm run build`, Build output directory =
+   `dist`.
 3. Save and Deploy. Domain: `gold-analyzer.pages.dev`.
 
-Setelah deploy: buka URL di HP → chart harus tampil dengan data 3 tahun,
-harga live (titik hijau "● live" dari XAUS.com), kartu rekomendasi, panel
-statistik pola, dan seksi Fundamental. Menu browser → **Add to Home
+Setelah deploy: buka URL di HP → Overview harus menampilkan spot live
+(XAUS.com), chart H4 dengan EMA + zona entry, banner rekomendasi hari
+ini dengan confidence, Rule monitor (feedback loop), lalu tab Daily
+analysis / Backtest lab / Fundamentals. Menu browser → **Add to Home
 Screen** → jadi app (PWA, offline shell tetap terbuka dengan data cache).
 
 Catatan: setiap commit baru (termasuk commit data otomatis dari Actions)

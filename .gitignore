@@ -10,3 +10,10 @@ venv/
 # OS noise
 .DS_Store
 Thumbs.db
+
+# GoldPulse web app (dipakai: kode sumber di web/, build oleh Vercel)
+web/node_modules/
+web/dist/
+
+# Prototype UI asal (internal Manus) — tidak dipublish
+gold-ui/

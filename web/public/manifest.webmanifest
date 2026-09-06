@@ -1,0 +1,13 @@
+{
+  "name": "GoldPulse — XAUUSD Daily Analysis",
+  "short_name": "GoldPulse",
+  "description": "Analisa harian XAUUSD: teknikal H4/H1, fundamental 3★ US, rekomendasi berbasis statistik. Waktu WIB.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#101014",
+  "theme_color": "#101014",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}
