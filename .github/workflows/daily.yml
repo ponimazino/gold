@@ -1,0 +1,46 @@
+name: Analisa Harian
+
+on:
+  schedule:
+    # Rekomendasi harian 05:37 WIB (22:37 UTC), Sen-Jum.
+    # Menit ganjil biar tidak berebut antrean runner dengan jadwal populer.
+    # Jalan SETELAH sync 22:17 UTC jadi rekomendasi pakai candle terbaru.
+    - cron: "37 22 * * 1-5"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: daily
+  cancel-in-progress: false
+
+jobs:
+  daily:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Build recommendation + update tracking
+        run: python -m analyzer.jobs.daily
+
+      - name: Commit updated data
+        run: |
+          git config user.name "analyzer-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add data/patterns.json data/recommendation.json data/tracking.json
+          if git diff --cached --quiet; then
+            echo "No data changes, nothing to commit."
+          else
+            git commit -m "data: rekomendasi harian $(date -u +'%Y-%m-%d') UTC"
+            git push
+          fi

@@ -1,0 +1,1 @@
+"""Gold Analisator Harian — XAUUSD (H1/H4), timezone WIB (UTC+7)."""

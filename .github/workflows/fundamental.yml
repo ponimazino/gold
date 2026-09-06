@@ -1,0 +1,45 @@
+name: Fundamental
+
+on:
+  schedule:
+    # Kalender 3-star US + berita kredibel, tiap 4 jam (menit ganjil).
+    # Kalender TE jarang berubah intraday; 6x/hari cukup dan sopan ke sumber.
+    - cron: "43 */4 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: fundamental
+  cancel-in-progress: false
+
+jobs:
+  fundamental:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Collect calendar + news
+        run: python -m analyzer.jobs.fundamental
+
+      - name: Commit updated data
+        run: |
+          git config user.name "analyzer-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add data/calendar.json data/news.json
+          if git diff --cached --quiet; then
+            echo "No data changes, nothing to commit."
+          else
+            git commit -m "data: fundamental $(date -u +'%Y-%m-%d %H:%M') UTC"
+            git push
+          fi

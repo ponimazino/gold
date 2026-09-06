@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0e1116">
+  <meta name="description" content="Analisa harian XAUUSD — H1/H4, WIB. Bukan saran finansial.">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <title>Gold Analisator</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="topbar">
+    <h1>🥇 Gold Analisator</h1>
+    <nav class="tf-toggle" aria-label="Timeframe">
+      <button class="tf-btn active" data-tf="1h">H1</button>
+      <button class="tf-btn" data-tf="4h">H4</button>
+    </nav>
+  </header>
+
+  <section class="price-block">
+    <div class="price" id="price">—</div>
+    <div class="price-sub">
+      <span id="change" class="change">…</span>
+      <span id="live-state" class="live-state" title="status harga live">⏳</span>
+    </div>
+    <div class="meta-line" id="meta-line">memuat data…</div>
+    <p class="badge-row"><span class="badge" id="status">…</span></p>
+  </section>
+
+  <main class="chart-wrap">
+    <div id="chart"></div>
+    <div class="tz-note">waktu chart: WIB (UTC+7)</div>
+  </main>
+
+  <section class="reco" id="reco-sec" hidden>
+    <h2>Rekomendasi Hari Ini</h2>
+    <div class="reco-card" id="reco-card">memuat rekomendasi…</div>
+    <p class="reco-note">
+      Probabilitas statistik, bukan jaminan. Status "tunggu" = ada event
+      bintang-3 dalam jendela jeda entry.
+    </p>
+    <div class="accuracy" id="accuracy" hidden></div>
+  </section>
+
+  <section class="patterns" id="patterns-sec" hidden>
+    <h2>Pola & Statistik Historis</h2>
+    <p class="patterns-note">
+      Win-rate = TP 1,5×ATR tercapai sebelum SL 1×ATR (dalam horizon bar).
+      OOS = uji pada 30% data terakhir (cek overfitting).
+      <span id="patterns-time"></span>
+    </p>
+    <div id="patterns">memuat statistik…</div>
+  </section>
+
+  <section class="fundamental" id="fundamental-sec" hidden>
+    <h2>Fundamental</h2>
+
+    <div class="blackout" id="blackout" hidden>
+      <b>⛔ Jeda entry</b> — <span id="blackout-event"></span>
+      <span id="blackout-note" class="blackout-note"></span>
+    </div>
+
+    <h3>Kalender bintang-3 US <span class="src-tag" id="cal-source"></span></h3>
+    <div id="calendar-list">memuat kalender…</div>
+
+    <h3>Berita kredibel (24 jam terakhir)</h3>
+    <div id="news-list">memuat berita…</div>
+  </section>
+
+  <footer>
+    XAU/USD · data: Twelve Data (H1/H4) + XAUS.com (live) ·
+    <span id="sync-time">—</span><br>
+    Bukan saran finansial.
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.2.3/dist/lightweight-charts.standalone.production.js"></script>
+  <script type="module" src="app.js"></script>
+</body>
+</html>

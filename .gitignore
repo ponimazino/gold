@@ -1,0 +1,12 @@
+# Local secrets — never commit (on GitHub use repo Secrets instead)
+.env
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# OS noise
+.DS_Store
+Thumbs.db

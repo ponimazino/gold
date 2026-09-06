@@ -1,0 +1,48 @@
+name: Hourly Sync
+
+on:
+  schedule:
+    # Every hour Mon-Sat UTC at minute 17 (odd minute = less cron congestion).
+    # Runs are idempotent + gap-filling, so GitHub cron jitter (up to ~10 min)
+    # is harmless. Sunday evening bars are backfilled by Monday's run.
+    - cron: "17 * * * 1-6"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: hourly-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run sync
+        env:
+          TWELVEDATA_API_KEY: ${{ secrets.TWELVEDATA_API_KEY }}
+        run: python -m analyzer.jobs.sync
+
+      - name: Commit updated data
+        run: |
+          git config user.name "analyzer-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add data
+          if git diff --cached --quiet; then
+            echo "No new data, nothing to commit."
+          else
+            git commit -m "data: hourly sync $(date -u +'%Y-%m-%d %H:%M') UTC"
+            git push
+          fi
