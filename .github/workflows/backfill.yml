@@ -44,5 +44,6 @@ jobs:
             echo "No data changes, nothing to commit."
           else
             git commit -m "data: backfill ${{ github.event.inputs.years || '3' }}y"
+            git pull --rebase origin main
             git push
           fi

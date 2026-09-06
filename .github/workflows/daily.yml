@@ -42,5 +42,6 @@ jobs:
             echo "No data changes, nothing to commit."
           else
             git commit -m "data: rekomendasi harian $(date -u +'%Y-%m-%d') UTC"
+            git pull --rebase origin main
             git push
           fi

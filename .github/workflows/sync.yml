@@ -44,5 +44,6 @@ jobs:
             echo "No new data, nothing to commit."
           else
             git commit -m "data: hourly sync $(date -u +'%Y-%m-%d %H:%M') UTC"
+            git pull --rebase origin main
             git push
           fi

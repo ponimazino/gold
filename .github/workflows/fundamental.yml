@@ -41,5 +41,6 @@ jobs:
             echo "No data changes, nothing to commit."
           else
             git commit -m "data: fundamental $(date -u +'%Y-%m-%d %H:%M') UTC"
+            git pull --rebase origin main
             git push
           fi
