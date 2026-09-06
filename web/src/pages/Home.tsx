@@ -5,7 +5,6 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
-  Cell,
   ComposedChart,
   Line,
   ReferenceArea,
@@ -156,10 +155,32 @@ function useWibClock() {
 // ---- chart harga nyata (H4 prioritas / H1) — bisa digeser & di-zoom ----
 //
 // Interaksi: scroll = zoom (anchor di posisi kursor), klik-tarik = geser
-// periode, tombol +/-/reset untuk sentuh (mobile). Jendela default 90 bar.
+// periode, tombol +/-/reset untuk sentuh (mobile). Jendela default: 90 bar
+// untuk line, 48 bar untuk candle (badan lebih lebar).
 
 const CHART_LOAD = 1200;  // bar maksimum yang dimuat ke grafik
 const CHART_MIN_BARS = 15;
+const LINE_BARS = 90;   // jendela default mode line
+const CANDLE_BARS = 48; // jendela candle lebih pendek supaya badan lebih lebar
+
+// Bentuk candlestick: semua segmen dalam satu stack berbagi lebar band yang
+// sama (recharts mengabaikan barSize per-Bar dalam satu stack), jadi sumbu
+// dipaksa tipis lewat custom shape. Data bar di-spread ke props shape,
+// termasuk flag `up`.
+type CandleShapeProps = { x?: number; y?: number; width?: number; height?: number; up?: boolean };
+const candleFill = (p: CandleShapeProps) => (p.up ? "#d5ff3f" : "#ff7799");
+
+function CandleBody(p: CandleShapeProps) {
+  const w = p.width ?? 0;
+  const h = Math.max(p.height ?? 0, 1.5); // doji tetap terlihat 1.5px
+  return <rect x={p.x ?? 0} y={p.y ?? 0} width={w} height={h} fill={candleFill(p)} />;
+}
+
+function CandleWick(p: CandleShapeProps) {
+  const bw = p.width ?? 0;
+  const w = Math.max(1.2, Math.min(2.2, bw * 0.16));
+  return <rect x={(p.x ?? 0) + (bw - w) / 2} y={p.y ?? 0} width={w} height={p.height ?? 0} fill={candleFill(p)} />;
+}
 
 function PriceChart({ data, spot }: { data: DashboardData; spot: Spot | null }) {
   const [timeframe, setTimeframe] = useState<Timeframe>("4H");
@@ -174,7 +195,8 @@ function PriceChart({ data, spot }: { data: DashboardData; spot: Spot | null }) 
   }, [data, timeframe]);
 
   const MAX = allRows.length;
-  const defaultRange = useMemo(() => ({ start: Math.max(0, MAX - 90), count: Math.min(90, MAX) }), [MAX]);
+  const defaultCount = Math.min(mode === "candle" ? CANDLE_BARS : LINE_BARS, MAX);
+  const defaultRange = useMemo(() => ({ start: Math.max(0, MAX - defaultCount), count: defaultCount }), [MAX, defaultCount]);
   const [range, setRange] = useState(defaultRange);
   useEffect(() => setRange(defaultRange), [defaultRange]); // reset saat ganti TF / data baru
 
@@ -306,19 +328,13 @@ function PriceChart({ data, spot }: { data: DashboardData; spot: Spot | null }) 
               <Bar dataKey="cBase" stackId="candle" fill="transparent" isAnimationActive={false} />
             )}
             {mode === "candle" && (
-              <Bar dataKey="cWickLower" stackId="candle" barSize={1.5} isAnimationActive={false}>
-                {visible.map((r, i) => <Cell key={i} fill={r.up ? "#d5ff3f" : "#ff7799"} />)}
-              </Bar>
+              <Bar dataKey="cWickLower" stackId="candle" isAnimationActive={false} shape={CandleWick} />
             )}
             {mode === "candle" && (
-              <Bar dataKey="cBody" stackId="candle" isAnimationActive={false}>
-                {visible.map((r, i) => <Cell key={i} fill={r.up ? "#d5ff3f" : "#ff7799"} />)}
-              </Bar>
+              <Bar dataKey="cBody" stackId="candle" isAnimationActive={false} shape={CandleBody} />
             )}
             {mode === "candle" && (
-              <Bar dataKey="cWickUpper" stackId="candle" barSize={1.5} isAnimationActive={false}>
-                {visible.map((r, i) => <Cell key={i} fill={r.up ? "#d5ff3f" : "#ff7799"} />)}
-              </Bar>
+              <Bar dataKey="cWickUpper" stackId="candle" isAnimationActive={false} shape={CandleWick} />
             )}
             <Line type="monotone" dataKey="ema20" stroke="#a58bff" strokeWidth={1.4} dot={false} />
             <Line type="monotone" dataKey="ema50" stroke="#7a7a86" strokeWidth={1.2} strokeDasharray="5 5" dot={false} />
@@ -805,23 +821,70 @@ const IOS_PDF_BLOCKED =
     (navigator.platform === "MacIntel" &&
       (navigator.maxTouchPoints ?? 0) > 1)); // iPadOS 13+ "macOS mode"
 
-function PdfFrame({ name, title }: { name: string; title: string }) {
-  if (!IOS_PDF_BLOCKED) {
+// iOS Safari/iPadOS tidak merender PDF dalam iframe — render per halaman ke
+// kanvas via pdf.js. Di-import lazy supaya bundle utama tetap ringan
+// (chunk pdf.js hanya diunduh di perangkat yang memang membutuhkannya).
+import workerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
+
+function PdfPages({ url }: { url: string }) {
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const pdfjs = await import("pdfjs-dist");
+        pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
+        const doc = await pdfjs.getDocument({ url }).promise;
+        const wrap = wrapRef.current;
+        if (!wrap || !alive) return;
+        const dpr = Math.min(2, window.devicePixelRatio || 1);
+        for (let i = 1; i <= doc.numPages; i++) {
+          if (!alive) return;
+          const page = await doc.getPage(i);
+          const base = page.getViewport({ scale: 1 });
+          const width = wrap.clientWidth || 300;
+          const viewport = page.getViewport({ scale: (width / base.width) * dpr });
+          const canvas = document.createElement("canvas");
+          canvas.width = Math.floor(viewport.width);
+          canvas.height = Math.floor(viewport.height);
+          canvas.style.width = "100%";
+          canvas.style.display = "block";
+          const ctx = canvas.getContext("2d");
+          if (!ctx) throw new Error("canvas 2d tidak tersedia");
+          await page.render({ canvasContext: ctx, viewport }).promise;
+          wrap.appendChild(canvas);
+        }
+      } catch {
+        if (alive) setFailed(true);
+      }
+    })();
+    return () => { alive = false; };
+  }, [url]);
+  if (failed) {
     return (
-      <div className="pdf-frame-box">
-        <iframe src={reportUrl(name)} title={title} />
+      <div className="pdf-frame-box pdf-ios-fallback">
+        <FileText size={24} />
+        <p>Laporan gagal dirender di halaman.</p>
+        <a className="secondary-button" href={url} target="_blank" rel="noreferrer">
+          Buka laporan <ExternalLink size={13} />
+        </a>
       </div>
     );
   }
-  return (
-    <div className="pdf-frame-box pdf-ios-fallback">
-      <FileText size={24} />
-      <p>Browser ini tidak menampilkan PDF langsung di halaman.</p>
-      <a className="secondary-button" href={reportUrl(name)} target="_blank" rel="noreferrer">
-        Buka laporan <ExternalLink size={13} />
-      </a>
-    </div>
-  );
+  return <div className="pdf-frame-box pdf-js-box" ref={wrapRef} />;
+}
+
+function PdfFrame({ name, title, v }: { name: string; title: string; v?: number }) {
+  const url = reportUrl(name, v);
+  if (!IOS_PDF_BLOCKED) {
+    return (
+      <div className="pdf-frame-box">
+        <iframe src={url} title={title} />
+      </div>
+    );
+  }
+  return <PdfPages url={url} />;
 }
 
 function BacktestView({ data }: { data: DashboardData }) {
@@ -912,9 +975,9 @@ function BacktestView({ data }: { data: DashboardData }) {
               <div className="pdf-inline">
                 <div className="pdf-modal-head">
                   <b>{reports!.files![0].date_wib ?? reports!.files![0].name}</b>
-                  <a className="secondary-button" href={reportUrl(reports!.files![0].name!)} target="_blank" rel="noreferrer">Tab baru <ExternalLink size={13} /></a>
+                  <a className="secondary-button" href={reportUrl(reports!.files![0].name!, reports!.files![0].kb)} target="_blank" rel="noreferrer">Tab baru <ExternalLink size={13} /></a>
                 </div>
-                <PdfFrame name={reports!.files![0].name!} title="Laporan mingguan GoldPulse" />
+                <PdfFrame name={reports!.files![0].name!} title="Laporan mingguan GoldPulse" v={reports!.files![0].kb} />
               </div>
             )}
             {reports!.files!.length > 1 && (<>
@@ -941,11 +1004,11 @@ function BacktestView({ data }: { data: DashboardData }) {
               <div className="pdf-modal-head">
                 <b>{openPdf.date_wib ?? openPdf.name}</b>
                 <div className="pdf-modal-actions">
-                  <a className="secondary-button" href={reportUrl(openPdf.name)} target="_blank" rel="noreferrer">Tab baru <ExternalLink size={13} /></a>
+                  <a className="secondary-button" href={reportUrl(openPdf.name, openPdf.kb)} target="_blank" rel="noreferrer">Tab baru <ExternalLink size={13} /></a>
                   <button className="icon-button" aria-label="Tutup laporan" onClick={() => setOpenPdf(null)}><X size={16} /></button>
                 </div>
               </div>
-              <PdfFrame name={openPdf.name} title="Laporan mingguan GoldPulse" />
+              <PdfFrame name={openPdf.name} title="Laporan mingguan GoldPulse" v={openPdf.kb} />
             </div>
           )}
         </div>
@@ -1041,28 +1104,75 @@ function FundamentalsView({ data, now }: { data: DashboardData; now: number }) {
 
 // ---- view: Jadwal (kapan tiap data diperbarui) ----
 
+// spesifikasi jadwal GitHub Actions (WIB) untuk hitung "update berikutnya"
+type SchedSpec =
+  | { kind: "hourly"; minute: number }                       // tiap jam di menit tertentu
+  | { kind: "q4h"; minute: number }                          // jam 00/04/08/12/16/20 WIB
+  | { kind: "weekdays"; hour: number; minute: number }      // Sen–Jum sekali sehari
+  | { kind: "monday"; hour: number; minute: number };        // Senin sekali sepekan
+
+// Perkiraan jeda (menit) sampai run berikutnya, dihitung dari jam WIB sekarang.
+function minutesToNext(now: number, spec: SchedSpec): number {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Jakarta", weekday: "short", hour: "2-digit", minute: "2-digit", hour12: false,
+  }).formatToParts(now);
+  const get = (t: string) => Number(parts.find((p) => p.type === t)?.value ?? 0);
+  const cur = get("hour") * 60 + get("minute");
+  const curMin = get("minute"); // "tiap jam di menit N" hanya bandingkan menit
+  const dayIdx = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].indexOf(parts.find((p) => p.type === "weekday")?.value ?? "Mon");
+
+  if (spec.kind === "hourly") return (spec.minute - curMin + 60) % 60 || 60;
+  if (spec.kind === "q4h") {
+    const next = [0, 4, 8, 12, 16, 20].map((h) => h * 60 + spec.minute).find((s) => s > cur);
+    return next != null ? next - cur : 24 * 60 - cur + spec.minute;
+  }
+  const target = spec.hour * 60 + spec.minute;
+  if (spec.kind === "weekdays") {
+    if (dayIdx < 5 && cur < target) return target - cur; // masih hari kerja & belum lewat
+    let shift = 1, idx = (dayIdx + 1) % 7;
+    while (idx > 4) { shift++; idx = (idx + 1) % 7; }     // lompat Sabtu/Minggu
+    return shift * 1440 + (target - cur);
+  }
+  // Senin berikutnya
+  if (dayIdx === 0 && cur < target) return target - cur;
+  const shift = (8 - dayIdx) % 7 || 7;
+  return shift * 1440 + (target - cur);
+}
+
+function nextUpdateLabel(now: number, spec: SchedSpec): string {
+  const m = minutesToNext(now, spec);
+  const h = Math.floor(m / 60), mm = m % 60;
+  return h > 0 ? `±${h}j ${mm}m lagi` : `±${mm}m lagi`;
+}
+
 const SCHEDULE_ROWS: Array<{
   icon: typeof Clock3; fitur: string; jadwal: string;
-  sumber: string; catatan: string;
+  sumber: string; catatan: string; next?: SchedSpec;
 }> = [
   { icon: TrendingUp, fitur: "Candle H1/H4", jadwal: "Tiap jam, menit :17 WIB — semua hari (termasuk Minggu)",
     sumber: "Twelve Data · workflow Hourly Sync",
-    catatan: "gap-filling: jam yang terlewat otomatis dikejar di run berikutnya" },
+    catatan: "gap-filling: jam yang terlewat otomatis dikejar di run berikutnya",
+    next: { kind: "hourly", minute: 17 } },
   { icon: Sparkles, fitur: "Rekomendasi harian (entry/tunggu/netral)", jadwal: "Senin–Jumat 05:37 WIB",
     sumber: "workflow Analisa Harian",
-    catatan: "sekalian menilai rekomendasi kemarin terhadap harga aktual (feedback loop)" },
+    catatan: "sekalian menilai rekomendasi kemarin terhadap harga aktual (feedback loop)",
+    next: { kind: "weekdays", hour: 5, minute: 37 } },
   { icon: FlaskConical, fitur: "Statistik backtest per pola", jadwal: "Senin–Jumat 05:37 WIB (ikut analisa harian)",
     sumber: "workflow Analisa Harian",
-    catatan: "walk-forward 70/30, data sampai detik itu" },
+    catatan: "walk-forward 70/30, data sampai detik itu",
+    next: { kind: "weekdays", hour: 5, minute: 37 } },
   { icon: CalendarDays, fitur: "Kalender ekonomi 3★ US", jadwal: "Tiap 4 jam, menit :43 WIB",
     sumber: "Trading Economics · workflow Fundamental",
-    catatan: "hanya importance 3★, country US" },
+    catatan: "hanya importance 3★, country US",
+    next: { kind: "q4h", minute: 43 } },
   { icon: Newspaper, fitur: "Berita tervalidasi", jadwal: "Tiap 4 jam, menit :43 WIB (job yang sama)",
     sumber: "Google News RSS + GDELT · workflow Fundamental",
-    catatan: "whitelist wire (Reuters, Bloomberg, FT, CNBC dkk), 36 jam terakhir" },
+    catatan: "whitelist wire (Reuters, Bloomberg, FT, CNBC dkk), 36 jam terakhir",
+    next: { kind: "q4h", minute: 43 } },
   { icon: FileCheck2, fitur: "Laporan mingguan PDF", jadwal: "Senin 04:23 WIB",
     sumber: "workflow Laporan Mingguan",
-    catatan: "arsip maks 52 laporan, tersimpan di repo" },
+    catatan: "arsip maks 52 laporan, tersimpan di repo",
+    next: { kind: "monday", hour: 4, minute: 23 } },
   { icon: Zap, fitur: "Spot live (harga di kartu)", jadwal: "Tiap 30 detik, di browser Anda",
     sumber: "XAUS.com (tanpa API key)",
     catatan: "display only — tidak pernah disimpan ke data" },
@@ -1071,7 +1181,7 @@ const SCHEDULE_ROWS: Array<{
     catatan: "tarik-refresh browser selalu mengambil data segar" },
 ];
 
-function JadwalView({ data }: { data: DashboardData }) {
+function JadwalView({ data, now }: { data: DashboardData; now: number }) {
   const lastRun: Record<string, string | undefined> = {
     "Candle H1/H4": data.meta?.updated_at_wib,
     "Rekomendasi harian (entry/tunggu/netral)": data.recommendation?.created_at_wib,
@@ -1091,33 +1201,30 @@ function JadwalView({ data }: { data: DashboardData }) {
       </div>
       <StatusPill tone="green"><Check size={12} />Semua otomatis</StatusPill>
     </section>
-    <div className="panel" style={{ padding: 0, overflow: "hidden" }}>
-      <table className="sched-table">
-        <thead>
-          <tr>
-            <th>Fitur / data</th>
-            <th>Jadwal update</th>
-            <th className="hide-sm">Sumber</th>
-            <th>Terakhir</th>
-          </tr>
-        </thead>
-        <tbody>
-          {SCHEDULE_ROWS.map((r) => {
-            const Icon = r.icon;
-            return (
-              <tr key={r.fitur}>
-                <td>
-                  <div className="sched-fitur"><span className="sched-ico"><Icon size={14} /></span><b>{r.fitur}</b></div>
-                  <small className="sched-note">{r.catatan}</small>
-                </td>
-                <td className="sched-when">{r.jadwal}</td>
-                <td className="hide-sm sched-src">{r.sumber}</td>
-                <td><span className="sched-last">{lastRun[r.fitur] ?? "—"}</span></td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+    <div className="panel" style={{ padding: 0 }}>
+      <div className="panel-header" style={{ padding: "16px 16px 0" }}>
+        <div><div className="panel-kicker">Perkiraan update berikutnya</div><h2>Geser untuk lihat semua</h2></div>
+      </div>
+      <div className="sched-carousel">
+        {SCHEDULE_ROWS.map((r) => {
+          const Icon = r.icon;
+          return (
+            <div className="sched-card" key={r.fitur}>
+              <div className="sched-fitur"><span className="sched-ico"><Icon size={14} /></span><b>{r.fitur}</b></div>
+              <div className="sched-when">{r.jadwal}</div>
+              {r.next ? (
+                <div className="sched-next"><TimerReset size={12} /> {nextUpdateLabel(now, r.next)}</div>
+              ) : (
+                <div className="sched-next"><TimerReset size={12} /> berjalan di browser</div>
+              )}
+              <div className="sched-lab">Terakhir</div>
+              <span className="sched-last">{lastRun[r.fitur] ?? "—"}</span>
+              <small className="sched-note">{r.catatan}</small>
+              <small className="sched-src">{r.sumber}</small>
+            </div>
+          );
+        })}
+      </div>
     </div>
     <div className="panel assumption-box" style={{ marginTop: 14 }}>
       <div><CircleHelp size={14} /><b>Kuota API</b></div>
@@ -1151,7 +1258,7 @@ export default function Home() {
   ) : view === "calendar" ? (
     <FundamentalsView data={data} now={now} />
   ) : (
-    <JadwalView data={data} />
+    <JadwalView data={data} now={now} />
   );
 
   const days = (() => {
@@ -1211,7 +1318,7 @@ export default function Home() {
             <div className="demo-notice">
               <div>
                 <AlertTriangle size={14} />
-                <span><b>Live data.</b> Candle H1/H4 terakhir diperbarui {data?.meta?.updated_at_wib ?? "—"} · rekomendasi dibuat {rec?.created_at_wib ?? "—"} · probabilitas statistik, bukan saran finansial.</span>
+                <span><b>Bukan grafik real-time.</b> Harga live di kartu atas (tiap 30 dtk) hanya tampilan — grafik menampilkan candle final per jam: bar terakhir disinkron tiap jam :17 WIB (terakhir {data?.meta?.updated_at_wib ?? "—"}), rekomendasi dibuat ulang Senin–Jumat 05:37 WIB ({rec?.created_at_wib ?? "—"}). Probabilitas statistik, bukan saran finansial.</span>
               </div>
               <button aria-label="Dismiss notice" onClick={() => setNoticeHidden(true)}><X size={14} /></button>
             </div>

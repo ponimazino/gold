@@ -110,7 +110,10 @@ export const REPORTS_BASE = `${DATA_BASE}/reports`;
 // octet-stream (browser otomatis DOWNLOAD), jsDelivr mengirim application/pdf
 // (browser VIEW langsung). Cache CDN ~12 jam — cukup untuk laporan mingguan.
 export const PDF_BASE = "https://cdn.jsdelivr.net/gh/ponimazino/gold@main/data/reports";
-export const reportUrl = (name: string) => `${PDF_BASE}/${name}`;
+// v = cache buster (mis. ukuran KB) supaya regenerasi PDF hari yang sama
+// tidak tersangkut cache browser pada filename identik.
+export const reportUrl = (name: string, v?: number | string) =>
+  `${PDF_BASE}/${name}${v != null ? `?v=${encodeURIComponent(String(v))}` : ""}`;
 
 export interface ReportFile {
   name?: string; date_wib?: string; kb?: number;
