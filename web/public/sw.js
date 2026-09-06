@@ -1,9 +1,13 @@
 // GoldPulse service worker:
 // - navigasi (HTML): network-first -> versi baru selalu menang, cache hanya fallback offline
 // - data JSON repo: network-first, fallback cache
+// - ikon & manifest: network-first (file tidak hashed — ganti logo tidak
+//   boleh tertahan versi lama di cache)
 // - asset shell (JS/CSS hashed): cache-first
-const VERSION = "goldpulse-v1";
+const VERSION = "goldpulse-v3";
 const SHELL = "./";
+const NET_FIRST_STATIC =
+  /(^|\/)(icon[^/]*\.(svg|png)|apple-touch-icon\.png|manifest\.webmanifest)$/;
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(VERSION).then((cache) => cache.add(SHELL)));
@@ -61,6 +65,23 @@ self.addEventListener("fetch", (event) => {
 
   // Spot live XAUS.com & Google Fonts: biarkan lewat browser (jangan di-cache SW).
   if (url.hostname !== self.location.hostname) return;
+
+  // Ikon & manifest (tanpa hash di nama file): network-first supaya
+  // pergantian logo langsung terlihat, cache hanya fallback offline.
+  if (NET_FIRST_STATIC.test(url.pathname)) {
+    event.respondWith(
+      fetch(event.request)
+        .then((res) => {
+          if (res.ok) {
+            const copy = res.clone();
+            caches.open(VERSION).then((cache) => cache.put(event.request, copy));
+          }
+          return res;
+        })
+        .catch(() => caches.match(event.request))
+    );
+    return;
+  }
 
   // App shell (HTML/JS/CSS hashed): cache-first.
   event.respondWith(
