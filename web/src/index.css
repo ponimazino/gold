@@ -84,3 +84,28 @@ body::before { content: ""; position: fixed; inset: 0; pointer-events: none; opa
 @keyframes line-reveal { to { stroke-dashoffset: 0; } }
 @media (prefers-reduced-motion: reduce) { body::before { display: none; } .content-wrap > *, .status-pill, .health-bar span, .chart-panel .recharts-area-area, .chart-panel .recharts-line-curve { animation: none !important; } .live-dot { animation: none !important; } }
 @media (max-width: 760px) { body { background-size: 32px 32px, 32px 32px, auto, auto; }.metric-card:hover, .panel:hover { transform: none; }.content-wrap > * { animation-duration: .42s; } }
+
+/* Chart tools: toggle Line/Candle + zoom (dirancang rapi di mobile) */
+.chart-tools { margin-left: auto; display: flex; align-items: center; gap: 6px; min-width: 0; flex-wrap: wrap; justify-content: flex-end; }
+.chart-mode-seg { display: flex; border: 1px solid var(--line); border-radius: 7px; overflow: hidden; background: #18181f; }
+.chart-mode-seg button { border: 0; background: transparent; color: #777783; font-weight: 650; font-size: 9px; height: 25px; padding: 0 9px; cursor: pointer; }
+.chart-mode-seg button.active { background: #2d2d37; color: var(--lime); }
+.zoom-btn { width: 25px; height: 25px; display: inline-grid; place-items: center; color: #b0b0bb; background: #1a1a21; border: 1px solid var(--line); border-radius: 7px; font-size: 13px; line-height: 1; cursor: pointer; padding: 0; }
+.zoom-btn:hover { background: #25252d; color: #fff; }
+.zoom-btn:active { transform: scale(.9); }
+.legend-line.red { background: var(--red); }
+@media (max-width: 760px) {
+  .chart-legend-row { row-gap: 8px; }
+  .chart-tools { margin-left: 0; flex-basis: 100%; justify-content: space-between; }
+  .chart-tools .chart-range { flex-basis: 100%; margin-left: 0; font-size: 8px; order: 2; }
+  .chart-mode-seg button { padding: 0 8px; }
+}
+
+/* PDF viewer: lihat laporan mingguan langsung di dalam app (iframe) */
+.pdf-modal { position: fixed; inset: 0; z-index: 90; background: rgba(10,10,14,.74); display: flex; flex-direction: column; padding: 16px; }
+.pdf-modal-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 10px; color: #d5d5de; font-size: 11px; flex-wrap: wrap; }
+.pdf-modal-head b { font-size: 12px; letter-spacing: -.02em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 46vw; }
+.pdf-modal-actions { display: flex; gap: 8px; margin-left: auto; }
+.pdf-frame-box { flex: 1; min-height: 0; background: #1c1c23; border: 1px solid #353541; border-radius: 10px; overflow: hidden; }
+.pdf-frame-box iframe { width: 100%; height: 100%; border: 0; display: block; background: #fff; }
+@media (max-width: 760px) { .pdf-modal { padding: 8px; } .pdf-modal-head b { max-width: 100%; } }

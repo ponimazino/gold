@@ -40,8 +40,13 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Data dari repo: network-first, fallback cache (app tetap terbuka offline).
-  if (url.hostname === "raw.githubusercontent.com" || url.pathname.startsWith("/data/")) {
+  // Data dari repo (JSON + PDF via jsDelivr): network-first,
+  // fallback cache (app tetap terbuka offline).
+  if (
+    url.hostname === "raw.githubusercontent.com" ||
+    url.hostname === "cdn.jsdelivr.net" ||
+    url.pathname.startsWith("/data/")
+  ) {
     event.respondWith(
       fetch(event.request)
         .then((res) => {

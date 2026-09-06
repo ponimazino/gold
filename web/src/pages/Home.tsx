@@ -5,6 +5,7 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
+  Cell,
   ComposedChart,
   Line,
   ReferenceArea,
@@ -55,7 +56,8 @@ import {
   loadReports,
   PATTERN_NAMES,
   pctChange,
-  REPORTS_BASE,
+  reportUrl,
+  ReportFile,
   ReportsIndex,
   scoreScenario,
   Spot,
@@ -81,7 +83,6 @@ const acceptedSources = [
 ];
 
 const navItems: { key: ViewKey; label: string; icon: typeof LayoutDashboard }[] = [
-  { key: "summary", label: "Ringkasan", icon: Sparkles },
   { key: "overview", label: "Overview", icon: LayoutDashboard },
   { key: "analysis", label: "Daily analysis", icon: Crosshair },
   { key: "backtest", label: "Backtest lab", icon: FlaskConical },
@@ -160,6 +161,7 @@ const CHART_MIN_BARS = 15;
 
 function PriceChart({ data, spot }: { data: DashboardData; spot: Spot | null }) {
   const [timeframe, setTimeframe] = useState<Timeframe>("4H");
+  const [mode, setMode] = useState<"line" | "candle">("line");
   const chartBoxRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<{ chartX: number; start: number } | null>(null);
 
@@ -227,21 +229,38 @@ function PriceChart({ data, spot }: { data: DashboardData; spot: Spot | null }) 
   const visible = rows.length ? rows : allRows;
   const min = Math.floor(Math.min(...visible.map((d) => d.low)) - 8);
   const max = Math.ceil(Math.max(...visible.map((d) => d.high)) + 8);
-  const tickEvery = Math.max(1, Math.ceil(visible.length / 8));
-  const labels = visible.filter((_, i) => i % tickEvery === 0).map((d) => d.label);
+  // tick X: jumlah berbasis lebar piksel (±1 label / 84px) + dedup label
+  // berurutan yang sama, supaya tidak bertumpukan saat zoom in/out.
+  const maxTicks = Math.max(3, Math.floor(plotWidth() / 84));
+  const tickEvery = Math.max(1, Math.ceil(visible.length / maxTicks));
+  const labels: string[] = [];
+  let lastLabel = "";
+  for (let i = 0; i < visible.length; i += tickEvery) {
+    const lab = visible[i].label;
+    if (lab !== lastLabel) { labels.push(lab); lastLabel = lab; }
+  }
   const delta = pctChange(latest.close, previous.close);
   const atRightEdge = range.start + range.count >= MAX;
 
   return (
     <div className="chart-wrap">
       <div className="chart-legend-row">
-        <div className="legend-item"><span className="legend-line lime" />Price</div>
-        <div className="legend-item"><span className="legend-line purple" />EMA 20</div>
-        <div className="legend-item"><span className="legend-line gray" />EMA 50</div>
+        {mode === "line" ? (<>
+          <div className="legend-item"><span className="legend-line lime" />Price</div>
+          <div className="legend-item"><span className="legend-line purple" />EMA 20</div>
+          <div className="legend-item"><span className="legend-line gray" />EMA 50</div>
+        </>) : (<>
+          <div className="legend-item"><span className="legend-line lime" />Up candle</div>
+          <div className="legend-item"><span className="legend-line red" />Down candle</div>
+        </>)}
         <div className="chart-tools">
-          <button className="icon-button small" aria-label="Zoom out" onClick={() => zoomBy(1.3)}><span style={{ fontSize: 16, lineHeight: 1 }}>−</span></button>
-          <button className="icon-button small" aria-label="Zoom in" onClick={() => zoomBy(0.7)}><span style={{ fontSize: 16, lineHeight: 1 }}>+</span></button>
-          <button className="icon-button small" aria-label="Reset jendela" onClick={() => setRange(defaultRange)}><span style={{ fontSize: 13 }}>⟲</span></button>
+          <div className="chart-mode-seg" role="group" aria-label="Tipe chart">
+            <button className={mode === "line" ? "active" : ""} onClick={() => setMode("line")}>Line</button>
+            <button className={mode === "candle" ? "active" : ""} onClick={() => setMode("candle")}>Candle</button>
+          </div>
+          <button className="zoom-btn" aria-label="Zoom out" onClick={() => zoomBy(1.3)}>−</button>
+          <button className="zoom-btn" aria-label="Zoom in" onClick={() => zoomBy(0.7)}>+</button>
+          <button className="zoom-btn" aria-label="Reset jendela" onClick={() => setRange(defaultRange)}>⟲</button>
           <span className="chart-range">{visible[0].label} — {visible[visible.length - 1].label} · {visible.length} bar</span>
         </div>
       </div>
@@ -263,13 +282,27 @@ function PriceChart({ data, spot }: { data: DashboardData; spot: Spot | null }) 
               <linearGradient id="priceFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#d5ff3f" stopOpacity={0.28} /><stop offset="100%" stopColor="#d5ff3f" stopOpacity={0} /></linearGradient>
             </defs>
             <CartesianGrid stroke="#25252f" vertical={false} />
-            <XAxis dataKey="label" ticks={labels} tick={{ fill: "#686873", fontSize: 10 }} axisLine={false} tickLine={false} />
+            <XAxis dataKey="label" ticks={labels} interval={0} tick={{ fill: "#686873", fontSize: 10 }} axisLine={false} tickLine={false} />
             <YAxis domain={[min, max]} tick={{ fill: "#686873", fontSize: 10 }} axisLine={false} tickLine={false} width={48} tickFormatter={(v: number) => `$${v}`} />
             <Tooltip content={<ChartTooltip />} cursor={{ stroke: "#747482", strokeDasharray: "4 4" }} />
             {lv && timeframe === "4H" && atRightEdge && (
               <ReferenceArea y1={lv.entry - lv.atr14 * 0.5} y2={lv.entry + lv.atr14 * 0.5} fill="#d5ff3f" fillOpacity={0.08} strokeOpacity={0} />
             )}
-            <Area type="monotone" dataKey="close" stroke="#d5ff3f" strokeWidth={2.4} fill="url(#priceFill)" dot={false} activeDot={{ r: 4, fill: "#d5ff3f", stroke: "#16161c", strokeWidth: 2 }} />
+            {mode === "line" ? (
+              <Area type="monotone" dataKey="close" stroke="#d5ff3f" strokeWidth={2.4} fill="url(#priceFill)" dot={false} activeDot={{ r: 4, fill: "#d5ff3f", stroke: "#16161c", strokeWidth: 2 }} />
+            ) : (
+              <>
+                {/* candlestick via bar bertumpuk: base transparan + wick + body */}
+                <Bar dataKey="wickBase" stackId="wick" fill="transparent" isAnimationActive={false} />
+                <Bar dataKey="wick" stackId="wick" barSize={1} isAnimationActive={false}>
+                  {visible.map((r, i) => <Cell key={i} fill={r.up ? "#d5ff3f" : "#ff7799"} />)}
+                </Bar>
+                <Bar dataKey="bodyBase" stackId="body" fill="transparent" isAnimationActive={false} />
+                <Bar dataKey="body" stackId="body" isAnimationActive={false}>
+                  {visible.map((r, i) => <Cell key={i} fill={r.up ? "#d5ff3f" : "#ff7799"} />)}
+                </Bar>
+              </>
+            )}
             <Line type="monotone" dataKey="ema20" stroke="#a58bff" strokeWidth={1.4} dot={false} />
             <Line type="monotone" dataKey="ema50" stroke="#7a7a86" strokeWidth={1.2} strokeDasharray="5 5" dot={false} />
             {atRightEdge && (
@@ -323,7 +356,7 @@ function confidenceVerdict(c: number): { label: string; tone: "green" | "amber" 
   return { label: "Risiko lebih besar dari peluang", tone: "slate", text: `Jujur: dari 100 kondisi serupa di masa lalu, hanya sekitar ${c} yang kena target — ${100 - c} gagal. Secara historis setup ini LEBIH SERING GAGAL. Sistem tetap menampilkannya apa adanya, bukan sebagai saran untuk masuk.` };
 }
 
-function SummaryView({ data, spot, now }: { data: DashboardData; spot: Spot | null; now: number }) {
+function SummaryView({ data, spot, now, onNavigate }: { data: DashboardData; spot: Spot | null; now: number; onNavigate: (v: ViewKey) => void }) {
   const rec = data.recommendation ?? {};
   const status = rec.status ?? "netral";
   const bias = rec.bias ?? "netral";
@@ -367,7 +400,10 @@ function SummaryView({ data, spot, now }: { data: DashboardData; spot: Spot | nu
         <h1>Apa kata data <span>hari ini.</span></h1>
         <p className="hero-subtitle">Versi sederhana tanpa istilah teknis — untuk tahu arah emas dan apakah ada peluang, dalam 1 menit bacaan.</p>
       </div>
-      {livePrice != null && <StatusPill tone="green">XAUUSD {fmtUsd(livePrice)}</StatusPill>}
+      <div className="hero-actions">
+        {livePrice != null && <StatusPill tone="green">XAUUSD {fmtUsd(livePrice)}</StatusPill>}
+        <button className="secondary-button" onClick={() => onNavigate("analysis")}>Detail teknis <ArrowUpRight size={15} /></button>
+      </div>
     </section>
 
     <div className="signal-banner">
@@ -511,7 +547,7 @@ function Overview({ data, spot, now, onNavigate }: { data: DashboardData; spot: 
       </div>
       <div className="hero-actions">
         <button className="icon-button" aria-label="Refresh data" onClick={() => window.location.reload()}><RefreshCw size={17} /></button>
-        <button className="primary-button" onClick={() => onNavigate("analysis")}><Sparkles size={16} />Open daily analysis</button>
+        <button className="primary-button" onClick={() => onNavigate("summary")}><Sparkles size={16} />Open daily analysis</button>
       </div>
     </section>
 
@@ -748,6 +784,7 @@ function BacktestView({ data }: { data: DashboardData }) {
   const [tf, setTf] = useState<"4h" | "1h">("4h");
   const [selected, setSelected] = useState<string | null>(null);
   const [reports, setReports] = useState<ReportsIndex | null>(null);
+  const [openPdf, setOpenPdf] = useState<ReportFile | null>(null);
   useEffect(() => { loadReports().then(setReports); }, []);
   const results = useMemo(() =>
     (data.patterns?.results ?? []).filter((r) => r.tf === tf && (r.n ?? 0) >= 10),
@@ -828,11 +865,11 @@ function BacktestView({ data }: { data: DashboardData }) {
           {(reports?.files ?? []).length ? (
             <div className="source-list">
               {reports!.files!.map((f) => (
-                <a className="source-row" href={f.name ? `${REPORTS_BASE}/${f.name}` : "#"} target="_blank" rel="noreferrer" key={f.name}>
+                <button className="source-row" style={{ width: "100%", background: "transparent", border: 0, cursor: "pointer", textAlign: "left", font: "inherit", color: "inherit", padding: "12px 0" }} key={f.name} onClick={() => f.name && setOpenPdf(f)}>
                   <div className="source-logo"><FileCheck2 size={15} /></div>
-                  <div><b>{f.date_wib ?? f.name}</b><small>{f.kb != null ? `${f.kb} KB` : ""}{f.summary ? ` · ${f.summary}` : ""} · buka PDF di tab baru</small></div>
+                  <div><b>{f.date_wib ?? f.name}</b><small>{f.kb != null ? `${f.kb} KB` : ""}{f.summary ? ` · ${f.summary}` : ""} · klik untuk baca</small></div>
                   <ExternalLink size={14} />
-                </a>
+                </button>
               ))}
             </div>
           ) : (
@@ -840,6 +877,20 @@ function BacktestView({ data }: { data: DashboardData }) {
               <div className="empty-icon"><BookOpen size={20} /></div>
               <h3>Belum ada laporan</h3>
               <p>Job "Laporan Mingguan" belum pernah menghasilkan PDF — jalankan manual sekali di tab Actions (Laporan Mingguan → Run workflow), atau tunggu jadwal Senin pagi WIB.</p>
+            </div>
+          )}
+          {openPdf?.name && (
+            <div className="pdf-modal" role="dialog" aria-modal="true" aria-label="Laporan mingguan PDF">
+              <div className="pdf-modal-head">
+                <b>{openPdf.date_wib ?? openPdf.name}</b>
+                <div className="pdf-modal-actions">
+                  <a className="secondary-button" href={reportUrl(openPdf.name)} target="_blank" rel="noreferrer">Tab baru <ExternalLink size={13} /></a>
+                  <button className="icon-button" aria-label="Tutup laporan" onClick={() => setOpenPdf(null)}><X size={16} /></button>
+                </div>
+              </div>
+              <div className="pdf-frame-box">
+                <iframe src={reportUrl(openPdf.name)} title="Laporan mingguan GoldPulse" />
+              </div>
             </div>
           )}
         </div>
@@ -938,17 +989,17 @@ function FundamentalsView({ data, now }: { data: DashboardData; now: number }) {
 export default function Home() {
   const { data, spot, loading, now } = useDashboard();
   const wibClock = useWibClock();
-  const [view, setView] = useState<ViewKey>("summary");
+  const [view, setView] = useState<ViewKey>("overview");
   const [mobileOpen, setMobileOpen] = useState(false);
   const [noticeHidden, setNoticeHidden] = useState(false);
-  const activeLabel = navItems.find((item) => item.key === view)?.label ?? "Overview";
+  const activeLabel = view === "summary" ? "Ringkasan harian" : navItems.find((item) => item.key === view)?.label ?? "Overview";
   const rec = data?.recommendation ?? null;
   const status = rec?.status ?? null;
 
   const content = !data ? (
     <div className="empty-feed"><div className="empty-icon"><Database size={23} /></div><h3>{loading ? "Memuat data pasar…" : "Data belum tersedia"}</h3><p>{loading ? "Mengambil candle, statistik, dan rekomendasi dari repo." : "Pastikan job backfill/sync sudah dijalankan, lalu muat ulang."}</p></div>
   ) : view === "summary" ? (
-    <SummaryView data={data} spot={spot} now={now} />
+    <SummaryView data={data} spot={spot} now={now} onNavigate={setView} />
   ) : view === "overview" ? (
     <Overview data={data} spot={spot} now={now} onNavigate={setView} />
   ) : view === "analysis" ? (

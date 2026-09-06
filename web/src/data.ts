@@ -106,6 +106,11 @@ export async function loadDashboard(): Promise<DashboardData> {
 // ---- laporan mingguan PDF (dibuat job report.yml tiap Senin pagi WIB) ----
 
 export const REPORTS_BASE = `${DATA_BASE}/reports`;
+// PDF dibuka via jsDelivr: raw.githubusercontent mengirim Content-Type
+// octet-stream (browser otomatis DOWNLOAD), jsDelivr mengirim application/pdf
+// (browser VIEW langsung). Cache CDN ~12 jam — cukup untuk laporan mingguan.
+export const PDF_BASE = "https://cdn.jsdelivr.net/gh/ponimazino/gold@main/data/reports";
+export const reportUrl = (name: string) => `${PDF_BASE}/${name}`;
 
 export interface ReportFile {
   name?: string; date_wib?: string; kb?: number;
@@ -223,8 +228,10 @@ export const PATTERN_NAMES: Record<string, string> = {
 
 // candle untuk recharts: label WIB + ema20/50 overlay
 export interface ChartRow {
-  ts: number; label: string; high: number; low: number;
+  ts: number; label: string; open: number; high: number; low: number;
   close: number; ema20: number; ema50: number;
+  up: boolean; wickBase: number; wick: number;
+  bodyBase: number; body: number;
 }
 
 export function toChartRows(bars: Bar[]): ChartRow[] {
@@ -234,10 +241,17 @@ export function toChartRows(bars: Bar[]): ChartRow[] {
   const fmtDay = new Intl.DateTimeFormat("en-GB", {
     timeZone: WIB, day: "2-digit", month: "short",
   });
-  return bars.map((b, i) => ({
-    ts: utcStringToTs(b.t),
-    label: fmtDay.format(utcStringToTs(b.t)),
-    high: b.h, low: b.l, close: b.c,
-    ema20: e20[i], ema50: e50[i],
-  }));
+  return bars.map((b, i) => {
+    const up = b.c >= b.o;
+    return {
+      ts: utcStringToTs(b.t),
+      label: fmtDay.format(utcStringToTs(b.t)),
+      open: b.o, high: b.h, low: b.l, close: b.c,
+      ema20: e20[i], ema50: e50[i],
+      up,
+      // untuk mode candle: bar bertumpuk (transparent base + segmen)
+      wickBase: b.l, wick: b.h - b.l,
+      bodyBase: Math.min(b.o, b.c), body: Math.abs(b.c - b.o),
+    };
+  });
 }
