@@ -1,9 +1,10 @@
 """Hourly incremental sync: append the newest candles to data/.
 
 Local:   set TWELVEDATA_API_KEY (in .env), then `python -m analyzer.jobs.sync`
-GitHub: scheduled by .github/workflows/sync.yml — hourly at minute 17, Mon-Sat UTC.
+GitHub: scheduled by .github/workflows/sync.yml — hourly at minute 17 UTC, ALL days
+        (termasuk Minggu; Twelve Data menyediakan bar Minggu).
 
-Cost: 2 requests per run (H1 + H4) -> ~50 of the 800 free credits/day.
+Cost: 2 requests per run (H1 + H4) -> 48 of the 800 free credits/day.
 Runs are idempotent and gap-filling: cron jitter or a skipped hour is harmless,
 the next run catches up from the last stored bar.
 

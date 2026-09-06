@@ -65,7 +65,7 @@ import {
   utcStringToTs,
 } from "../data";
 
-type ViewKey = "summary" | "overview" | "analysis" | "backtest" | "calendar";
+type ViewKey = "summary" | "overview" | "analysis" | "backtest" | "calendar" | "jadwal";
 type Timeframe = "4H" | "1H";
 
 const SOURCE_LINKS = {
@@ -88,6 +88,7 @@ const navItems: { key: ViewKey; label: string; icon: typeof LayoutDashboard }[] 
   { key: "analysis", label: "Daily analysis", icon: Crosshair },
   { key: "backtest", label: "Backtest lab", icon: FlaskConical },
   { key: "calendar", label: "Fundamentals", icon: Newspaper },
+  { key: "jadwal", label: "Jadwal", icon: Clock3 },
 ];
 
 function StatusPill({ tone = "green", children }: { tone?: "green" | "amber" | "violet" | "slate"; children: React.ReactNode }) {
@@ -193,6 +194,13 @@ function PriceChart({ data, spot }: { data: DashboardData; spot: Spot | null }) 
       last.close = spot.price;
       last.high = Math.max(last.high, spot.price);
       last.low = Math.min(last.low, spot.price);
+      // segmen candle ikut nilai baru supaya mode candle tidak basi
+      const bodyLow = Math.min(last.open, last.close);
+      const bodyHigh = Math.max(last.open, last.close);
+      last.cBase = last.low;
+      last.cWickLower = bodyLow - last.low;
+      last.cBody = bodyHigh - bodyLow;
+      last.cWickUpper = last.high - bodyHigh;
     }
     return arr;
   }, [allRows, range, spot?.price, MAX]);
@@ -289,20 +297,28 @@ function PriceChart({ data, spot }: { data: DashboardData; spot: Spot | null }) 
             {lv && timeframe === "4H" && atRightEdge && (
               <ReferenceArea y1={lv.entry - lv.atr14 * 0.5} y2={lv.entry + lv.atr14 * 0.5} fill="#d5ff3f" fillOpacity={0.08} strokeOpacity={0} />
             )}
+            {/* NOTE: jangan bungkus <Bar> dalam fragment <></> — recharts
+                (react-is 18 di bawah React 19) tidak me-flatten fragment,
+                sehingga bar tidak terdeteksi. Pakai child kondisional langsung. */}
             {mode === "line" ? (
               <Area type="monotone" dataKey="close" stroke="#d5ff3f" strokeWidth={2.4} fill="url(#priceFill)" dot={false} activeDot={{ r: 4, fill: "#d5ff3f", stroke: "#16161c", strokeWidth: 2 }} />
             ) : (
-              <>
-                {/* candlestick via bar bertumpuk: base transparan + wick + body */}
-                <Bar dataKey="wickBase" stackId="wick" fill="transparent" isAnimationActive={false} />
-                <Bar dataKey="wick" stackId="wick" barSize={1} isAnimationActive={false}>
-                  {visible.map((r, i) => <Cell key={i} fill={r.up ? "#d5ff3f" : "#ff7799"} />)}
-                </Bar>
-                <Bar dataKey="bodyBase" stackId="body" fill="transparent" isAnimationActive={false} />
-                <Bar dataKey="body" stackId="body" isAnimationActive={false}>
-                  {visible.map((r, i) => <Cell key={i} fill={r.up ? "#d5ff3f" : "#ff7799"} />)}
-                </Bar>
-              </>
+              <Bar dataKey="cBase" stackId="candle" fill="transparent" isAnimationActive={false} />
+            )}
+            {mode === "candle" && (
+              <Bar dataKey="cWickLower" stackId="candle" barSize={1.5} isAnimationActive={false}>
+                {visible.map((r, i) => <Cell key={i} fill={r.up ? "#d5ff3f" : "#ff7799"} />)}
+              </Bar>
+            )}
+            {mode === "candle" && (
+              <Bar dataKey="cBody" stackId="candle" isAnimationActive={false}>
+                {visible.map((r, i) => <Cell key={i} fill={r.up ? "#d5ff3f" : "#ff7799"} />)}
+              </Bar>
+            )}
+            {mode === "candle" && (
+              <Bar dataKey="cWickUpper" stackId="candle" barSize={1.5} isAnimationActive={false}>
+                {visible.map((r, i) => <Cell key={i} fill={r.up ? "#d5ff3f" : "#ff7799"} />)}
+              </Bar>
             )}
             <Line type="monotone" dataKey="ema20" stroke="#a58bff" strokeWidth={1.4} dot={false} />
             <Line type="monotone" dataKey="ema50" stroke="#7a7a86" strokeWidth={1.2} strokeDasharray="5 5" dot={false} />
@@ -313,7 +329,7 @@ function PriceChart({ data, spot }: { data: DashboardData; spot: Spot | null }) 
         </ResponsiveContainer>
       </div>
       <div className="chart-footnote">
-        <span><Clock3 size={13} /> Candle terakhir {formatWib(latest.ts)}</span>
+        <span><Clock3 size={13} /> Candle terakhir buka {formatWib(latest.ts)} · data disinkron {data.meta?.updated_at_wib ?? "—"} (tiap jam :17 WIB)</span>
         <span className={latest.close >= previous.close ? "positive" : "negative"}>
           {latest.close >= previous.close ? "▲" : "▼"} {Math.abs(delta).toFixed(2)}% vs candle sebelumnya
         </span>
@@ -1017,8 +1033,95 @@ function FundamentalsView({ data, now }: { data: DashboardData; now: number }) {
             </a>
           )) : <small style={{ color: "#666674", fontSize: 10 }}>Belum ada berita dalam 36 jam terakhir.</small>}
         </div>
-        <div className="timestamp-card"><Clock3 size={15} /><div><b>All times shown in WIB</b><span>Pipeline check: {data.calendar?.generated_at_wib ?? "—"}</span></div></div>
+        <div className="timestamp-card"><Clock3 size={15} /><div><b>All times shown in WIB</b><span>Pipeline check: {data.calendar?.updated_at_wib ?? "—"}</span></div></div>
       </div>
+    </div>
+  </>);
+}
+
+// ---- view: Jadwal (kapan tiap data diperbarui) ----
+
+const SCHEDULE_ROWS: Array<{
+  icon: typeof Clock3; fitur: string; jadwal: string;
+  sumber: string; catatan: string;
+}> = [
+  { icon: TrendingUp, fitur: "Candle H1/H4", jadwal: "Tiap jam, menit :17 WIB — semua hari (termasuk Minggu)",
+    sumber: "Twelve Data · workflow Hourly Sync",
+    catatan: "gap-filling: jam yang terlewat otomatis dikejar di run berikutnya" },
+  { icon: Sparkles, fitur: "Rekomendasi harian (entry/tunggu/netral)", jadwal: "Senin–Jumat 05:37 WIB",
+    sumber: "workflow Analisa Harian",
+    catatan: "sekalian menilai rekomendasi kemarin terhadap harga aktual (feedback loop)" },
+  { icon: FlaskConical, fitur: "Statistik backtest per pola", jadwal: "Senin–Jumat 05:37 WIB (ikut analisa harian)",
+    sumber: "workflow Analisa Harian",
+    catatan: "walk-forward 70/30, data sampai detik itu" },
+  { icon: CalendarDays, fitur: "Kalender ekonomi 3★ US", jadwal: "Tiap 4 jam, menit :43 WIB",
+    sumber: "Trading Economics · workflow Fundamental",
+    catatan: "hanya importance 3★, country US" },
+  { icon: Newspaper, fitur: "Berita tervalidasi", jadwal: "Tiap 4 jam, menit :43 WIB (job yang sama)",
+    sumber: "Google News RSS + GDELT · workflow Fundamental",
+    catatan: "whitelist wire (Reuters, Bloomberg, FT, CNBC dkk), 36 jam terakhir" },
+  { icon: FileCheck2, fitur: "Laporan mingguan PDF", jadwal: "Senin 04:23 WIB",
+    sumber: "workflow Laporan Mingguan",
+    catatan: "arsip maks 52 laporan, tersimpan di repo" },
+  { icon: Zap, fitur: "Spot live (harga di kartu)", jadwal: "Tiap 30 detik, di browser Anda",
+    sumber: "XAUS.com (tanpa API key)",
+    catatan: "display only — tidak pernah disimpan ke data" },
+  { icon: RefreshCw, fitur: "Refresh dashboard", jadwal: "Tiap 10 menit (browser)",
+    sumber: "raw.githubusercontent.com",
+    catatan: "tarik-refresh browser selalu mengambil data segar" },
+];
+
+function JadwalView({ data }: { data: DashboardData }) {
+  const lastRun: Record<string, string | undefined> = {
+    "Candle H1/H4": data.meta?.updated_at_wib,
+    "Rekomendasi harian (entry/tunggu/netral)": data.recommendation?.created_at_wib,
+    "Statistik backtest per pola": data.patterns?.generated_at_wib,
+    "Kalender ekonomi 3★ US": data.calendar?.updated_at_wib,
+    "Berita tervalidasi": data.news?.updated_at_wib,
+    "Laporan mingguan PDF": data.tracking?.updated_at_wib,
+    "Spot live (harga di kartu)": "live",
+    "Refresh dashboard": "otomatis",
+  };
+  return (<>
+    <section className="hero-row compact">
+      <div>
+        <div className="eyebrow"><Clock3 size={13} /> Jadwal update <span className="eyebrow-separator">/</span> Semua waktu WIB</div>
+        <h1>Kapan data <span>disegarkan.</span></h1>
+        <p className="hero-subtitle">Semua update berjalan otomatis di GitHub Actions — tidak ada yang perlu dijalankan manual (kecuali backfill). Angka "terakhir" diambil langsung dari data yang sedang Anda lihat.</p>
+      </div>
+      <StatusPill tone="green"><Check size={12} />Semua otomatis</StatusPill>
+    </section>
+    <div className="panel" style={{ padding: 0, overflow: "hidden" }}>
+      <table className="sched-table">
+        <thead>
+          <tr>
+            <th>Fitur / data</th>
+            <th>Jadwal update</th>
+            <th className="hide-sm">Sumber</th>
+            <th>Terakhir</th>
+          </tr>
+        </thead>
+        <tbody>
+          {SCHEDULE_ROWS.map((r) => {
+            const Icon = r.icon;
+            return (
+              <tr key={r.fitur}>
+                <td>
+                  <div className="sched-fitur"><span className="sched-ico"><Icon size={14} /></span><b>{r.fitur}</b></div>
+                  <small className="sched-note">{r.catatan}</small>
+                </td>
+                <td className="sched-when">{r.jadwal}</td>
+                <td className="hide-sm sched-src">{r.sumber}</td>
+                <td><span className="sched-last">{lastRun[r.fitur] ?? "—"}</span></td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+    <div className="panel assumption-box" style={{ marginTop: 14 }}>
+      <div><CircleHelp size={14} /><b>Kuota API</b></div>
+      <p>Twelve Data gratis 800 kredit/hari. Pemakaian sekarang ±48/hari (2 request per sync × 24 jam) — masih sangat longgar. Kalender berita memakai scraping ringan (tanpa kredit).</p>
     </div>
   </>);
 }
@@ -1045,8 +1148,10 @@ export default function Home() {
     <AnalysisView data={data} now={now} />
   ) : view === "backtest" ? (
     <BacktestView data={data} />
-  ) : (
+  ) : view === "calendar" ? (
     <FundamentalsView data={data} now={now} />
+  ) : (
+    <JadwalView data={data} />
   );
 
   const days = (() => {
@@ -1081,7 +1186,7 @@ export default function Home() {
           <div className="data-health">
             <div className="health-top"><span>Data health</span><StatusPill tone={data?.meta?.status === "ok" ? "green" : "amber"}>{data?.meta?.status ?? "…"}</StatusPill></div>
             <div className="health-bar"><span style={{ width: `${Math.min(100, Math.round((days / 1095) * 100))}%` }} /></div>
-            <small>{days ? `${days.toLocaleString("en-US")} hari H1 · sync ${data?.meta?.updated_at_wib ?? "—"}` : "menunggu sync pertama"}</small>
+            <small>{days ? `${days.toLocaleString("en-US")} hari H1 · candle diperbarui ${data?.meta?.updated_at_wib ?? "—"}` : "menunggu sync pertama"}</small>
           </div>
           <div className="profile">
             <div className="avatar">GP</div>
@@ -1106,7 +1211,7 @@ export default function Home() {
             <div className="demo-notice">
               <div>
                 <AlertTriangle size={14} />
-                <span><b>Live data.</b> Sync terakhir {data?.meta?.updated_at_wib ?? "—"} · rekomendasi {rec?.created_at_wib ?? "—"} · probabilitas statistik, bukan saran finansial.</span>
+                <span><b>Live data.</b> Candle H1/H4 terakhir diperbarui {data?.meta?.updated_at_wib ?? "—"} · rekomendasi dibuat {rec?.created_at_wib ?? "—"} · probabilitas statistik, bukan saran finansial.</span>
               </div>
               <button aria-label="Dismiss notice" onClick={() => setNoticeHidden(true)}><X size={14} /></button>
             </div>

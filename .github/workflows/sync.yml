@@ -2,10 +2,12 @@
 
 on:
   schedule:
-    # Every hour Mon-Sat UTC at minute 17 (odd minute = less cron congestion).
+    # Every hour at minute 17 UTC (odd minute = less cron congestion), ALL days
+    # including Sunday (Twelve Data menyediakan bar Minggu; kuota aman:
+    # 2 request/run x 24 = 48 dari 800 kredit gratis per hari).
     # Runs are idempotent + gap-filling, so GitHub cron jitter (up to ~10 min)
-    # is harmless. Sunday evening bars are backfilled by Monday's run.
-    - cron: "17 * * * 1-6"
+    # is harmless.
+    - cron: "17 * * * *"
   workflow_dispatch:
 
 permissions:

@@ -61,8 +61,8 @@ export interface DashboardData {
   bars1h: Bar[];
   bars4h: Bar[];
   patterns: { generated_at_wib?: string; params?: Record<string, unknown>; results?: PatternStat[] } | null;
-  calendar: { source?: string; generated_at_wib?: string; events?: CalEvent[] } | null;
-  news: { items?: NewsItem[] } | null;
+  calendar: { source?: string; updated_at_wib?: string; events?: CalEvent[] } | null;
+  news: { updated_at_wib?: string; items?: NewsItem[] } | null;
   recommendation: Recommendation | null;
   tracking: Tracking | null;
 }
@@ -230,8 +230,10 @@ export const PATTERN_NAMES: Record<string, string> = {
 export interface ChartRow {
   ts: number; label: string; open: number; high: number; low: number;
   close: number; ema20: number; ema50: number;
-  up: boolean; wickBase: number; wick: number;
-  bodyBase: number; body: number;
+  up: boolean;
+  // 4 segmen candle SATU stack (bawah → atas): base transparan, sumbu
+  // bawah, badan, sumbu atas — recharts menumpuknya jadi 1 candle per bar.
+  cBase: number; cWickLower: number; cBody: number; cWickUpper: number;
 }
 
 export function toChartRows(bars: Bar[]): ChartRow[] {
@@ -249,9 +251,12 @@ export function toChartRows(bars: Bar[]): ChartRow[] {
       open: b.o, high: b.h, low: b.l, close: b.c,
       ema20: e20[i], ema50: e50[i],
       up,
-      // untuk mode candle: bar bertumpuk (transparent base + segmen)
-      wickBase: b.l, wick: b.h - b.l,
-      bodyBase: Math.min(b.o, b.c), body: Math.abs(b.c - b.o),
+      // segmen candle untuk satu stack: 0→low (transparan), low→min(o,c),
+      // min(o,c)→max(o,c), max(o,c)→high
+      cBase: b.l,
+      cWickLower: Math.min(b.o, b.c) - b.l,
+      cBody: Math.abs(b.c - b.o),
+      cWickUpper: b.h - Math.max(b.o, b.c),
     };
   });
 }
