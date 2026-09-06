@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Area,
   AreaChart,
@@ -39,6 +39,7 @@ import {
   ShieldAlert,
   SlidersHorizontal,
   Sparkles,
+  TimerReset,
   TrendingUp,
   X,
   Zap,
@@ -51,15 +52,18 @@ import {
   fmtUsd,
   formatWib,
   loadDashboard,
+  loadReports,
   PATTERN_NAMES,
   pctChange,
+  REPORTS_BASE,
+  ReportsIndex,
   scoreScenario,
   Spot,
   toChartRows,
   utcStringToTs,
 } from "../data";
 
-type ViewKey = "overview" | "analysis" | "backtest" | "calendar";
+type ViewKey = "summary" | "overview" | "analysis" | "backtest" | "calendar";
 type Timeframe = "4H" | "1H";
 
 const SOURCE_LINKS = {
@@ -70,12 +74,14 @@ const SOURCE_LINKS = {
 };
 
 const acceptedSources = [
+  { name: "Twelve Data", note: "OHLCV H1/H4 historis 3 tahun — backfill + sync per jam", href: SOURCE_LINKS.twelveData },
+  { name: "XAUS.com", note: "Spot live untuk kartu harga (display only, tidak disimpan)", href: SOURCE_LINKS.xaus },
   { name: "Trading Economics", note: "Kalender event bintang-3, US saja", href: SOURCE_LINKS.tradingEconomics },
   { name: "Reuters & wire terverifikasi", note: "Berita breaking — tanpa opini, whitelist sumber", href: SOURCE_LINKS.reuters },
-  { name: "Twelve Data + XAUS.com", note: "OHLCV H1/H4 historis + spot live", href: SOURCE_LINKS.twelveData },
 ];
 
 const navItems: { key: ViewKey; label: string; icon: typeof LayoutDashboard }[] = [
+  { key: "summary", label: "Ringkasan", icon: Sparkles },
   { key: "overview", label: "Overview", icon: LayoutDashboard },
   { key: "analysis", label: "Daily analysis", icon: Crosshair },
   { key: "backtest", label: "Backtest lab", icon: FlaskConical },
@@ -144,33 +150,87 @@ function useWibClock() {
   return new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Jakarta", hour: "2-digit", minute: "2-digit", hour12: false }).format(tick);
 }
 
-// ---- chart harga nyata (H4 prioritas / H1) ----
+// ---- chart harga nyata (H4 prioritas / H1) — bisa digeser & di-zoom ----
+//
+// Interaksi: scroll = zoom (anchor di posisi kursor), klik-tarik = geser
+// periode, tombol +/-/reset untuk sentuh (mobile). Jendela default 90 bar.
+
+const CHART_LOAD = 1200;  // bar maksimum yang dimuat ke grafik
+const CHART_MIN_BARS = 15;
 
 function PriceChart({ data, spot }: { data: DashboardData; spot: Spot | null }) {
   const [timeframe, setTimeframe] = useState<Timeframe>("4H");
-  const rows = useMemo(() => {
+  const chartBoxRef = useRef<HTMLDivElement>(null);
+  const dragRef = useRef<{ chartX: number; start: number } | null>(null);
+
+  // rows penuh (EMA dihitung atas seluruh window supaya konsisten saat digeser)
+  const allRows = useMemo(() => {
     const bars = timeframe === "4H" ? data.bars4h : data.bars1h;
-    const slice = bars.slice(timeframe === "4H" ? -58 : -120);
-    const out = toChartRows(slice);
-    // spot live menimpa close candle terakhir (display saja)
-    if (spot && out.length) {
-      const last = out[out.length - 1];
+    return toChartRows(bars.slice(-CHART_LOAD));
+  }, [data, timeframe]);
+
+  const MAX = allRows.length;
+  const defaultRange = useMemo(() => ({ start: Math.max(0, MAX - 90), count: Math.min(90, MAX) }), [MAX]);
+  const [range, setRange] = useState(defaultRange);
+  useEffect(() => setRange(defaultRange), [defaultRange]); // reset saat ganti TF / data baru
+
+  const plotWidth = () => Math.max(100, (chartBoxRef.current?.clientWidth ?? 300) - 60);
+
+  const clampRange = (start: number, count: number) => {
+    const c = Math.max(CHART_MIN_BARS, Math.min(MAX, count));
+    const s = Math.max(0, Math.min(MAX - c, start));
+    return { start: s, count: c };
+  };
+
+  const rows = useMemo(() => {
+    const arr = allRows.slice(range.start, range.start + range.count);
+    // spot live menimpa close candle terakhir (display saja) bila terlihat
+    if (spot && arr.length && range.start + range.count >= MAX) {
+      const last = arr[arr.length - 1];
       last.close = spot.price;
       last.high = Math.max(last.high, spot.price);
       last.low = Math.min(last.low, spot.price);
     }
-    return out;
-  }, [data, timeframe, spot?.price, spot?.at]);
+    return arr;
+  }, [allRows, range, spot?.price, MAX]);
+
+  // zoom via scroll — anchor tetap di posisi kursor
+  useEffect(() => {
+    const el = chartBoxRef.current;
+    if (!el || !MAX) return;
+    const onWheel = (ev: WheelEvent) => {
+      ev.preventDefault();
+      const pw = plotWidth();
+      const f = Math.min(1, Math.max(0, ev.offsetX / pw));
+      setRange((r) => {
+        const factor = ev.deltaY > 0 ? 1.18 : 0.85; // scroll bawah = zoom out
+        const anchor = r.start + f * r.count;
+        const count = Math.round(r.count * factor);
+        return clampRange(Math.round(anchor - f * count), count);
+      });
+    };
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+  }, [MAX]);
+
+  const zoomBy = (factor: number) => setRange((r) => {
+    const anchor = r.start + r.count / 2;
+    const count = Math.round(r.count * factor);
+    return clampRange(Math.round(anchor - count / 2), count);
+  });
 
   const rec = data.recommendation;
   const lv = rec?.levels ?? null;
-  const latest = rows[rows.length - 1];
+  const latest = allRows[allRows.length - 1];
   if (!latest) return <div className="chart-footnote"><span>Data candle belum tersedia.</span></div>;
-  const previous = rows[rows.length - 2] ?? latest;
-  const min = Math.floor(Math.min(...rows.map((d) => d.low)) - 8);
-  const max = Math.ceil(Math.max(...rows.map((d) => d.high)) + 8);
-  const labels = rows.filter((_, i) => i % (timeframe === "4H" ? 10 : 20) === 0).map((d) => d.label);
+  const previous = allRows[allRows.length - 2] ?? latest;
+  const visible = rows.length ? rows : allRows;
+  const min = Math.floor(Math.min(...visible.map((d) => d.low)) - 8);
+  const max = Math.ceil(Math.max(...visible.map((d) => d.high)) + 8);
+  const tickEvery = Math.max(1, Math.ceil(visible.length / 8));
+  const labels = visible.filter((_, i) => i % tickEvery === 0).map((d) => d.label);
   const delta = pctChange(latest.close, previous.close);
+  const atRightEdge = range.start + range.count >= MAX;
 
   return (
     <div className="chart-wrap">
@@ -178,11 +238,27 @@ function PriceChart({ data, spot }: { data: DashboardData; spot: Spot | null }) 
         <div className="legend-item"><span className="legend-line lime" />Price</div>
         <div className="legend-item"><span className="legend-line purple" />EMA 20</div>
         <div className="legend-item"><span className="legend-line gray" />EMA 50</div>
-        <div className="chart-range">{rows[0].label} — {latest.label}</div>
+        <div className="chart-tools">
+          <button className="icon-button small" aria-label="Zoom out" onClick={() => zoomBy(1.3)}><span style={{ fontSize: 16, lineHeight: 1 }}>−</span></button>
+          <button className="icon-button small" aria-label="Zoom in" onClick={() => zoomBy(0.7)}><span style={{ fontSize: 16, lineHeight: 1 }}>+</span></button>
+          <button className="icon-button small" aria-label="Reset jendela" onClick={() => setRange(defaultRange)}><span style={{ fontSize: 13 }}>⟲</span></button>
+          <span className="chart-range">{visible[0].label} — {visible[visible.length - 1].label} · {visible.length} bar</span>
+        </div>
       </div>
-      <div className="price-chart">
+      <div className="price-chart" ref={chartBoxRef} style={{ cursor: "grab", touchAction: "pan-y" }}>
         <ResponsiveContainer width="100%" height="100%">
-          <ComposedChart data={rows} margin={{ top: 18, right: 12, left: -12, bottom: 0 }}>
+          <ComposedChart data={visible} margin={{ top: 18, right: 12, left: -12, bottom: 0 }}
+            onMouseDown={(e: { chartX?: number }) => { if (e?.chartX != null) dragRef.current = { chartX: e.chartX, start: range.start }; }}
+            onMouseMove={(e: { chartX?: number }) => {
+              const d = dragRef.current;
+              if (!d || e?.chartX == null) return;
+              const shift = Math.round((e.chartX - d.chartX) / (plotWidth() / range.count));
+              const next = clampRange(d.start - shift, range.count);
+              setRange((r) => (next.start !== r.start ? next : r));
+            }}
+            onMouseUp={() => { dragRef.current = null; }}
+            onMouseLeave={() => { dragRef.current = null; }}
+          >
             <defs>
               <linearGradient id="priceFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#d5ff3f" stopOpacity={0.28} /><stop offset="100%" stopColor="#d5ff3f" stopOpacity={0} /></linearGradient>
             </defs>
@@ -190,13 +266,15 @@ function PriceChart({ data, spot }: { data: DashboardData; spot: Spot | null }) 
             <XAxis dataKey="label" ticks={labels} tick={{ fill: "#686873", fontSize: 10 }} axisLine={false} tickLine={false} />
             <YAxis domain={[min, max]} tick={{ fill: "#686873", fontSize: 10 }} axisLine={false} tickLine={false} width={48} tickFormatter={(v: number) => `$${v}`} />
             <Tooltip content={<ChartTooltip />} cursor={{ stroke: "#747482", strokeDasharray: "4 4" }} />
-            {lv && timeframe === "4H" && (
+            {lv && timeframe === "4H" && atRightEdge && (
               <ReferenceArea y1={lv.entry - lv.atr14 * 0.5} y2={lv.entry + lv.atr14 * 0.5} fill="#d5ff3f" fillOpacity={0.08} strokeOpacity={0} />
             )}
             <Area type="monotone" dataKey="close" stroke="#d5ff3f" strokeWidth={2.4} fill="url(#priceFill)" dot={false} activeDot={{ r: 4, fill: "#d5ff3f", stroke: "#16161c", strokeWidth: 2 }} />
             <Line type="monotone" dataKey="ema20" stroke="#a58bff" strokeWidth={1.4} dot={false} />
             <Line type="monotone" dataKey="ema50" stroke="#7a7a86" strokeWidth={1.2} strokeDasharray="5 5" dot={false} />
-            <ReferenceLine y={latest.close} stroke="#d5ff3f" strokeDasharray="3 4" strokeOpacity={0.55} label={{ value: fmtUsd(latest.close), position: "insideTopRight", fill: "#d5ff3f", fontSize: 11 }} />
+            {atRightEdge && (
+              <ReferenceLine y={latest.close} stroke="#d5ff3f" strokeDasharray="3 4" strokeOpacity={0.55} label={{ value: fmtUsd(latest.close), position: "insideTopRight", fill: "#d5ff3f", fontSize: 11 }} />
+            )}
           </ComposedChart>
         </ResponsiveContainer>
       </div>
@@ -205,6 +283,7 @@ function PriceChart({ data, spot }: { data: DashboardData; spot: Spot | null }) 
         <span className={latest.close >= previous.close ? "positive" : "negative"}>
           {latest.close >= previous.close ? "▲" : "▼"} {Math.abs(delta).toFixed(2)}% vs candle sebelumnya
         </span>
+        <span style={{ color: "#666674" }}>Scroll = zoom · tarik = geser sejarah</span>
       </div>
       <div className="segmented" style={{ marginTop: 10, alignSelf: "flex-start", display: "inline-flex" }}>
         <button className={timeframe === "4H" ? "active" : ""} onClick={() => setTimeframe("4H")}>4H <em>priority</em></button>
@@ -230,6 +309,154 @@ function MiniSparkline({ points }: { points: number[] }) {
       </AreaChart>
     </ResponsiveContainer></div>
   );
+}
+
+// ---- view: Ringkasan (bahasa awam) ----
+
+function plainDir(bias?: string): string {
+  return bias === "bullish" ? "cenderung NAIK" : bias === "bearish" ? "cenderung TURUN" : "mendatar / belum jelas";
+}
+
+function confidenceVerdict(c: number): { label: string; tone: "green" | "amber" | "slate"; text: string } {
+  if (c >= 60) return { label: "Cukup menjanjikan", tone: "green", text: `Secara historis, kondisi serupa kena target ${c} dari 100 kali. Peluang bagus — tapi ${100 - c} kali tetap gagal, jadi batas rugi wajib.` };
+  if (c >= 50) return { label: "Seimbang", tone: "amber", text: `Kira-kira ${c} dari 100 kondisi serupa berhasil, ${100 - c} gagal. Ini seperti lemparan koin yang sedikit miring — hati-hati dan pakai ukuran posisi kecil.` };
+  return { label: "Risiko lebih besar dari peluang", tone: "slate", text: `Jujur: dari 100 kondisi serupa di masa lalu, hanya sekitar ${c} yang kena target — ${100 - c} gagal. Secara historis setup ini LEBIH SERING GAGAL. Sistem tetap menampilkannya apa adanya, bukan sebagai saran untuk masuk.` };
+}
+
+function SummaryView({ data, spot, now }: { data: DashboardData; spot: Spot | null; now: number }) {
+  const rec = data.recommendation ?? {};
+  const status = rec.status ?? "netral";
+  const bias = rec.bias ?? "netral";
+  const lv = rec.levels ?? null;
+  const confidence = rec.confidence != null ? Math.round(rec.confidence * 100) : null;
+  const verdict = confidence != null ? confidenceVerdict(confidence) : null;
+  const stats = data.tracking?.stats;
+  const hitRate = stats?.hit_rate != null ? Math.round(stats.hit_rate * 100) : null;
+  const news = (data.news?.items ?? []).slice(0, 3);
+  const nextEvents = (data.calendar?.events ?? [])
+    .map((e) => ({ e, t: utcStringToTs(e.t_utc) }))
+    .filter(({ t }) => !Number.isNaN(t) && t > now - 24 * 3_600_000)
+    .sort((a, b) => a.t - b.t)
+    .slice(0, 3);
+  const livePrice = spot?.price;
+
+  const statusInfo =
+    status === "entry"
+      ? { title: "Ada peluang entry hari ini", tone: "green" as const, icon: TrendingUp, copy: `Sistem melihat pola yang layak dipertimbangkan. Arahnya ${plainDir(bias)}. Tapi ingat: "layak dipertimbangkan" bukan "pasti untung" — baca batas ruginya di bawah.` }
+      : status === "tunggu"
+        ? { title: "Tunda dulu — sedang ada rilis data besar", tone: "amber" as const, icon: TimerReset, copy: `Rilis ${rec.blackout?.title ?? "data ekonomi AS"} sedang/akan berlangsung. Harga emas biasanya bergerak liar saat ini, jadi sistem menahan semua rekomendasi. Tunggu sampai jeda berlalu.` }
+        : { title: "Tidak ada peluang hari ini — diam itu oke", tone: "slate" as const, icon: ShieldAlert, copy: "Aturan sistem (pola H1 searah tren H4) tidak terpenuhi hari ini. Tidak masuk pasar adalah keputusan yang valid, dan sering kali yang paling menguntungkan." };
+
+  const marketExplain =
+    rec.h4_context?.trend === "up" ? "Beberapa hari terakhir harga emas bergerak NAIK (uptrend) — pembeli masih lebih kuat."
+      : rec.h4_context?.trend === "down" ? "Beberapa hari terakhir harga emas bergerak TURUN (downtrend) — penjual lebih kuat."
+        : "Harga emas bergerak MENDATAR — pembeli dan penjual seimbang, arah belum jelas.";
+  const rsiExplain = rec.h4_context?.rsi14 != null
+    ? rec.h4_context.rsi14 > 70 ? `Momentum sudah terlalu panas (RSI ${rec.h4_context.rsi14.toFixed(0)}) — naik terus tapi rawan tiba-tiba turun.`
+      : rec.h4_context.rsi14 < 45 ? `Momentum lemah (RSI ${rec.h4_context.rsi14.toFixed(0)}) — tekanan jual masih dominan.`
+        : `Momentum tergolong sehat (RSI ${rec.h4_context.rsi14.toFixed(0)}), belum terlalu panas.`
+    : "";
+
+  const riskUsd = lv ? Math.abs(lv.entry - lv.sl) : null;
+  const rewardUsd = lv ? Math.abs(lv.tp1 - lv.entry) : null;
+
+  return (<>
+    <section className="hero-row compact">
+      <div>
+        <div className="eyebrow"><Sparkles size={13} /> Ringkasan harian <span className="eyebrow-separator">/</span> {new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Jakarta", weekday: "long", day: "2-digit", month: "long", year: "numeric" }).format(now)} WIB</div>
+        <h1>Apa kata data <span>hari ini.</span></h1>
+        <p className="hero-subtitle">Versi sederhana tanpa istilah teknis — untuk tahu arah emas dan apakah ada peluang, dalam 1 menit bacaan.</p>
+      </div>
+      {livePrice != null && <StatusPill tone="green">XAUUSD {fmtUsd(livePrice)}</StatusPill>}
+    </section>
+
+    <div className="signal-banner">
+      <div className="signal-mark"><statusInfo.icon size={20} /></div>
+      <div className="signal-copy">
+        <div className="signal-title"><StatusPill tone={statusInfo.tone}>{status === "entry" ? "Peluang" : status === "tunggu" ? "Tunda" : "Diam"}</StatusPill> {statusInfo.title}</div>
+        <p>{statusInfo.copy}</p>
+      </div>
+      {confidence != null && <div className="signal-score"><span>Peluang historis</span><strong>{confidence}<span>%</span></strong></div>}
+    </div>
+
+    <section className="metric-grid">
+      <MetricCard label="Arah pasar (H4)" value={bias === "bullish" ? "Naik" : bias === "bearish" ? "Turun" : "Mendatar"} icon={TrendingUp} tone={bias === "bullish" ? "lime" : bias === "bearish" ? "amber" : "slate"} footnote={marketExplain} />
+      <MetricCard label="Status rekomendasi" value={status === "entry" ? "Ada setup" : status === "tunggu" ? "Tunggu event" : "Tidak ada setup"} icon={statusInfo.icon} footnote={status === "entry" ? "Level aktif — lihat kartu di bawah" : status === "tunggu" ? "Jeda rilis −2 jam s/d +1 jam" : "Kembali cek besok pagi"} />
+      <MetricCard label="Peluang (menurut sejarah)" value={confidence != null ? `${confidence}%` : "—"} icon={Gauge} tone={confidence != null && confidence >= 55 ? "lime" : "amber"} footnote={verdict?.label ?? "Belum ada statistik"} />
+      <MetricCard label="Rekam jejak sistem" value={hitRate != null ? `${hitRate}% kena target` : "Belum ada data"} icon={FileCheck2} tone="slate" footnote={`${stats?.resolved ?? 0} dari ${stats?.total ?? 0} rekomendasi sudah dinilai jujur`} />
+    </section>
+
+    {lv && (
+      <div className="panel" style={{ marginBottom: 0 }}>
+        <div className="panel-header"><div><div className="panel-kicker">Kalau mau ikut rekomendasi ini</div><h2>Risiko &amp; target dalam angka sederhana</h2></div><Crosshair size={18} className="amber-icon" /></div>
+        <div className="level-grid">
+          <div className="level-card entry"><span>Harga masuk (sekitar)</span><strong>{fmtUsd(lv.entry)}</strong><small>Bukan harus persis — area beli/jual, bukan titik sakti</small></div>
+          <div className="level-card target"><span>Target pertama</span><strong>{fmtUsd(lv.tp1)}</strong><small>{rewardUsd != null ? `Untung sekitar ${fmtUsd(rewardUsd)} per ounce bila kena` : ""}</small></div>
+          <div className="level-card invalidation"><span>Batas rugi (SL)</span><strong>{fmtUsd(lv.sl)}</strong><small>{riskUsd != null ? `Kena = rugi sekitar ${fmtUsd(riskUsd)} per ounce. Wajib pasang, tanpa syarat` : ""}</small></div>
+        </div>
+        <div className="risk-note" style={{ marginTop: 14 }}>
+          <ShieldAlert size={15} /><span>Perbandingan sederhana: rugi sekitar {fmtUsd(riskUsd ?? 0, 2)} vs potensi untung {fmtUsd(rewardUsd ?? 0, 2)} — rasio 1 : {riskUsd ? (rewardUsd! / riskUsd).toFixed(1) : "—"}. Kalau rasio ini tidak masuk akal buat kamu, jangan masuk.</span>
+        </div>
+      </div>
+    )}
+
+    <section className="dashboard-grid" style={{ marginTop: 20 }}>
+      <div className="panel">
+        <div className="panel-header"><div><div className="panel-kicker">Penjelasan tanpa jargon</div><h2>Kenapa sistem bilang begitu</h2></div><BookOpen size={18} className="muted-icon" /></div>
+        <div style={{ display: "grid", gap: 10, color: "#c9c9d1", fontSize: 12, lineHeight: 1.65 }}>
+          <p style={{ margin: 0 }}>{marketExplain} {rsiExplain}</p>
+          {status === "entry" && rec.pattern && <p style={{ margin: 0 }}>Pada grafik 1 jam, terbentuk pola <b>{PATTERN_NAMES[rec.pattern] ?? rec.pattern}</b> yang searah dengan tren tersebut — ini pemicu sistem memberi sinyal.</p>}
+          {verdict && <p style={{ margin: 0 }}><b>Tentang angka {confidence}%:</b> {verdict.text}</p>}
+        </div>
+        {(rec.rationale ?? []).length > 0 && (
+          <div className="reasoning-ledger" style={{ marginTop: 14 }}>
+            <div className="ledger-heading"><span>Catatan teknis (apa adanya)</span><span>from engine</span></div>
+            {rec.rationale!.map((line, i) => (
+              <div className="ledger-row" key={i}>
+                <Check size={15} className="ledger-good" />
+                <div><b>{line}</b><span>{rec.created_at_wib ?? ""}</span></div>
+                <StatusPill tone={line.includes("JEDA") ? "amber" : "slate"}>{line.includes("JEDA") ? "jeda" : "fakta"}</StatusPill>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+      <div className="panel">
+        <div className="panel-header"><div><div className="panel-kicker">Yang bisa mengubah segalanya</div><h2>Waspadai ini</h2></div><AlertTriangle size={18} className="amber-icon" /></div>
+        {nextEvents.length > 0 ? (
+          <div className="signal-stack">
+            {nextEvents.map(({ e, t }) => (
+              <div className="stack-row" key={`${e.title}-${e.t_utc}`}>
+                <div className="stack-icon amber"><CalendarDays size={17} /></div>
+                <div><b>{e.title}</b><small>Rilis {formatWib(t)} — {t > now ? countdown(t - now) : "sudah rilis"}. Saat ini harga bisa bergerak liar.</small></div>
+                <span className="cal-countdown" style={{ color: "#f0b429", fontSize: 9, fontWeight: 700 }}>{e.actual ? `aktual ${e.actual}` : "3★"}</span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="empty-feed" style={{ padding: "18px 0" }}>
+            <div className="empty-icon"><CalendarDays size={20} /></div>
+            <h3>Tidak ada rilis besar dalam waktu dekat</h3>
+            <p>Bagus — tidak ada jendela risiko event 3★ US mendekat.</p>
+          </div>
+        )}
+        {news.length > 0 && (
+          <div className="source-list" style={{ marginTop: 16 }}>
+            {news.map((n, i) => (
+              <a className="source-row" href={n.url} target="_blank" rel="noreferrer" key={i}>
+                <div className="source-logo"><Newspaper size={15} /></div>
+                <div><b>{n.title}</b><small>{n.source}</small></div>
+                <ExternalLink size={14} />
+              </a>
+            ))}
+          </div>
+        )}
+        <div className="risk-note" style={{ marginTop: 14 }}>
+          <ShieldAlert size={15} /><span>Ringkasan ini <b>bukan saran beli/jual</b>. Semua angka adalah statistik dari data historis — masa depan tidak menjamin mengulanginya.</span>
+        </div>
+      </div>
+    </section>
+  </>);
 }
 
 // ---- view: Overview ----
@@ -328,7 +555,15 @@ function Overview({ data, spot, now, onNavigate }: { data: DashboardData; spot: 
         <PriceChart data={data} spot={spot} />
       </div>
       <div className="panel posture-panel">
-        <div className="panel-header"><div><div className="panel-kicker">Daily posture</div><h2>Decision map</h2></div><button className="ghost-button" onClick={() => onNavigate("analysis")}>Details <ArrowUpRight size={14} /></button></div>
+        <div className="panel-header">
+          <div><div className="panel-kicker">Daily posture</div><h2>Decision map</h2></div>
+          <div style={{ textAlign: "right" }}>
+            <button className="ghost-button" onClick={() => onNavigate("analysis")}>Details <ArrowUpRight size={14} /></button>
+            <div className="panel-kicker" style={{ marginTop: 8, fontSize: 8, color: "#666674", fontWeight: 500 }}>
+              <Clock3 size={10} style={{ verticalAlign: "-1px" }} /> Update {rec.created_at_wib ?? data.meta?.updated_at_wib ?? "—"}
+            </div>
+          </div>
+        </div>
         <div className="posture-gauge">
           <div className="gauge-ring" style={{ background: `conic-gradient(#d5ff3f 0 ${confidence ?? 0}%, #35353e ${confidence ?? 0}% 100%)` }}>
             <div><strong>{confidence != null ? `${confidence}%` : "—"}</strong><span>{bias}<br />probability</span></div>
@@ -405,7 +640,9 @@ function RuleMonitor({ data, onNavigate }: { data: DashboardData; onNavigate: (v
 
 function AnalysisView({ data, now }: { data: DashboardData; now: number }) {
   const [showMethodology, setShowMethodology] = useState(false);
-  const [note, setNote] = useState(() => localStorage.getItem("goldpulse-note") ?? "");
+  const [note, setNote] = useState(() => {
+    try { return localStorage.getItem("goldpulse-note") ?? ""; } catch { return ""; }
+  });
   const [saved, setSaved] = useState(false);
   const rec = data.recommendation ?? {};
   const status = rec.status ?? "netral";
@@ -497,7 +734,7 @@ function AnalysisView({ data, now }: { data: DashboardData; now: number }) {
           <div className="panel-kicker">Analyst notes</div>
           <h2>Record the why</h2>
           <textarea placeholder="Tambahkan observasi untuk review harian ini…" value={note} onChange={(e) => { setNote(e.target.value); setSaved(false); }} />
-          <button className="secondary-button full" onClick={() => { localStorage.setItem("goldpulse-note", note); setSaved(true); }}>{saved ? "Tersimpan ✓" : "Save note"}</button>
+          <button className="secondary-button full" onClick={() => { try { localStorage.setItem("goldpulse-note", note); } catch { /* private mode */ } setSaved(true); }}>{saved ? "Tersimpan ✓" : "Save note"}</button>
           <small style={{ color: "#666674", fontSize: 9, display: "block", marginTop: 8 }}>Disimpan lokal di perangkat ini (bukan di server).</small>
         </div>
       </aside>
@@ -510,6 +747,8 @@ function AnalysisView({ data, now }: { data: DashboardData; now: number }) {
 function BacktestView({ data }: { data: DashboardData }) {
   const [tf, setTf] = useState<"4h" | "1h">("4h");
   const [selected, setSelected] = useState<string | null>(null);
+  const [reports, setReports] = useState<ReportsIndex | null>(null);
+  useEffect(() => { loadReports().then(setReports); }, []);
   const results = useMemo(() =>
     (data.patterns?.results ?? []).filter((r) => r.tf === tf && (r.n ?? 0) >= 10),
     [data.patterns, tf]);
@@ -578,6 +817,32 @@ function BacktestView({ data }: { data: DashboardData }) {
             <div><AlertTriangle size={15} /><span><b>Contoh kecil</b>Win-rate pola dengan n kecil bukan jaminan statistik — utamakan yang n≥30.</span></div>
           </div>
         </div>
+        <div className="panel">
+          <div className="panel-header">
+            <div><div className="panel-kicker">Laporan mingguan · otomatis Senin 04:23 WIB</div><h2>Deep-dive PDF</h2></div>
+            <StatusPill tone="violet"><BookOpen size={12} />weekly</StatusPill>
+          </div>
+          <p style={{ fontSize: 11, color: "#8e8e9b", margin: "2px 0 12px" }}>
+            Report lengkap tiap pekan: statistik backtest per pola, pembacaan pola berdasarkan history, hasil feedback loop (rekomendasi vs harga aktual), jadwal event 3★ AS, dan sorotan berita tervalidasi.
+          </p>
+          {(reports?.files ?? []).length ? (
+            <div className="source-list">
+              {reports!.files!.map((f) => (
+                <a className="source-row" href={f.name ? `${REPORTS_BASE}/${f.name}` : "#"} target="_blank" rel="noreferrer" key={f.name}>
+                  <div className="source-logo"><FileCheck2 size={15} /></div>
+                  <div><b>{f.date_wib ?? f.name}</b><small>{f.kb != null ? `${f.kb} KB` : ""}{f.summary ? ` · ${f.summary}` : ""} · buka PDF di tab baru</small></div>
+                  <ExternalLink size={14} />
+                </a>
+              ))}
+            </div>
+          ) : (
+            <div className="empty-feed" style={{ padding: "14px 0" }}>
+              <div className="empty-icon"><BookOpen size={20} /></div>
+              <h3>Belum ada laporan</h3>
+              <p>Job "Laporan Mingguan" belum pernah menghasilkan PDF — jalankan manual sekali di tab Actions (Laporan Mingguan → Run workflow), atau tunggu jadwal Senin pagi WIB.</p>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   </>);
@@ -592,10 +857,10 @@ function FundamentalsView({ data, now }: { data: DashboardData; now: number }) {
   const upcoming = useMemo(() =>
     events
       .map((e) => ({ e, t: utcStringToTs(e.t_utc) }))
-      .filter(({ t }) => !Number.isNaN(t))
+      .filter(({ t }) => !Number.isNaN(t) && t > now - 24 * 3_600_000)
       .sort((a, b) => a.t - b.t)
       .slice(0, 6),
-    [events]);
+    [events, now]);
 
   return (<>
     <section className="hero-row compact">
@@ -673,7 +938,7 @@ function FundamentalsView({ data, now }: { data: DashboardData; now: number }) {
 export default function Home() {
   const { data, spot, loading, now } = useDashboard();
   const wibClock = useWibClock();
-  const [view, setView] = useState<ViewKey>("overview");
+  const [view, setView] = useState<ViewKey>("summary");
   const [mobileOpen, setMobileOpen] = useState(false);
   const [noticeHidden, setNoticeHidden] = useState(false);
   const activeLabel = navItems.find((item) => item.key === view)?.label ?? "Overview";
@@ -682,6 +947,8 @@ export default function Home() {
 
   const content = !data ? (
     <div className="empty-feed"><div className="empty-icon"><Database size={23} /></div><h3>{loading ? "Memuat data pasar…" : "Data belum tersedia"}</h3><p>{loading ? "Mengambil candle, statistik, dan rekomendasi dari repo." : "Pastikan job backfill/sync sudah dijalankan, lalu muat ulang."}</p></div>
+  ) : view === "summary" ? (
+    <SummaryView data={data} spot={spot} now={now} />
   ) : view === "overview" ? (
     <Overview data={data} spot={spot} now={now} onNavigate={setView} />
   ) : view === "analysis" ? (

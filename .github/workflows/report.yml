@@ -1,0 +1,47 @@
+name: Laporan Mingguan
+
+on:
+  schedule:
+    # Laporan PDF review mingguan: 04:23 WIB Senin (21:23 UTC Minggu).
+    # Menit ganjil biar tidak berebut antrean runner dengan jadwal populer.
+    # Rilis AS sudah tuntas untuk minggu berjalan, data sync lengkap.
+    - cron: "23 21 * * 0"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: report
+  cancel-in-progress: false
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Build weekly PDF report
+        run: python -m analyzer.jobs.report
+
+      - name: Commit report
+        run: |
+          git config user.name "analyzer-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add data/reports/
+          if git diff --cached --quiet; then
+            echo "No report changes, nothing to commit."
+          else
+            git commit -m "data: laporan mingguan $(date -u +'%Y-%m-%d') UTC"
+            git pull --rebase origin main
+            git push
+          fi

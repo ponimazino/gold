@@ -1,5 +1,7 @@
-// GoldPulse service worker: app shell cache-first (offline-ready),
-// data JSON network-first (fresh, fallback ke cache saat offline).
+// GoldPulse service worker:
+// - navigasi (HTML): network-first -> versi baru selalu menang, cache hanya fallback offline
+// - data JSON repo: network-first, fallback cache
+// - asset shell (JS/CSS hashed): cache-first
 const VERSION = "goldpulse-v1";
 const SHELL = "./";
 
@@ -20,6 +22,23 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
   if (event.request.method !== "GET") return;
+
+  // Navigasi halaman: network-first supaya deploy baru langsung terlihat
+  // (asset JS/CSS punya nama hashed, jadi HTML baru otomatis menarik bundle baru).
+  if (event.request.mode === "navigate" && url.origin === self.location.origin) {
+    event.respondWith(
+      fetch(event.request)
+        .then((res) => {
+          if (res.ok) {
+            const copy = res.clone();
+            caches.open(VERSION).then((cache) => cache.put(event.request, copy));
+          }
+          return res;
+        })
+        .catch(() => caches.match(event.request).then((hit) => hit || caches.match(SHELL)))
+    );
+    return;
+  }
 
   // Data dari repo: network-first, fallback cache (app tetap terbuka offline).
   if (url.hostname === "raw.githubusercontent.com" || url.pathname.startsWith("/data/")) {

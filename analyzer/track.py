@@ -29,6 +29,10 @@ def load_tracking() -> dict:
 
 def _resolve_one(rec: dict, bars: list[dict], horizon: int = HORIZON_1H) -> bool:
     """Update rec['status'] in-place. Return True kalau status berubah."""
+    if rec.get("status") == "entry":
+        # job harian mencatat rekomendasi baru dengan status "entry";
+        # normalisasi ke "active" supaya mulai dinilai terhadap harga aktual.
+        rec["status"] = "active"
     if rec.get("status") != "active":
         return False
     d = rec["direction"]

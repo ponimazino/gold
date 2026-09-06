@@ -179,6 +179,23 @@ def test_feedback_loop():
     print("ok: feedback loop (win/loss konservatif/timeout/active + hit-rate)")
 
 
+def test_feedback_loop_resolves_entry_status():
+    """Regression: job harian mencatat status 'entry', bukan 'active'.
+    _resolve_one harus menormalisasi supaya rekomendasi tetap dinilai."""
+    _isolate_data_dir()
+    t0 = datetime(2026, 9, 4, 12, 0, tzinfo=timezone.utc)
+    rec = _active_rec("r-entry", t0, 1)
+    rec["status"] = "entry"  # seperti yang ditulis job daily.py
+    bars = _bars_from(t0, [(1, 103, 99), (2, 106, 100)])  # TP tersentuh -> win
+    store.save("1h", bars)
+    tracking = {"stats": {}, "history": [rec]}
+    track.resolve_pending(tracking, now=t0 + timedelta(hours=24))
+    assert rec["status"] == "win", rec
+    track.compute_stats(tracking)
+    assert tracking["stats"]["wins"] == 1
+    print("ok: rekomendasi berstatus 'entry' dinormalisasi lalu dinilai (regression)")
+
+
 def test_tracking_persistence():
     _isolate_data_dir()
     p = store.DATA_DIR / "tracking.json"
@@ -195,6 +212,7 @@ def main() -> int:
     test_blackout_blocks_entry()
     test_neutral_when_no_signal()
     test_feedback_loop()
+    test_feedback_loop_resolves_entry_status()
     test_tracking_persistence()
     print("\nALL P5 TESTS PASSED")
     return 0

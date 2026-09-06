@@ -103,6 +103,20 @@ export async function loadDashboard(): Promise<DashboardData> {
   };
 }
 
+// ---- laporan mingguan PDF (dibuat job report.yml tiap Senin pagi WIB) ----
+
+export const REPORTS_BASE = `${DATA_BASE}/reports`;
+
+export interface ReportFile {
+  name?: string; date_wib?: string; kb?: number;
+  summary?: string; rec_status?: string;
+}
+export interface ReportsIndex { updated_at_wib?: string; files?: ReportFile[] }
+
+export async function loadReports(): Promise<ReportsIndex | null> {
+  return getJson<ReportsIndex>(`${REPORTS_BASE}/index.json`);
+}
+
 // ---- spot live (XAUS.com, tanpa key, hanya display) ----
 
 export interface Spot { price: number; at: number; live: boolean }
