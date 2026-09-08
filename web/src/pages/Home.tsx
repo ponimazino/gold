@@ -933,7 +933,7 @@ function BacktestView({ data }: { data: DashboardData }) {
   const current = useMemo(() =>
     results.find((r) => r.pattern === selected) ?? results[0] ?? null,
     [results, selected]);
-  const params = data.patterns?.params as { tp_atr?: number; sl_atr?: number; horizon?: Record<string, number> } | undefined;
+  const params = data.patterns?.params as { tp_atr?: number; sl_atr?: number; horizon?: Record<string, number>; cost_usd?: number; cooldown_bars?: number } | undefined;
   const cov = data.meta?.coverage?.["1h"];
 
   return (<>
@@ -961,16 +961,16 @@ function BacktestView({ data }: { data: DashboardData }) {
         <label>Parameter tersimpan<div className="range-row"><input type="range" min={10} max={35} value={((params?.sl_atr ?? 1) * 10).toFixed(0)} readOnly /><b>SL {(params?.sl_atr ?? 1).toFixed(1)}× · TP {(params?.tp_atr ?? 1.5).toFixed(1)}× ATR</b></div></label>
         <div className="assumption-box">
           <div><CircleHelp size={14} /><b>Definisi aturan</b></div>
-          <p>Entry saat pola muncul di bar H1/H4 searah trend EMA. SL {params?.sl_atr ?? 1}×ATR, TP {params?.tp_atr ?? 1.5}×ATR dalam horizon {params?.horizon?.[tf] ?? "—"} bar. TP+SL di bar sama dihitung LOSS (konservatif). Statistik di-refresh tiap pagi oleh GitHub Actions.</p>
+          <p>Entry saat pola muncul di bar H1/H4 searah trend EMA. SL {params?.sl_atr ?? 1}×ATR, TP {params?.tp_atr ?? 1.5}×ATR dalam horizon {params?.horizon?.[tf] ?? "—"} bar. TP+SL di bar sama dihitung LOSS (konservatif). Kolom "net biaya" memotong spread ${params?.cost_usd != null ? params.cost_usd.toFixed(2) : "0.35"}/oz; sinyal searah yang tumpang tindih dalam {params?.cooldown_bars ?? 4} bar didedup supaya n jujur. Statistik di-refresh tiap 2 jam oleh GitHub Actions.</p>
         </div>
         <div style={{ fontSize: 9, color: "#666674", lineHeight: 1.5 }}>Engine berjalan serverless (schedule harian) — panel ini menampilkan hasil tersimpan terbaru, bukan simulasi lokal.</div>
       </div>
       <div className="backtest-results">
         <div className="result-strip">
           <div><span>Avg. R per trade</span><strong>{current?.avg_r != null ? `${current.avg_r >= 0 ? "+" : ""}${current.avg_r.toFixed(2)}R` : "—"}</strong><small>{PATTERN_NAMES[current?.pattern ?? ""] ?? current?.pattern ?? ""} · {tf.toUpperCase()}</small></div>
-          <div><span>Win rate</span><strong>{current?.win_rate != null ? `${(current.win_rate * 100).toFixed(1)}%` : "—"}</strong><small>{current?.resolved ?? 0} sinyal teresolve</small></div>
-          <div><span>Out-of-sample</span><strong>{current?.oos_win_rate != null ? `${(current.oos_win_rate * 100).toFixed(1)}%` : "—"}</strong><small>30% data terakhir (n={current?.oos_n ?? 0})</small></div>
-          <div><span>Sample size</span><strong>{current?.n ?? 0}</strong><small>Total sinyal terdeteksi</small></div>
+          <div><span>Win rate</span><strong>{current?.win_rate != null ? `${(current.win_rate * 100).toFixed(1)}%` : "—"}</strong><small>{current?.resolved ?? 0} sinyal{current?.win_rate_lo != null && current?.win_rate_hi != null ? ` · 95% CI ${(current.win_rate_lo * 100).toFixed(0)}–${(current.win_rate_hi * 100).toFixed(0)}%` : ""}</small></div>
+          <div><span>Out-of-sample</span><strong>{current?.oos_win_rate != null ? `${(current.oos_win_rate * 100).toFixed(1)}%` : "—"}</strong><small>30% data terakhir (n={current?.oos_n ?? 0}){current?.cost_oos_win_rate != null ? ` · net biaya ${(current.cost_oos_win_rate * 100).toFixed(1)}%` : ""}</small></div>
+          <div><span>Sample size</span><strong>{current?.n ?? 0}</strong><small>Total sinyal (dedup {params?.cooldown_bars ?? "—"} bar)</small></div>
         </div>
         <div className="panel backtest-chart-panel">
           <div className="panel-header"><div><div className="panel-kicker">Perbandingan pola · {tf.toUpperCase()}</div><h2>Win-rate historis</h2></div><StatusPill tone="green"><Check size={12} />Data riil</StatusPill></div>
@@ -1125,7 +1125,7 @@ function RiwayatView({ data }: { data: DashboardData }) {
             </select>
           </label>
         </div>
-        <div className="reasoning-ledger">
+        <div className="reasoning-ledger hist-ledger">
           <div className="ledger-heading"><span>Tanggal · pola · bias — level, hasil &amp; narasi</span><span>log sistem</span></div>
           {filtered.length === 0 ? (
             <div className="empty-feed" style={{ padding: "14px 0" }}>
@@ -1144,9 +1144,15 @@ function RiwayatView({ data }: { data: DashboardData }) {
                   <b>{h.created_at_wib?.slice(0, 10) ?? h.id ?? "?"}{h.pattern ? ` · ${PATTERN_NAMES[h.pattern] ?? h.pattern}` : ""} · {h.bias ?? "netral"}</b>
                   <span>{oc?.why ?? (h.status === "active" || h.status === "entry" ? "Masih berjalan — dinilai saat harga sentuh SL/TP1 atau timeout 24 bar H1." : "menunggu narasi hasil")}</span>
                   <div className="hist-detail">
-                    {lvl && <span>Entry {fmtUsd(lvl.entry)} · SL {fmtUsd(lvl.sl)} · TP1 {fmtUsd(lvl.tp1)} · TP2 {fmtUsd(lvl.tp2)}</span>}
+                    {lvl && <>
+                      <span className="lvl">Entry {fmtUsd(lvl.entry)}</span>
+                      <span className="lvl bad">SL {fmtUsd(lvl.sl)}</span>
+                      <span className="lvl good">TP1 {fmtUsd(lvl.tp1)}</span>
+                      <span className="lvl good">TP2 {fmtUsd(lvl.tp2)}</span>
+                    </>}
                     {h.confidence != null && <span>Confidence {Math.round(h.confidence * 100)}%</span>}
-                    {oc && <span>Puncak +{(oc.mfe_usd ?? 0).toFixed(2)} / terburuk −{(oc.mae_usd ?? 0).toFixed(2)} USD · {oc.bars_held ?? "—"} jam</span>}
+                    {oc && <span>MFE +{(oc.mfe_usd ?? 0).toFixed(2)} / MAE −{(oc.mae_usd ?? 0).toFixed(2)} USD</span>}
+                    {oc && <span>{oc.bars_held ?? "—"} jam</span>}
                     {oc?.resolved_at_wib && <span>Resolve {oc.resolved_at_wib}</span>}
                   </div>
                 </div>

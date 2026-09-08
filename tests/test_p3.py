@@ -98,11 +98,112 @@ def test_oos_split():
     print("ok: OOS split 70/30")
 
 
+def test_cost_evaluation():
+    """cost_usd menggeser barrier melawan trader: TP harus tercapai lebih
+    JAUH (+cost) dan SL kena lebih DEKAT (−cost) — win-rate turun jujur,
+    R nominal per trade tetap (biaya masuk ke probabilitas, bukan ukuran)."""
+    rows = [(100, 110, 90, 100)] * 40
+    df = patterns.add_indicators(df_of(rows))
+    sig = {"t": df.index[10], "tf": "1h", "pattern": "x", "dir": 1, "index": 10}
+
+    # gross: tp=+30 (1.5*atr~20), sl=-20; net (cost 5): tp=+35, sl=-15
+    # bar high 131: gross KENA TP (r=1.5), net TIDAK kena TP (butuh 135)
+    rows[11] = (100, 131, 99, 125)
+    res_gross = backtest.evaluate(patterns.add_indicators(df_of(rows)), [sig], 5)
+    res_net = backtest.evaluate(patterns.add_indicators(df_of(rows)), [sig], 5,
+                                cost_usd=5.0)
+    assert res_gross[0]["outcome"] == "win" and res_gross[0]["r"] == 1.5, res_gross
+    assert res_net[0]["outcome"] != "win", res_net  # TP net di 135, high 131 kurang
+
+    # bar low 82: gross TIDAK kena SL (butuh <=80), net KENA SL (85)
+    rows[11] = (100, 105, 82, 95)
+    res_gross = backtest.evaluate(patterns.add_indicators(df_of(rows)), [sig], 5)
+    res_net = backtest.evaluate(patterns.add_indicators(df_of(rows)), [sig], 5,
+                                cost_usd=5.0)
+    assert res_gross[0]["outcome"] != "loss", res_gross  # SL gross di 80, low 82 lolos
+    assert res_net[0]["outcome"] == "loss" and res_net[0]["r"] == -1.0, res_net
+    print("ok: evaluasi net of cost (TP lebih jauh, SL lebih dekat, R tetap)")
+
+
+def test_wilson_ci():
+    lo, hi = backtest.wilson_ci(0, 0)
+    assert lo is None and hi is None
+    lo, hi = backtest.wilson_ci(10, 10)
+    assert hi == 1.0 and lo > 0.7, (lo, hi)
+    lo, hi = backtest.wilson_ci(0, 10)
+    assert lo == 0.0 and hi < 0.35, (lo, hi)
+    # interval menyempit saat n membesar (p tetap 0.5)
+    _, hi50 = backtest.wilson_ci(25, 50)
+    _, hi400 = backtest.wilson_ci(200, 400)
+    assert hi400 < hi50, (hi50, hi400)
+    # summarize membawa CI
+    results = ([{"tf": "1h", "pattern": "p", "outcome": "win", "r": 1.5}] * 7 +
+              [{"tf": "1h", "pattern": "p", "outcome": "loss", "r": -1.0}] * 3)
+    row = backtest.summarize(results)["results"][0]
+    assert row["win_rate_lo"] < 0.7 < row["win_rate_hi"], row
+    print("ok: interval kepercayaan Wilson 95% (bound, penyempitan, summarize)")
+
+
+def test_dedup_signals():
+    from analyzer.jobs import research
+    sigs = [
+        {"dir": 1, "index": 10, "pattern": "a"},
+        {"dir": 1, "index": 12, "pattern": "b"},   # overlap dgn idx 10 -> drop
+        {"dir": 1, "index": 15, "pattern": "c"},   # jarak 5 dari 10 -> keep
+        {"dir": -1, "index": 16, "pattern": "a"},  # arah beda -> keep
+        {"dir": 1, "index": 18, "pattern": "d"},   # jarak 3 dari 15 -> drop
+    ]
+    out = research.dedup_signals(sigs, cooldown=4)
+    assert [s["index"] for s in out] == [10, 15, 16], out
+    # tanpa dedup tak berubah
+    assert research.dedup_signals(sigs, cooldown=0) == sigs
+    print("ok: dedup sinyal overlap (kluster searah, keep first)")
+
+
+def test_tp2_and_risk_stats():
+    rows = [(100, 110, 90, 100)] * 40  # atr ~20
+    df = patterns.add_indicators(df_of(rows))
+    sig = {"t": df.index[10], "tf": "1h", "pattern": "x", "dir": 1, "index": 10}
+
+    # TP1 (+30) kena, lalu bar besar menusuk TP2 (+60) -> "tp2"
+    rows[11] = (100, 165, 95, 160)
+    res = backtest.evaluate_tp2(patterns.add_indicators(df_of(rows)), [sig], 5)
+    assert res[0]["outcome"] == "tp2", res
+
+    # TP1 kena lalu harga kembali ke entry -> "be"
+    rows[11] = (100, 135, 99, 101)
+    rows[12] = (101, 110, 99, 105)
+    res = backtest.evaluate_tp2(patterns.add_indicators(df_of(rows)), [sig], 5)
+    assert res[0]["outcome"] == "be", res
+
+    # SL duluan sebelum TP1 -> "stopped"
+    rows[11] = (100, 105, 60, 95)
+    res = backtest.evaluate_tp2(patterns.add_indicators(df_of(rows)), [sig], 5)
+    assert res[0]["outcome"] == "stopped", res
+
+    # risk_stats: drawdown & streak dari seri R
+    results = [
+        {"tf": "1h", "pattern": "x", "r": 1.5},
+        {"tf": "1h", "pattern": "x", "r": -1.0},
+        {"tf": "1h", "pattern": "x", "r": -1.0},
+        {"tf": "1h", "pattern": "x", "r": -1.0},
+        {"tf": "1h", "pattern": "x", "r": 1.5},
+    ]
+    rk = backtest.risk_stats(results)[("1h", "x")]
+    assert rk["max_loss_streak"] == 3, rk
+    assert rk["max_dd_r"] == -3.0, rk  # ekuitas: +1.5 -> -1.5 (puncak 1.5, DD -3)
+    print("ok: TP2 runner (tp2/be/stopped) + risk stats (DD, loss streak)")
+
+
 def main() -> int:
     test_indicators()
     test_patterns()
     test_backtest_math()
     test_oos_split()
+    test_cost_evaluation()
+    test_wilson_ci()
+    test_dedup_signals()
+    test_tp2_and_risk_stats()
     print("\nALL P3 TESTS PASSED")
     return 0
 

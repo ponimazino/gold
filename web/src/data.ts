@@ -19,10 +19,13 @@ export interface Meta {
 export interface PatternStat {
   tf: string; pattern: string;
   n?: number; resolved?: number; win_rate?: number | null;
+  win_rate_lo?: number | null; win_rate_hi?: number | null;
   timeout_pct?: number | null; avg_r?: number | null;
   oos_n?: number; oos_win_rate?: number | null;
   safe_n?: number; safe_win_rate?: number | null;
   safe_oos_n?: number; safe_oos_win_rate?: number | null;
+  cost_win_rate?: number | null; cost_oos_win_rate?: number | null;
+  safe_cost_win_rate?: number | null; safe_cost_oos_win_rate?: number | null;
 }
 export interface CalEvent {
   title?: string; t_utc?: string;

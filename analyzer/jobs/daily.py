@@ -33,20 +33,26 @@ def main() -> int:
     now = datetime.now(timezone.utc)
 
     # 1. refresh statistik pola (payload dipakai rekomendasi sebagai confidence)
-    #    dua rule sekaligus: standar (TP 1,5xATR/SL 1xATR) + mode aman
-    #    (TP 1xATR/SL 0,75xATR) — sinyal/indikator dihitung sekali per tf.
+    #    EMPAT rule sekaligus: (standar, mode aman) x (gross, net of cost) —
+    #    sinyal dedup + indikator dihitung sekali per tf.
     all_results: list[dict] = []
     safe_results: list[dict] = []
+    cost_results: list[dict] = []
+    safe_cost_results: list[dict] = []
     horizon_map = {tf: DEFAULT_HORIZON[tf] for tf in INTERVALS}
     for tf in INTERVALS:
-        std, safe = research.run_pair(tf, horizon_map[tf])
+        std, safe, cost, safe_cost = research.run_all(tf, horizon_map[tf])
         all_results.extend(std)
         safe_results.extend(safe)
+        cost_results.extend(cost)
+        safe_cost_results.extend(safe_cost)
     if all_results:
         store.write_json("patterns.json",
                          research.build_payload(all_results, horizon_map,
-                                                safe_results=safe_results))
-        print("[daily] statistik pola diperbarui (standar + mode aman)")
+                                                safe_results=safe_results,
+                                                cost_results=cost_results,
+                                                safe_cost_results=safe_cost_results))
+        print("[daily] statistik pola diperbarui (standar + aman, gross + net)")
     else:
         print("[daily] data harga belum ada — lewati research")
 

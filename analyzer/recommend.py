@@ -18,7 +18,8 @@ import pandas as pd
 
 from . import calendar as cal
 from . import patterns, store
-from .backtest import DEFAULT_SL_ATR, DEFAULT_TP_ATR, SAFE_SL_ATR, SAFE_TP_ATR
+from .backtest import (COST_USD, DEFAULT_SL_ATR, DEFAULT_TP_ATR,
+                       SAFE_SL_ATR, SAFE_TP_ATR)
 
 WIB = ZoneInfo("Asia/Jakarta")
 RECENT_BARS = 2          # sinyal H1 dihitung valid jika muncul di N bar terakhir
@@ -80,7 +81,8 @@ def build_recommendation(now: datetime | None = None) -> dict:
         "next_event": None,
         "rationale": [],
         "params": {"tp1_atr": DEFAULT_TP_ATR, "sl_atr": DEFAULT_SL_ATR, "tp2_atr": TP2_ATR,
-                   "safe_tp1_atr": SAFE_TP_ATR, "safe_sl_atr": SAFE_SL_ATR},
+                   "safe_tp1_atr": SAFE_TP_ATR, "safe_sl_atr": SAFE_SL_ATR,
+                   "cost_usd": COST_USD},
     }
 
     h1_bars = store.load("1h")
@@ -176,10 +178,25 @@ def build_recommendation(now: datetime | None = None) -> dict:
                 f"mode aman: TP1 {SAFE_TP_ATR}xATR / SL {SAFE_SL_ATR}xATR — "
                 f"win-rate OOS {(conf_safe or 0) * 100:.0f}% vs standar "
                 f"{(conf or 0) * 100:.0f}% (dinilai backtest terpisah)")
+        # net of cost: win-rate setelah spread (gross -> net, dua-duanya)
+        net_std = stats.get("cost_oos_win_rate") or stats.get("cost_win_rate")
+        net_safe = (stats.get("safe_cost_oos_win_rate")
+                    or stats.get("safe_cost_win_rate"))
+        if net_std or net_safe:
+            rec["rationale"].append(
+                f"net biaya (spread ~${COST_USD:.2f}/oz): standar "
+                f"{(conf or 0) * 100:.0f}% -> {(net_std or 0) * 100:.0f}%, "
+                f"aman {(conf_safe or 0) * 100:.0f}% -> "
+                f"{(net_safe or 0) * 100:.0f}%")
+        # interval kepercayaan Wilson 95% untuk win-rate full-sample
+        lo, hi = stats.get("win_rate_lo"), stats.get("win_rate_hi")
+        ci_txt = (f", rentang 95% {round(lo * 100)}-{round(hi * 100)}%"
+                  if lo is not None and hi is not None else "")
         rec["confidence_note"] = (
             f"win-rate historis pola '{sig['pattern']}' H1: "
             f"{(stats.get('win_rate') or 0) * 100:.0f}% (n={stats.get('n')}, "
-            f"OOS {(stats.get('oos_win_rate') or 0) * 100:.0f}%) — probabilitas, bukan jaminan")
+            f"OOS {(stats.get('oos_win_rate') or 0) * 100:.0f}%{ci_txt}) — "
+            f"probabilitas, bukan jaminan")
     else:
         rec["confidence_note"] = "statistik pola belum tersedia (jalankan research)"
     rec["rationale"].append(

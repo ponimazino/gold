@@ -29,7 +29,9 @@ from reportlab.graphics.shapes import Drawing, PolyLine, String
 from reportlab.platypus import (Flowable, HRFlowable, Paragraph,
                                 SimpleDocTemplate, Spacer, Table, TableStyle)
 
-from .. import store
+from .. import backtest, store
+from .. import patterns as pat  # alias: "patterns" dipakai variabel JSON di build()
+from . import research
 
 WIB = ZoneInfo("Asia/Jakarta")
 INK = colors.HexColor("#101014")     # hitam pekat (banner / header tabel)
@@ -394,25 +396,34 @@ def build(now: datetime | None = None) -> dict:
     story.append(_section(4, "STATISTIK BACKTEST PER POLA (HASIL TERBARU)"))
     story.append(Spacer(1, 5))
     if results:
-        head = ["TF", "Pola", "n", "Resolved", "Win%", "OOS n",
-                "OOS Win%", "Avg R"]
+        head = ["TF", "Pola", "n", "Win%", "95% CI", "OOS n",
+                "OOS Win%", "Net OOS%", "Avg R"]
         rows = [head]
         for r in results:
+            lo, hi = r.get("win_rate_lo"), r.get("win_rate_hi")
+            ci = (f"{round(lo * 100, 1)}-{round(hi * 100, 1)}"
+                  if lo is not None and hi is not None else "-")
             rows.append([
                 r.get("tf", "-").upper(), r.get("pattern", "-"),
-                r.get("n", 0), r.get("resolved", 0),
+                r.get("n", 0),
                 f"{round((r.get('win_rate') or 0) * 100, 1)}",
+                ci,
                 r.get("oos_n", 0),
                 f"{round((r.get('oos_win_rate') or 0) * 100, 1)}"
                 if r.get("oos_win_rate") is not None else "-",
+                f"{round((r.get('cost_oos_win_rate') or 0) * 100, 1)}"
+                if r.get("cost_oos_win_rate") is not None else "-",
                 f"{r.get('avg_r'):+.2f}" if r.get("avg_r") is not None else "-",
             ])
-        story.append(_table(rows, [14 * mm, 42 * mm, 14 * mm, 18 * mm, 16 * mm,
-                                   14 * mm, 18 * mm, 16 * mm]))
+        story.append(_table(rows, [13 * mm, 40 * mm, 12 * mm, 15 * mm, 20 * mm,
+                                   13 * mm, 16 * mm, 17 * mm, 15 * mm]))
         story.append(Paragraph(
             "Aturan entry backtest: pola searah trend EMA, SL 1.0x ATR, TP 1.5x ATR, "
             "SL dianggap duluan bila TP & SL tersentuh di bar sama (konservatif). "
-            "OOS = 30% data terakhir (walk-forward).", S_SMALL))
+            "95% CI = interval kepercayaan Wilson untuk Win%. Net OOS% = win-rate "
+            f"out-of-sample SETELAH biaya spread ${backtest.COST_USD:.2f}/oz. "
+            "OOS = 30% data terakhir (walk-forward); sinyal tumpang tindih "
+            f"dalam {research.COOLDOWN_BARS} bar didedup agar n jujur.", S_SMALL))
     else:
         story.append(Paragraph("Statistik pola belum tersedia.", S_BODY))
 
@@ -433,9 +444,9 @@ def build(now: datetime | None = None) -> dict:
                f"({round((worst.get('oos_win_rate') or 0) * 100, 1)}%). ")
         over50 = [r for r in by_oos if (r.get("oos_win_rate") or 0) > 0.5]
         if over50:
-            txt += ("Perlu dicatat: masih ada pola dengan win-rate di atas 50%, "
-                    "namun tanpa biaya transaksi (spread/slippage) - angka nyata "
-                    "selalu lebih rendah.")
+            txt += ("Perlu dicatat: masih ada pola dengan win-rate gross di atas "
+                    "50% - setelah biaya spread (kolom Net OOS%) angka nyata "
+                    "selalu lebih rendah, dan slippage tetap tidak dimodelkan.")
         else:
             txt += ("Perlu dicatat: <b>tidak ada pola yang mencapai win-rate OOS "
                     "di atas 50%</b> - secara historis sinyal ini lebih sering gagal "
@@ -445,6 +456,52 @@ def build(now: datetime | None = None) -> dict:
     else:
         story.append(Paragraph(
             "Belum cukup sampel pola (n>=50) untuk pembacaan yang berarti.", S_BODY))
+
+    # 5b. TP2 (runner) + statistik risiko per pola — dihitung dari data H1
+    #     saat laporan dibuat (mingguan, jadi biaya hitung tidak masalah).
+    if bars1h:
+        df1 = research.bars_to_df(bars1h)
+        sigs1 = research.dedup_signals(pat.detect_signals(df1, "1h"))
+        ind1 = pat.add_indicators(df1)
+        hz = backtest.DEFAULT_HORIZON["1h"]
+        std1 = backtest.evaluate(ind1, sigs1, hz)
+        tp2_1 = backtest.evaluate_tp2(ind1, sigs1, hz)
+        risk1 = backtest.risk_stats(std1)
+        tp2_by: dict[str, dict] = {}
+        for r in tp2_1:
+            m = tp2_by.setdefault(r["pattern"], {"n": 0, "tp1": 0, "tp2": 0, "be": 0})
+            m["n"] += 1
+            if r["outcome"] in ("tp2", "be", "timeout"):  # posisi yang mencapai TP1
+                m["tp1"] += 1
+                if r["outcome"] == "tp2":
+                    m["tp2"] += 1
+                elif r["outcome"] == "be":
+                    m["be"] += 1
+        if tp2_by:
+            rows = [["Pola H1", "Sinyal", "Capai TP1", "Capai TP2",
+                     "Peluang TP2*", "Exit BE", "Max DD (R)", "Loss runtun"]]
+            for pname in sorted(tp2_by, key=lambda p: -tp2_by[p]["n"]):
+                m = tp2_by[pname]
+                rk = risk1.get(("1h", pname), {})
+                rate = (f"{round(m['tp2'] / m['tp1'] * 100, 1)}%"
+                        if m["tp1"] else "-")
+                rows.append([
+                    pname, m["n"], m["tp1"], m["tp2"], rate, m["be"],
+                    f"{rk.get('max_dd_r', 0):.1f}",
+                    rk.get("max_loss_streak", 0),
+                ])
+            story.append(Spacer(1, 6))
+            story.append(Paragraph("TP2 (runner) & statistik risiko per pola:", S_H2))
+            story.append(Spacer(1, 3))
+            story.append(_table(rows, [40 * mm, 16 * mm, 18 * mm, 18 * mm, 20 * mm,
+                                       16 * mm, 20 * mm, 20 * mm]))
+            story.append(Paragraph(
+                "*Skenario runner: saat TP1 (1.5xATR) tercapai, SL dipindah ke "
+                "breakeven lalu sisa posisi mengejar TP2 (3xATR). Peluang TP2 = "
+                "capai TP2 di antara posisi yang berhasil mencapai TP1. Exit BE = "
+                "kembali ke entry setelah TP1 (tidak untung tidak rugi). Max DD dan "
+                "loss runtun dihitung dari ekuitas kumulatif R (sinyal dedup, urut "
+                "waktu).", S_SMALL))
 
     # 6. Feedback loop
     story.append(Spacer(1, 4))
@@ -536,9 +593,10 @@ def build(now: datetime | None = None) -> dict:
     story.append(Paragraph("DISCLAIMER", S_KICK))
     story.append(Paragraph(
         "Laporan ini dibuat otomatis dari data historis dan statistik probabilitas. "
-        "Kinerja masa lalu tidak menjamin hasil masa depan. Backtest tidak "
-        "memodelkan spread, slippage, dan biaya eksekusi lainnya. Bukan saran "
-        "finansial - keputusan trading sepenuhnya tanggung jawab Anda.", S_SMALL))
+        "Kinerja masa lalu tidak menjamin hasil masa depan. Kolom NET memodelkan "
+        f"spread flat ${backtest.COST_USD:.2f}/oz; slippage, komisi, dan pelebaran "
+        "spread saat rollover/berita tidak dimodelkan. Bukan saran finansial - "
+        "keputusan trading sepenuhnya tanggung jawab Anda.", S_SMALL))
 
     # ---------- tulis PDF + index ----------
     out_dir = store.DATA_DIR / "reports"

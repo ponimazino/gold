@@ -142,5 +142,14 @@ body::before { content: ""; position: fixed; inset: 0; pointer-events: none; opa
 .filter-bar { display: flex; flex-wrap: wrap; gap: 8px 18px; margin: 12px 0 4px; }
 .filter-bar label { display: flex; align-items: center; gap: 7px; color: var(--muted); font-size: 9px; text-transform: uppercase; letter-spacing: .1em; font-weight: 700; }
 .filter-bar select { height: 28px; color: #e6e6eb; background: #15151b; border: 1px solid #353541; border-radius: 8px; padding: 0 9px; font-size: 10px; }
-.ledger-row .hist-detail { display: flex; flex-wrap: wrap; gap: 2px 14px; margin-top: 5px; }
-.ledger-row .hist-detail span { margin-top: 0; }
+.ledger-row .hist-detail { display: flex; flex-wrap: wrap; gap: 4px 6px; margin-top: 6px; }
+.ledger-row .hist-detail span { margin-top: 0; width: fit-content; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: var(--mono); font-size: 8.5px; color: #a8a8b3; background: rgba(255,255,255,.035); border: 1px solid rgba(255,255,255,.07); border-radius: 6px; padding: 3px 7px; }
+.ledger-row .hist-detail span.lvl.good { color: #b8ec5c; border-color: rgba(184,236,92,.22); background: rgba(184,236,92,.06); }
+.ledger-row .hist-detail span.lvl.bad { color: #ffc85a; border-color: rgba(255,200,90,.22); background: rgba(255,200,90,.06); }
+/* mobile (Riwayat): pill status turun ke baris sendiri supaya teks & chip
+   level dapat lebar penuh — tidak lagi menumpuk/terdesak kolom pill */
+@media (max-width: 760px) {
+  .hist-ledger .ledger-row { grid-template-columns: auto 1fr; row-gap: 7px; }
+  .hist-ledger .ledger-row .status-pill { grid-column: 2; justify-self: start; }
+  .ledger-row .hist-detail { gap: 5px; }
+}

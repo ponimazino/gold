@@ -19,7 +19,7 @@ Semua komunikasi dengan user dalam **Bahasa Indonesia**.
   - `fundamental.yml` — "13 1-23/3 * * *" + cadangan ":28" (tiap 3 jam): kalender 3★ US + berita whitelist
   - `report.yml` — "23 21 * * 0" (04:23 WIB Senin) + dispatch: `analyzer/jobs/report.py` → PDF mingguan `data/reports/weekly-YYYY-MM-DD.pdf` + `data/reports/index.json` (max 52 entri; reportlab di requirements.txt; smoke test `tests/test_report_smoke.py`)
   - `backfill.yml` — dispatch only (jalankan manual saja; idempotent, merging)
-- Rekomendasi: pola H1 di 2 bar terakhir searah trend H4 (EMA20/50) → status entry/tunggu/netral; confidence = win-rate OOS pola; blackout −2h..+1h sekitar event 3★; level Entry=close terakhir, SL 1×ATR, TP1 1,5×ATR, TP2 3×ATR. **Mode aman** (TP 1×ATR / SL 0,75×ATR, entry sama): `levels_safe` + `confidence_safe` — win-rate-nya di-backtest terpisah (`run_pair` research, `safe_*` di patterns.json), feedback loop tetap menilai level standar.
+- Rekomendasi: pola H1 di 2 bar terakhir searah trend H4 (EMA20/50) → status entry/tunggu/netral; confidence = win-rate OOS pola; blackout −2h..+1h sekitar event 3★; level Entry=close terakhir, SL 1×ATR, TP1 1,5×ATR, TP2 3×ATR. **Mode aman** (TP 1×ATR / SL 0,75×ATR, entry sama): `levels_safe` + `confidence_safe` — win-rate-nya di-backtest terpisah (`run_all` research, `safe_*` di patterns.json), feedback loop tetap menilai level standar. Layer research pakai sinyal **dedup cooldown 4 bar**, win-rate dibubuhi **Wilson CI 95%** (`win_rate_lo/hi`), dan ada pasangan kolom **net-of-cost** (`cost_*`/`safe_cost_*`, spread $0.35/oz — barrier TP lebih jauh + SL lebih dekat dalam harga mid, R nominal tetap); rekomendasi live tetap GROSS demi kompatibilitas feedback loop, angka net tampil di rationale.
 - Feedback loop: `analyzer/track.py` resolve rec aktif vs bar H1 nyata (SL dicek dulu, konservatif; timeout 24 bar) → hit-rate jujur di `data/tracking.json`. Saat resolve juga menulis `outcome` (bars_held, MFE/MAE USD, event 3★ di jendela, narasi Indonesia "mengapa benar/salah") + log akhir hari `eod` per tanggal WIB (diturunkan penuh dari history — idempotent), tampil di panel Rule monitor UI.
 
 ## Frontend produksi: folder `web/` (GoldPulse)
@@ -33,13 +33,15 @@ Semua komunikasi dengan user dalam **Bahasa Indonesia**.
 ## Next step user: deploy ke Vercel
 Root Directory = `web` (auto-detect Vite), lihat DEPLOY.md Bagian 5. Setelah itu: verifikasi workflow `daily.yml` jalan di grid 2 jam (cek tab Actions, run pertama setelah push di jam :37 WIB berikutnya).
 
-## Perubahan lokal BELUM di-push (2026-09-08 malam, menunggu perintah user)
-- **Watch loop anti-drop GitHub Actions** di `sync.yml` + `daily.yml` (lihat bullet workflow + gotcha di atas). Dipicu insiden 2026-09-08: data candle basi 7 jam (16:47 WIB) karena 46/48 slot sync & 10/10 slot daily di-drop GitHub → analisa "no qualified setup" pakai data basi.
-- **View baru "Riwayat"** di Home.tsx (pilihan user: tab baru): daftar lengkap history rekomendasi dari `tracking.json` — strip statistik, filter hasil (TP1/SL/timeout/berjalan) + pola, ledger row per entry (level entry/SL/TP1/TP2, confidence, MFE/MAE, bars held, waktu resolve, narasi). `TrackingEntry` di data.ts diperluas (levels/confidence/direction/resolved_at_wib). CSS: `.filter-bar`, `.hist-detail`.
-- Job daily sekarang **sync sendiri sebelum analisa** — rekomendasi tidak pernah lagi dibangun dari candle basi.
-- `CLAUDE.md` ikut diubah (deskripsi workflow + gotcha + section ini). docs/ tetap TIDAK di-commit.
-- Verifikasi: YAML 5 workflow valid, dry-run loop (stub date/sleep/git/python) exit 0 di jalur normal + push-race + konflik rebase.
-- BATCH SEBELUMNYA (grid 2 jam, EOD, mode aman, cron cadangan) SUDAH di-push: `35d016d` + `abf57cd`.
+## Perubahan lokal BELUM di-push (2026-09-09, menunggu perintah user)
+- **Upgrade jujur backtest** (assessment vs literatur: Bailey/López de Prado dsb.), 4 perbaikan sekaligus di layer research (`analyzer/jobs/research.py`, `analyzer/backtest.py`):
+  - **Net of cost**: `cost_usd=0.35` (spread standar XAUUSD) menggeser barrier MELAWAN trader dalam harga mid — TP harus tercapai +$0.35 lebih jauh, SL kena $0.35 lebih cepat; R nominal per trade TIDAK berubah. Kolom `cost_win_rate`/`cost_oos_win_rate` + `safe_cost_*` di patterns.json. Rekomendasi live masih pakai angka GROSS (kompatibel feedback loop); angka net tampil di rationale + panel Backtest UI.
+  - **Dedup sinyal overlap**: sinyal searah dalam 4 bar dari sinyal searah sebelumnya di-drop di layer research (rekomendasi live TIDAK didedup). n jujur turun drastis (inside_bar H1: 2806 → 1542).
+  - **Wilson CI 95%**: `win_rate_lo/hi` di patterns.json + tampil di panel Backtest; confidence_note rekomendasi menyebut rentangnya.
+  - **TP2 runner + risiko di PDF mingguan** (`report.py` §5b): skenario TP1 → SL breakeven → kejar TP2 3×ATR (outcome tp2/be/stopped/no_tp1/timeout) + `risk_stats` (max drawdown R, loss streak) per pola H1.
+  - `research.run_pair` → `research.run_all` (return 4 list: std/safe/std-net/safe-net); test_p3 +4 tes (cost/CI/dedup/tp2+risk); 5/5 suite + report smoke + tsc + build LULUS.
+  - BUG FIX saat implementasi: model cost awal TERBALIK arah SL (SL digeser lebih jauh = terlalu optimis) — dikoreksi jadi SL lebih dekat; `report.py` loop var `pat` men-shadow alias modul `patterns` → rename `pname`.
+- **Watch loop anti-drop + view Riwayat** (batch 2026-09-08 malam): SUDAH di-push `f89d62f`. Batch sebelum itu (grid 2 jam, EOD, mode aman, cron cadangan): `35d016d` + `abf57cd`.
 
 ## Audit 2026-09-06 — bug yang sudah diperbaiki (jangan kambuh)
 - `track.py`: job daily mencatat status "entry" tapi `_resolve_one` cuma proses "active" → rekomendasi tak pernah dinilai. FIXED: normalisasi entry→active (regression test di test_p5.py). Hit-rate baru muncul setelah rekomendasi mulai teresolve (24 bar H1 ~1 hari).
