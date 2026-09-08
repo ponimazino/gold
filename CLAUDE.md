@@ -14,9 +14,9 @@ Semua komunikasi dengan user dalam **Bahasa Indonesia**.
 - Repo: **github.com/ponimazino/gold** (public). Remote: `https://ponimazino@github.com/ponimazino/gold.git`.
 - Data 3 tahun ter-backfill: 20.493 bar H1 + 5.323 bar H4 (2023-09-06 → 2026-09-06).
 - Workflow GitHub Actions (checkout@v5, setup-python@v6, semua commit step pakai `git pull --rebase origin main` dulu untuk hindari race):
-  - `daily.yml` — grid 2 jam "37 1-15/2 * * 1-5" + "37 21,23 * * 0-4" (04:37–22:37 WIB, Sen–Jum; anchor 04:37 pra-Sydney, 14:37 London, 20:37 NY + rilis data AS; tiap pasangan candle H1 dievaluasi tepat sekali) → research + resolve feedback loop + `data/recommendation.json`, `data/tracking.json`. Recommendation.json dioverwrite tiap run; history tracking tetap 1 entry/hari (dedup per tanggal).
-  - `sync.yml` — "17 * * * *" (setiap hari termasuk Minggu): update bar H1/H4 tiap jam
-  - `fundamental.yml` — "13 1-23/3 * * *" (tiap 3 jam, 24 menit sebelum daily di jam yang sama): kalender 3★ US + berita whitelist
+  - `daily.yml` — grid 2 jam "37 1-15/2 * * 1-5" + "37 21,23 * * 0-4" (04:37–22:37 WIB, Sen–Jum; anchor 04:37 pra-Sydney, 14:37 London, 20:37 NY + rilis data AS; tiap pasangan candle H1 dievaluasi tepat sekali) + **slot cadangan :52** (anti-drop GitHub) → research + resolve feedback loop + `data/recommendation.json`, `data/tracking.json`. Recommendation.json dioverwrite tiap run; history tracking tetap 1 entry/hari (dedup per tanggal).
+  - `sync.yml` — "17,47 * * * *" (setiap hari termasuk Minggu; :47 = cadangan anti-drop): update bar H1/H4 tiap jam, gap-filling
+  - `fundamental.yml` — "13 1-23/3 * * *" + cadangan ":28" (tiap 3 jam): kalender 3★ US + berita whitelist
   - `report.yml` — "23 21 * * 0" (04:23 WIB Senin) + dispatch: `analyzer/jobs/report.py` → PDF mingguan `data/reports/weekly-YYYY-MM-DD.pdf` + `data/reports/index.json` (max 52 entri; reportlab di requirements.txt; smoke test `tests/test_report_smoke.py`)
   - `backfill.yml` — dispatch only (jalankan manual saja; idempotent, merging)
 - Rekomendasi: pola H1 di 2 bar terakhir searah trend H4 (EMA20/50) → status entry/tunggu/netral; confidence = win-rate OOS pola; blackout −2h..+1h sekitar event 3★; level Entry=close terakhir, SL 1×ATR, TP1 1,5×ATR, TP2 3×ATR. **Mode aman** (TP 1×ATR / SL 0,75×ATR, entry sama): `levels_safe` + `confidence_safe` — win-rate-nya di-backtest terpisah (`run_pair` research, `safe_*` di patterns.json), feedback loop tetap menilai level standar.
@@ -50,3 +50,7 @@ Root Directory = `web` (auto-detect Vite), lihat DEPLOY.md Bagian 5. Setelah itu
 ## Gotcha Windows/Git yang pernah terjadi
 - Credential Manager pernah cache akun salah (miawopen) → 403. Pakai remote URL dengan hint username `https://ponimazino@github.com/...`.
 - Push dari shell Claude pernah gagal "Cannot prompt / could not read Username" → kalau git butuh interaksi auth, minta user push sendiri.
+
+## Gotcha GitHub Actions (terverifikasi 2026-09-08)
+- **GitHub sering MENUNDA/DROP run terjadwal** di menit ramai — bukan jitter 10 menit: Hourly Sync pernah cuma jalan 2×/hari (seharusnya 24×), run terjadwal daily pernah telat 2 jam. Akibat: data bisa basi berjam-jam → semua workflow penting sekarang punya **slot cron cadangan** (sync :47, daily :52, fundamental :28). Job semua idempotent jadi dobel-run aman.
+- `data/*.json` konflik saat `git pull --rebase` (auto-commit workflow remote vs commit lokal kita): saat rebase, versi commit lokal = `--theirs`.

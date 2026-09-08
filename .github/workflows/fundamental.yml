@@ -9,6 +9,10 @@ on:
     # nilai "aktual" rilis menyusul di run berikutnya. 8x/hari (naik dari 6)
     # masih sopan ke sumber (Trading Economics + whitelist).
     - cron: "13 1-23/3 * * *"
+    # Cadangan anti-drop (GitHub sering menunda/DROP run terjadwal):
+    # slot :28 = 15 menit setelah utama. Job idempotent — kalau keduanya
+    # jalan, data kalender/berita hanya di-refresh ulang.
+    - cron: "28 1-23/3 * * *"
   workflow_dispatch:
 
 permissions:

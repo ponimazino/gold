@@ -2,12 +2,14 @@
 
 on:
   schedule:
-    # Every hour at minute 17 UTC (odd minute = less cron congestion), ALL days
-    # including Sunday (Twelve Data menyediakan bar Minggu; kuota aman:
-    # 2 request/run x 24 = 48 dari 800 kredit gratis per hari).
-    # Runs are idempotent + gap-filling, so GitHub cron jitter (up to ~10 min)
-    # is harmless.
-    - cron: "17 * * * *"
+    # Every hour, ALL days including Sunday (Twelve Data menyediakan bar
+    # Minggu). DUA slot per jam (:17 utama + :47 cadangan) karena GitHub
+    # Actions terbukti sering menunda/DROP run terjadwal di menit ramai —
+    # dengan cadangan, paling lambat data baru masuk ~47 menit.
+    # Job idempotent + gap-filling (jam terlewat dikejar di run berikutnya),
+    # jadi dobel-run aman. Kuota aman: 2 request/run x maks 48 = 96 dari
+    # 800 kredit gratis Twelve Data per hari.
+    - cron: "17,47 * * * *"
   workflow_dispatch:
 
 permissions:
