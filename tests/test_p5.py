@@ -12,6 +12,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from analyzer import recommend, store, track  # noqa: E402
+from analyzer.jobs import research  # noqa: E402
 
 
 def _isolate_data_dir() -> None:
@@ -207,6 +208,112 @@ def test_tracking_persistence():
     print("ok: tracking.json load/save round-trip")
 
 
+def test_outcome_narrative_and_eod():
+    """Saat resolve, rec dapat metrik perjalanan + narasi mengapa; history
+    teragregasi jadi log akhir hari per tanggal WIB."""
+    _isolate_data_dir()
+    t0 = datetime(2026, 9, 4, 12, 0, tzinfo=timezone.utc)
+
+    # win: TP di bar ke-2, sempat tertekan $1 (dari jarak SL $5 — tidak signifikan)
+    win = _active_rec("2026-09-04", t0, 1)
+    # loss: SL di bar ke-1, ADA event 3★ di jendela posisi
+    loss = _active_rec("2026-09-05", t0 + timedelta(hours=10), 1)
+    loss["pattern"] = "bullish_engulfing"
+
+    bars = (
+        _bars_from(t0, [(1, 103, 99), (2, 106, 100)])          # blok win
+        + _bars_from(t0 + timedelta(hours=10), [(1, 102, 94)])  # blok loss
+    )
+    store.save("1h", bars)
+    store.write_json("calendar.json", {"events": [
+        {"title": "Nonfarm Payrolls", "t_utc": iso(t0 + timedelta(hours=10, minutes=30)),
+         "importance": 3},
+        # di luar jendela mana pun — tidak boleh ikut
+        {"title": "CPI y/y", "t_utc": iso(t0 + timedelta(hours=50)), "importance": 3},
+    ]})
+
+    tracking = {"stats": {}, "history": [win, loss]}
+    track.resolve_pending(tracking, now=t0 + timedelta(hours=100))
+
+    assert win["status"] == "win" and loss["status"] == "loss"
+    o = win["outcome"]
+    assert o["bars_held"] == 2 and o["mfe_usd"] == 6.0 and o["mae_usd"] == 1.0, o
+    assert o["events"] == [] and "TP1 kena 2 jam" in o["why"], o
+    assert "tanpa event 3★" in o["why"], o
+    assert o["resolved_at_wib"].endswith("WIB"), o
+
+    o2 = loss["outcome"]
+    assert o2["bars_held"] == 1 and o2["mfe_usd"] == 2.0 and o2["mae_usd"] == 6.0, o2
+    assert o2["events"] == ["Nonfarm Payrolls"], o2
+    assert "Salah" in o2["why"] and "Nonfarm Payrolls" in o2["why"], o2
+    assert "CPI" not in o2["why"], o2
+
+    # log akhir hari: per tanggal WIB, urut terbaru dulu
+    eod = tracking["eod"]
+    assert [d["date"] for d in eod] == ["2026-09-05", "2026-09-04"], eod
+    assert eod[0]["entries"][0]["status"] == "loss"
+    assert eod[0]["entries"][0]["why"] == o2["why"]
+    assert eod[1]["entries"][0]["pattern"] is None  # rec tanpa pattern tetap aman
+    print("ok: narasi outcome (mfe/mae/event/mengapa) + log EOD per tanggal WIB")
+
+
+def test_safe_mode_levels_and_stats():
+    """Mode aman: level TP 1xATR / SL 0.75xATR + win-rate dari evaluasi
+    rule-nya sendiri (bukan dikali-kali dari rule standar)."""
+    _isolate_data_dir()
+    now = datetime(2026, 9, 4, 15, 0, tzinfo=timezone.utc)
+    _seed(now)
+    store.write_json("patterns.json", {"results": [
+        {"tf": "1h", "pattern": "bullish_engulfing", "n": 92,
+         "win_rate": 0.61, "oos_win_rate": 0.58,
+         "safe_win_rate": 0.72, "safe_oos_win_rate": 0.70},
+    ]})
+
+    rec = recommend.build_recommendation(now=now)
+    assert rec["status"] == "entry", rec
+    lv, ls = rec["levels"], rec["levels_safe"]
+    assert ls["entry"] == lv["entry"], (lv, ls)
+    atr = lv["atr14"]
+    assert abs((ls["tp1"] - ls["entry"]) - 1.0 * atr) < 0.05, ls
+    assert abs((ls["entry"] - ls["sl"]) - 0.75 * atr) < 0.05, ls
+    assert rec["confidence"] == 0.58 and rec["confidence_safe"] == 0.70, rec
+    assert any("mode aman" in r for r in rec["rationale"]), rec["rationale"]
+    print("ok: level mode aman (TP 1xATR / SL 0.75xATR) + win-rate terpisah")
+
+
+def test_research_payload_safe_stats():
+    """build_payload menggabungkan statistik rule aman per pola, dan tetap
+    kompatibel kalau evaluasi aman tidak diberikan."""
+    _isolate_data_dir()
+    sig = {"dir": 1, "index": 10, "entry": 100.0}
+    std = [
+        {**sig, "tf": "1h", "pattern": "bullish_engulfing", "outcome": "win", "r": 1.5, "bars": 3},
+        {**sig, "tf": "1h", "pattern": "bullish_engulfing", "index": 40, "entry": 101.0,
+         "outcome": "loss", "r": -1.0, "bars": 2},
+        {**sig, "tf": "1h", "pattern": "bearish_engulfing", "dir": -1, "outcome": "win",
+         "r": 1.5, "bars": 4},
+    ]
+    safe = [
+        {**sig, "tf": "1h", "pattern": "bullish_engulfing", "outcome": "win", "r": 1.33, "bars": 2},
+        {**sig, "tf": "1h", "pattern": "bullish_engulfing", "index": 40, "entry": 101.0,
+         "outcome": "win", "r": 1.33, "bars": 3},
+        {**sig, "tf": "1h", "pattern": "bearish_engulfing", "dir": -1, "outcome": "win",
+         "r": 1.33, "bars": 3},
+    ]
+    payload = research.build_payload(std, {"1h": 24}, safe_results=safe)
+    assert payload["params"]["safe_tp_atr"] == 1.0, payload["params"]
+    assert payload["params"]["safe_sl_atr"] == 0.75, payload["params"]
+    row = next(r for r in payload["results"] if r["pattern"] == "bullish_engulfing")
+    assert row["win_rate"] == 0.5, row
+    assert row["safe_win_rate"] == 1.0, row          # rule aman = 2/2 win
+    assert row["safe_oos_n"] is not None, row
+    assert "safe_win_rate" in payload["note"]
+    # tanpa safe_results -> field aman tidak muncul (backward compat)
+    p2 = research.build_payload(std, {"1h": 24})
+    assert all("safe_win_rate" not in r for r in p2["results"])
+    print("ok: payload research menggabungkan statistik mode aman per pola")
+
+
 def main() -> int:
     test_entry_signal()
     test_blackout_blocks_entry()
@@ -214,6 +321,9 @@ def main() -> int:
     test_feedback_loop()
     test_feedback_loop_resolves_entry_status()
     test_tracking_persistence()
+    test_outcome_narrative_and_eod()
+    test_safe_mode_levels_and_stats()
+    test_research_payload_safe_stats()
     print("\nALL P5 TESTS PASSED")
     return 0
 

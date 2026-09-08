@@ -2,9 +2,13 @@
 
 on:
   schedule:
-    # Kalender 3-star US + berita kredibel, tiap 4 jam (menit ganjil).
-    # Kalender TE jarang berubah intraday; 6x/hari cukup dan sopan ke sumber.
-    - cron: "43 */4 * * *"
+    # Kalender 3-star US + berita kredibel, tiap 3 jam di menit :13. Jendela
+    # blackout di job daily dihitung dari WAKTU event di kalender (bukan waktu
+    # fetch), dan event terjadwal hari ke depan sudah ada di kalender lama —
+    # jadi daily tetap benar meski fundamental terakhir jalan <=6 jam lalu;
+    # nilai "aktual" rilis menyusul di run berikutnya. 8x/hari (naik dari 6)
+    # masih sopan ke sumber (Trading Economics + whitelist).
+    - cron: "13 1-23/3 * * *"
   workflow_dispatch:
 
 permissions:

@@ -466,6 +466,11 @@ function SummaryView({ data, spot, now, onNavigate }: { data: DashboardData; spo
         <div className="risk-note" style={{ marginTop: 14 }}>
           <ShieldAlert size={15} /><span>Perbandingan sederhana: rugi sekitar {fmtUsd(riskUsd ?? 0, 2)} vs potensi untung {fmtUsd(rewardUsd ?? 0, 2)} — rasio 1 : {riskUsd ? (rewardUsd! / riskUsd).toFixed(1) : "—"}. Kalau rasio ini tidak masuk akal buat kamu, jangan masuk.</span>
         </div>
+        {rec.levels_safe && rec.confidence_safe != null && (
+          <div className="risk-note" style={{ marginTop: 10 }}>
+            <ShieldAlert size={15} /><span><b>Mode aman:</b> kalau kamu lebih suka untung kecil tapi lebih sering kena — target lebih dekat di {fmtUsd(rec.levels_safe.tp1)} dan rugi dipotong lebih cepat di {fmtUsd(rec.levels_safe.sl)}. Menurut sejarah 3 tahun, peluang kena {Math.round(rec.confidence_safe * 100)}%{confidence != null ? ` (vs ${confidence}% mode standar)` : ""}.</span>
+          </div>
+        )}
       </div>
     )}
 
@@ -672,6 +677,7 @@ function Overview({ data, spot, now, onNavigate }: { data: DashboardData; spot: 
 function RuleMonitor({ data, onNavigate }: { data: DashboardData; onNavigate: (v: ViewKey) => void }) {
   const stats = data.tracking?.stats;
   const history = data.tracking?.history ?? [];
+  const eodDays = (data.tracking?.eod ?? []).slice(0, 3); // 3 hari terakhir
   const resolved = stats?.resolved ?? 0;
   const hitRate = stats?.hit_rate != null ? Math.round(stats.hit_rate * 100) : null;
 
@@ -700,6 +706,25 @@ function RuleMonitor({ data, onNavigate }: { data: DashboardData; onNavigate: (v
         <div><span>SL / timeout</span><b>{stats?.losses ?? 0} / {stats?.timeouts ?? 0}</b></div>
         <div><span>Berjalan</span><b>{stats?.active ?? 0}</b></div>
       </div>
+      {eodDays.length > 0 && (
+        <div className="reasoning-ledger" style={{ marginTop: 4 }}>
+          <div className="ledger-heading"><span>Evaluasi akhir hari — mengapa benar/salah</span><span>log sistem</span></div>
+          {eodDays.map((d) => (d.entries ?? []).map((e, i) => (
+            <div className="ledger-row" key={`${d.date}-${i}`}>
+              {e.status === "win" ? <Check size={15} className="ledger-good" />
+                : e.status === "loss" ? <AlertTriangle size={15} className="ledger-caution" />
+                  : <Clock3 size={15} className="ledger-good" />}
+              <div>
+                <b>{d.date}{e.pattern ? ` · ${PATTERN_NAMES[e.pattern] ?? e.pattern}` : ""} — {e.status === "win" ? "benar" : e.status === "loss" ? "salah" : "tidak terbukti"}</b>
+                <span>{e.why ?? "menunggu narasi hasil"}</span>
+              </div>
+              <StatusPill tone={e.status === "win" ? "green" : e.status === "loss" ? "amber" : "slate"}>
+                {e.status === "win" ? "TP1" : e.status === "loss" ? "SL" : "timeout"}
+              </StatusPill>
+            </div>
+          )))}
+        </div>
+      )}
       <div className="disclaimer-row"><FileCheck2 size={14} /> Dinilai dari harga aktual · probabilitas, bukan jaminan</div>
     </div>
   );
@@ -720,6 +745,8 @@ function AnalysisView({ data, now }: { data: DashboardData; now: number }) {
   const confidence = rec.confidence != null ? Math.round(rec.confidence * 100) : null;
   const rationale = rec.rationale ?? [];
   const patternName = rec.pattern ? (PATTERN_NAMES[rec.pattern] ?? rec.pattern) : null;
+  const lvSafe = rec.levels_safe ?? null;
+  const safeConf = rec.confidence_safe != null ? Math.round(rec.confidence_safe * 100) : null;
 
   const scenarioTitle =
     status === "tunggu" ? "Event hold" :
@@ -761,6 +788,11 @@ function AnalysisView({ data, now }: { data: DashboardData; now: number }) {
             <div className="level-card target"><span>First objective</span><strong>{lv ? fmtUsd(lv.tp1) : "—"}</strong><small>TP1 · 1,5× ATR dari entry</small></div>
             <div className="level-card invalidation"><span>Invalidation</span><strong>{lv ? fmtUsd(lv.sl) : "—"}</strong><small>SL · 1× ATR; close {bias === "bearish" ? "di atas" : "di bawah"} batalkan setup</small></div>
           </div>
+          {lvSafe && (
+            <div className="risk-note" style={{ marginTop: 14 }}>
+              <ShieldAlert size={15} /><span><b>Mode aman (untuk "beberapa pips asal aman"):</b> TP1 {fmtUsd(lvSafe.tp1)} · SL {fmtUsd(lvSafe.sl)} — target 1× ATR (lebih dekat), SL 0,75× ATR (lebih ketat), entry sama. Peluang historis {safeConf != null ? `${safeConf}%` : "—"}{confidence != null ? ` vs ${confidence}% standar` : ""} — dinilai dari backtest 3 tahun dengan rule terpisah; feedback loop harian masih menilai level standar.</span>
+            </div>
+          )}
           <div className="reasoning-ledger">
             <div className="ledger-heading"><span>Evidence ledger</span><span>Observed → interpreted</span></div>
             {rationale.length ? rationale.map((line, i) => (
@@ -1107,8 +1139,7 @@ function FundamentalsView({ data, now }: { data: DashboardData; now: number }) {
 // spesifikasi jadwal GitHub Actions (WIB) untuk hitung "update berikutnya"
 type SchedSpec =
   | { kind: "hourly"; minute: number }                       // tiap jam di menit tertentu
-  | { kind: "q4h"; minute: number }                          // jam 00/04/08/12/16/20 WIB
-  | { kind: "weekdays"; hour: number; minute: number }      // Sen–Jum sekali sehari
+  | { kind: "grid"; minute: number; hours: number[]; tradingDaysOnly?: boolean } // jam grid tertentu
   | { kind: "monday"; hour: number; minute: number };        // Senin sekali sepekan
 
 // Perkiraan jeda (menit) sampai run berikutnya, dihitung dari jam WIB sekarang.
@@ -1122,17 +1153,18 @@ function minutesToNext(now: number, spec: SchedSpec): number {
   const dayIdx = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].indexOf(parts.find((p) => p.type === "weekday")?.value ?? "Mon");
 
   if (spec.kind === "hourly") return (spec.minute - curMin + 60) % 60 || 60;
-  if (spec.kind === "q4h") {
-    const next = [0, 4, 8, 12, 16, 20].map((h) => h * 60 + spec.minute).find((s) => s > cur);
-    return next != null ? next - cur : 24 * 60 - cur + spec.minute;
+  if (spec.kind === "grid") {
+    // tradingDaysOnly = hanya Senin–Jumat WIB (jam trading utama emas).
+    for (let d = 0; d < 8; d++) {
+      if (spec.tradingDaysOnly && (dayIdx + d) % 7 > 4) continue; // lompat Sabtu/Minggu
+      for (const h of spec.hours) {
+        const s = d * 1440 + h * 60 + spec.minute;
+        if (s > cur) return s - cur;
+      }
+    }
+    return 0; // tak terjangkau (grid tanpa tradingDaysOnly selalu ada slot)
   }
   const target = spec.hour * 60 + spec.minute;
-  if (spec.kind === "weekdays") {
-    if (dayIdx < 5 && cur < target) return target - cur; // masih hari kerja & belum lewat
-    let shift = 1, idx = (dayIdx + 1) % 7;
-    while (idx > 4) { shift++; idx = (idx + 1) % 7; }     // lompat Sabtu/Minggu
-    return shift * 1440 + (target - cur);
-  }
   // Senin berikutnya
   if (dayIdx === 0 && cur < target) return target - cur;
   const shift = (8 - dayIdx) % 7 || 7;
@@ -1153,22 +1185,22 @@ const SCHEDULE_ROWS: Array<{
     sumber: "Twelve Data · workflow Hourly Sync",
     catatan: "gap-filling: jam yang terlewat otomatis dikejar di run berikutnya",
     next: { kind: "hourly", minute: 17 } },
-  { icon: Sparkles, fitur: "Rekomendasi harian (entry/tunggu/netral)", jadwal: "Senin–Jumat 05:37 WIB",
+  { icon: Sparkles, fitur: "Rekomendasi harian (entry/tunggu/netral)", jadwal: "Tiap 2 jam saat pasar aktif — 04:37 s.d. 22:37 WIB, Senin–Jumat",
     sumber: "workflow Analisa Harian",
-    catatan: "sekalian menilai rekomendasi kemarin terhadap harga aktual (feedback loop)",
-    next: { kind: "weekdays", hour: 5, minute: 37 } },
-  { icon: FlaskConical, fitur: "Statistik backtest per pola", jadwal: "Senin–Jumat 05:37 WIB (ikut analisa harian)",
+    catatan: "grid 2 jam = tiap pasangan candle H1 dievaluasi tepat sekali; nempel jam krusial: 04:37 pra-open Sydney, 14:37 open London, 20:37 open NY + rilis data AS; sekalian menilai rekomendasi lama vs harga aktual",
+    next: { kind: "grid", minute: 37, hours: [4, 6, 8, 10, 12, 14, 16, 18, 20, 22], tradingDaysOnly: true } },
+  { icon: FlaskConical, fitur: "Statistik backtest per pola", jadwal: "Tiap 2 jam (ikut analisa harian)",
     sumber: "workflow Analisa Harian",
     catatan: "walk-forward 70/30, data sampai detik itu",
-    next: { kind: "weekdays", hour: 5, minute: 37 } },
-  { icon: CalendarDays, fitur: "Kalender ekonomi 3★ US", jadwal: "Tiap 4 jam, menit :43 WIB",
+    next: { kind: "grid", minute: 37, hours: [4, 6, 8, 10, 12, 14, 16, 18, 20, 22], tradingDaysOnly: true } },
+  { icon: CalendarDays, fitur: "Kalender ekonomi 3★ US", jadwal: "Tiap 3 jam, menit :13 WIB",
     sumber: "Trading Economics · workflow Fundamental",
-    catatan: "hanya importance 3★, country US",
-    next: { kind: "q4h", minute: 43 } },
-  { icon: Newspaper, fitur: "Berita tervalidasi", jadwal: "Tiap 4 jam, menit :43 WIB (job yang sama)",
+    catatan: "hanya importance 3★, country US; jendela jeda event dihitung dari waktu event di kalender, jadi selalu akurat",
+    next: { kind: "grid", minute: 13, hours: [2, 5, 8, 11, 14, 17, 20, 23] } },
+  { icon: Newspaper, fitur: "Berita tervalidasi", jadwal: "Tiap 3 jam, menit :13 WIB (job yang sama)",
     sumber: "Google News RSS + GDELT · workflow Fundamental",
     catatan: "whitelist wire (Reuters, Bloomberg, FT, CNBC dkk), 36 jam terakhir",
-    next: { kind: "q4h", minute: 43 } },
+    next: { kind: "grid", minute: 13, hours: [2, 5, 8, 11, 14, 17, 20, 23] } },
   { icon: FileCheck2, fitur: "Laporan mingguan PDF", jadwal: "Senin 04:23 WIB",
     sumber: "workflow Laporan Mingguan",
     catatan: "arsip maks 52 laporan, tersimpan di repo",
@@ -1318,7 +1350,7 @@ export default function Home() {
             <div className="demo-notice">
               <div>
                 <AlertTriangle size={14} />
-                <span><b>Bukan grafik real-time.</b> Harga live di kartu atas (tiap 30 dtk) hanya tampilan — grafik menampilkan candle final per jam: bar terakhir disinkron tiap jam :17 WIB (terakhir {data?.meta?.updated_at_wib ?? "—"}), rekomendasi dibuat ulang Senin–Jumat 05:37 WIB ({rec?.created_at_wib ?? "—"}). Probabilitas statistik, bukan saran finansial.</span>
+                <span><b>Bukan grafik real-time.</b> Harga live di kartu atas (tiap 30 dtk) hanya tampilan — grafik menampilkan candle final per jam: bar terakhir disinkron tiap jam :17 WIB (terakhir {data?.meta?.updated_at_wib ?? "—"}), rekomendasi dibuat ulang tiap 2 jam saat pasar aktif ({rec?.created_at_wib ?? "—"}). Probabilitas statistik, bukan saran finansial.</span>
               </div>
               <button aria-label="Dismiss notice" onClick={() => setNoticeHidden(true)}><X size={14} /></button>
             </div>

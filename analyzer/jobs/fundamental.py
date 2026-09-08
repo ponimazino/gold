@@ -1,7 +1,7 @@
 """Collector fundamental: kalender 3★ US + berita kredibel.
 
 Local:  python -m analyzer.jobs.fundamental
-GitHub: .github/workflows/fundamental.yml — tiap 4 jam.
+GitHub: .github/workflows/fundamental.yml — tiap 3 jam (menit :13, 24 mnt sebelum job daily).
 Output: data/calendar.json + data/news.json
 """
 

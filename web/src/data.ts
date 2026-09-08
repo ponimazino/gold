@@ -21,6 +21,8 @@ export interface PatternStat {
   n?: number; resolved?: number; win_rate?: number | null;
   timeout_pct?: number | null; avg_r?: number | null;
   oos_n?: number; oos_win_rate?: number | null;
+  safe_n?: number; safe_win_rate?: number | null;
+  safe_oos_n?: number; safe_oos_win_rate?: number | null;
 }
 export interface CalEvent {
   title?: string; t_utc?: string;
@@ -28,6 +30,7 @@ export interface CalEvent {
 }
 export interface NewsItem { title?: string; url?: string; source?: string; published_utc?: string }
 export interface Levels { entry: number; sl: number; tp1: number; tp2: number; atr14: number }
+export interface LevelsSafe { entry: number; sl: number; tp1: number; atr14: number }
 export interface Recommendation {
   id?: string; created_at_wib?: string;
   status?: "entry" | "tunggu" | "netral";
@@ -35,6 +38,8 @@ export interface Recommendation {
   confidence?: number | null;
   confidence_note?: string | null;
   levels?: Levels | null;
+  levels_safe?: LevelsSafe | null;
+  confidence_safe?: number | null;
   pattern?: string | null;
   direction?: number;
   h4_context?: { trend?: string; rsi14?: number } | null;
@@ -49,11 +54,25 @@ export interface TrackingStats {
 export interface TrackingEntry {
   id?: string; created_at_wib?: string; status?: string;
   bias?: string; pattern?: string;
+  outcome?: {
+    bars_held?: number; mfe_usd?: number; mae_usd?: number;
+    events?: string[]; why?: string; resolved_at_wib?: string;
+  } | null;
+}
+export interface EodEntry {
+  pattern?: string | null; bias?: string; status?: string;
+  entry_at_wib?: string; resolved_at_wib?: string | null;
+  mfe_usd?: number | null; mae_usd?: number | null;
+  events?: string[]; why?: string | null;
+}
+export interface EodDay {
+  date?: string; entries?: EodEntry[];
 }
 export interface Tracking {
   updated_at_wib?: string;
   stats?: TrackingStats;
   history?: TrackingEntry[];
+  eod?: EodDay[];
 }
 
 export interface DashboardData {

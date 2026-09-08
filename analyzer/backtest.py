@@ -15,6 +15,12 @@ DEFAULT_TP_ATR = 1.5
 DEFAULT_SL_ATR = 1.0
 DEFAULT_HORIZON = {"1h": 24, "4h": 12}  # bar
 
+# Rule "mode aman": target lebih dekat + SL lebih ketat — target kecil tapi
+# peluang historisnya lebih tinggi (dienvaluasi dengan rule yang sama,
+# hasilnya jujur per pola, bukan asal dikali-kali).
+SAFE_TP_ATR = 1.0
+SAFE_SL_ATR = 0.75
+
 
 def evaluate(
     df: pd.DataFrame,

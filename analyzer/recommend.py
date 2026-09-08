@@ -18,7 +18,7 @@ import pandas as pd
 
 from . import calendar as cal
 from . import patterns, store
-from .backtest import DEFAULT_SL_ATR, DEFAULT_TP_ATR
+from .backtest import DEFAULT_SL_ATR, DEFAULT_TP_ATR, SAFE_SL_ATR, SAFE_TP_ATR
 
 WIB = ZoneInfo("Asia/Jakarta")
 RECENT_BARS = 2          # sinyal H1 dihitung valid jika muncul di N bar terakhir
@@ -72,12 +72,15 @@ def build_recommendation(now: datetime | None = None) -> dict:
         "confidence": None,
         "confidence_note": None,
         "levels": None,
+        "levels_safe": None,       # mode aman: TP 1xATR / SL 0.75xATR
+        "confidence_safe": None,   # win-rate historis rule mode aman
         "pattern": None,
         "h4_context": None,
         "blackout": None,
         "next_event": None,
         "rationale": [],
-        "params": {"tp1_atr": DEFAULT_TP_ATR, "sl_atr": DEFAULT_SL_ATR, "tp2_atr": TP2_ATR},
+        "params": {"tp1_atr": DEFAULT_TP_ATR, "sl_atr": DEFAULT_SL_ATR, "tp2_atr": TP2_ATR,
+                   "safe_tp1_atr": SAFE_TP_ATR, "safe_sl_atr": SAFE_SL_ATR},
     }
 
     h1_bars = store.load("1h")
@@ -144,18 +147,35 @@ def build_recommendation(now: datetime | None = None) -> dict:
         "tp2": round(entry + d * TP2_ATR * atr, 2),
         "atr14": round(atr, 2),
     }
+    # mode aman: target 1xATR (lebih dekat), SL 0.75xATR (lebih ketat) —
+    # entry sama, hanya jarak yang berbeda; win-rate-nya dinilai terpisah
+    # oleh research (safe_win_rate di patterns.json), bukan dari rule standar.
+    levels_safe = {
+        "entry": levels["entry"],
+        "sl": round(entry - d * SAFE_SL_ATR * atr, 2),
+        "tp1": round(entry + d * SAFE_TP_ATR * atr, 2),
+        "atr14": round(atr, 2),
+    }
     rec.update({
         "status": "entry",
         "bias": "bullish" if d == 1 else "bearish",
         "pattern": sig["pattern"],
         "direction": d,
         "levels": levels,
+        "levels_safe": levels_safe,
     })
 
     stats = _pattern_stats("1h", sig["pattern"])
     if stats:
         conf = stats.get("oos_win_rate") or stats.get("win_rate")
         rec["confidence"] = conf
+        conf_safe = stats.get("safe_oos_win_rate") or stats.get("safe_win_rate")
+        if conf_safe:
+            rec["confidence_safe"] = conf_safe
+            rec["rationale"].append(
+                f"mode aman: TP1 {SAFE_TP_ATR}xATR / SL {SAFE_SL_ATR}xATR — "
+                f"win-rate OOS {(conf_safe or 0) * 100:.0f}% vs standar "
+                f"{(conf or 0) * 100:.0f}% (dinilai backtest terpisah)")
         rec["confidence_note"] = (
             f"win-rate historis pola '{sig['pattern']}' H1: "
             f"{(stats.get('win_rate') or 0) * 100:.0f}% (n={stats.get('n')}, "

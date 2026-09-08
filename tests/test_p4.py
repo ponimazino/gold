@@ -159,7 +159,7 @@ def test_news_whitelist():
 
 
 def main() -> int:
-    test_te_parse(None)
+    test_te_parse()
     test_ff_parse()
     test_blackout()
     test_news_whitelist()

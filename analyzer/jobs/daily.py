@@ -1,7 +1,7 @@
 """Job harian (P5): statistik pola -> rekomendasi hari ini -> nilai hasil kemarin.
 
 Local:  python -m analyzer.jobs.daily
-GitHub: workflow daily.yml, cron 22:37 UTC = 05:37 WIB.
+GitHub: workflow daily.yml, grid 2 jam "37 1-15/2 * * 1-5" + "37 21,23 * * 0-4" (04:37-22:37 WIB, Sen-Jum).
 
 Urutan langkah (penting):
   1. refresh statistik pola (walk-forward — selalu pakai data sampai detik ini)
@@ -33,13 +33,20 @@ def main() -> int:
     now = datetime.now(timezone.utc)
 
     # 1. refresh statistik pola (payload dipakai rekomendasi sebagai confidence)
+    #    dua rule sekaligus: standar (TP 1,5xATR/SL 1xATR) + mode aman
+    #    (TP 1xATR/SL 0,75xATR) — sinyal/indikator dihitung sekali per tf.
     all_results: list[dict] = []
+    safe_results: list[dict] = []
     horizon_map = {tf: DEFAULT_HORIZON[tf] for tf in INTERVALS}
     for tf in INTERVALS:
-        all_results.extend(research.run(tf, horizon_map[tf]))
+        std, safe = research.run_pair(tf, horizon_map[tf])
+        all_results.extend(std)
+        safe_results.extend(safe)
     if all_results:
-        store.write_json("patterns.json", research.build_payload(all_results, horizon_map))
-        print("[daily] statistik pola diperbarui")
+        store.write_json("patterns.json",
+                         research.build_payload(all_results, horizon_map,
+                                                safe_results=safe_results))
+        print("[daily] statistik pola diperbarui (standar + mode aman)")
     else:
         print("[daily] data harga belum ada — lewati research")
 
