@@ -997,11 +997,11 @@ function BacktestView({ data }: { data: DashboardData }) {
         </div>
         <div className="panel">
           <div className="panel-header">
-            <div><div className="panel-kicker">Laporan mingguan · otomatis Senin 04:23 WIB</div><h2>Deep-dive PDF</h2></div>
-            <StatusPill tone="violet"><BookOpen size={12} />weekly</StatusPill>
+            <div><div className="panel-kicker">Laporan harian (EOD) · otomatis 23:07 WIB Sen–Jum</div><h2>Deep-dive PDF</h2></div>
+            <StatusPill tone="violet"><BookOpen size={12} />daily</StatusPill>
           </div>
           <p style={{ fontSize: 11, color: "#8e8e9b", margin: "2px 0 12px" }}>
-            Report lengkap tiap pekan: statistik backtest per pola, pembacaan pola berdasarkan history, hasil feedback loop (rekomendasi vs harga aktual), jadwal event 3★ AS, dan sorotan berita tervalidasi.
+            Report end-of-day: ringkasan hari itu + 7 hari, statistik backtest per pola, hasil feedback loop, hasil rekomendasi per hari (7 hari terakhir), jadwal event 3★ AS, dan sorotan berita tervalidasi.
           </p>
           {(reports?.files ?? []).length ? (<>
             {/* Laporan terbaru langsung terbuka inline — tanpa klik */}
@@ -1011,7 +1011,7 @@ function BacktestView({ data }: { data: DashboardData }) {
                   <b>{reports!.files![0].date_wib ?? reports!.files![0].name}</b>
                   <a className="secondary-button" href={reportUrl(reports!.files![0].name!, reports!.files![0].kb)} target="_blank" rel="noreferrer">Tab baru <ExternalLink size={13} /></a>
                 </div>
-                <PdfFrame name={reports!.files![0].name!} title="Laporan mingguan GoldPulse" v={reports!.files![0].kb} />
+                <PdfFrame name={reports!.files![0].name!} title="Laporan harian GoldPulse" v={reports!.files![0].kb} />
               </div>
             )}
             {reports!.files!.length > 1 && (<>
@@ -1030,11 +1030,11 @@ function BacktestView({ data }: { data: DashboardData }) {
             <div className="empty-feed" style={{ padding: "14px 0" }}>
               <div className="empty-icon"><BookOpen size={20} /></div>
               <h3>Belum ada laporan</h3>
-              <p>Job "Laporan Mingguan" belum pernah menghasilkan PDF — jalankan manual sekali di tab Actions (Laporan Mingguan → Run workflow), atau tunggu jadwal Senin pagi WIB.</p>
+              <p>Job "Laporan Harian" belum pernah menghasilkan PDF — jalankan manual sekali di tab Actions (Laporan Harian → Run workflow), atau tunggu jadwal EOD 23:07 WIB.</p>
             </div>
           )}
           {openPdf?.name && (
-            <div className="pdf-modal" role="dialog" aria-modal="true" aria-label="Laporan mingguan PDF">
+            <div className="pdf-modal" role="dialog" aria-modal="true" aria-label="Laporan harian PDF">
               <div className="pdf-modal-head">
                 <b>{openPdf.date_wib ?? openPdf.name}</b>
                 <div className="pdf-modal-actions">
@@ -1042,7 +1042,7 @@ function BacktestView({ data }: { data: DashboardData }) {
                   <button className="icon-button" aria-label="Tutup laporan" onClick={() => setOpenPdf(null)}><X size={16} /></button>
                 </div>
               </div>
-              <PdfFrame name={openPdf.name} title="Laporan mingguan GoldPulse" v={openPdf.kb} />
+              <PdfFrame name={openPdf.name} title="Laporan harian GoldPulse" v={openPdf.kb} />
             </div>
           )}
         </div>
@@ -1319,10 +1319,10 @@ const SCHEDULE_ROWS: Array<{
     sumber: "Google News RSS + GDELT · workflow Fundamental",
     catatan: "whitelist wire (Reuters, Bloomberg, FT, CNBC dkk), 36 jam terakhir",
     next: { kind: "grid", minute: 13, hours: [2, 5, 8, 11, 14, 17, 20, 23] } },
-  { icon: FileCheck2, fitur: "Laporan mingguan PDF", jadwal: "Senin 04:23 WIB",
-    sumber: "workflow Laporan Mingguan",
-    catatan: "arsip maks 52 laporan, tersimpan di repo",
-    next: { kind: "monday", hour: 4, minute: 23 } },
+  { icon: FileCheck2, fitur: "Laporan harian PDF (EOD)", jadwal: "23:07 WIB Senin–Jumat (+ cadangan 23:53)",
+    sumber: "workflow Laporan Harian",
+    catatan: "end-of-day: OHLC hari itu, hasil rekomendasi per hari (7 hari terakhir), statistik backtest; arsip maks 90 laporan di repo",
+    next: { kind: "grid", minute: 7, hours: [23], tradingDaysOnly: true } },
   { icon: Zap, fitur: "Spot live (harga di kartu)", jadwal: "Tiap 30 detik, di browser Anda",
     sumber: "XAUS.com (tanpa API key)",
     catatan: "display only — tidak pernah disimpan ke data" },
@@ -1338,7 +1338,7 @@ function JadwalView({ data, now }: { data: DashboardData; now: number }) {
     "Statistik backtest per pola": data.patterns?.generated_at_wib,
     "Kalender ekonomi 3★ US": data.calendar?.updated_at_wib,
     "Berita tervalidasi": data.news?.updated_at_wib,
-    "Laporan mingguan PDF": data.tracking?.updated_at_wib,
+    "Laporan harian PDF (EOD)": data.tracking?.updated_at_wib,
     "Spot live (harga di kartu)": "live",
     "Refresh dashboard": "otomatis",
   };

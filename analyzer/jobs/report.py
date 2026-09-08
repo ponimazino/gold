@@ -1,18 +1,21 @@
-"""Job mingguan: laporan PDF detail untuk review manual.
+"""Job harian (EOD): laporan PDF detail untuk review manual.
 
 Isi: halaman sampul bergaya resmi (banner hitam + aksen lime + tag
-CONFIDENTIAL), ringkasan eksekutif, pergerakan harga mingguan + grafik,
-ringkasan bulan-bulan sebelumnya (price action per bulan), statistik
-backtest per pola, pembacaan pola berdasarkan history, hasil feedback
-loop (rekomendasi vs harga aktual), track event 3-star minggu depan,
-dan sorotan berita. Setiap halaman diberi watermark diagonal CONFIDENTIAL.
+CONFIDENTIAL), ringkasan eksekutif (hari ini + 7 hari), pergerakan harga
++ grafik 4 minggu, ringkasan bulan-bulan sebelumnya (price action per
+bulan), statistik backtest per pola, pembacaan pola berdasarkan history,
+hasil feedback loop (rekomendasi vs harga aktual), hasil rekomendasi
+PER HARI (7 hari terakhir, dari log EOD tracking.json), track event
+3-star 7 hari ke depan, dan sorotan berita. Setiap halaman diberi
+watermark diagonal CONFIDENTIAL.
 
 Local:  python -m analyzer.jobs.report
-GitHub: workflow report.yml, cron 21:23 UTC Minggu = 04:23 WIB Senin.
-Output: data/reports/weekly-YYYY-MM-DD.pdf (tanggal WIB saat dibuat)
-        + data/reports/index.json (maksimal 52 entri terakhir).
+GitHub: workflow report.yml, cron 16:07 UTC Sen-Jum = 23:07 WIB (EOD,
+        setelah slot grid daily terakhir 22:37 WIB selesai).
+Output: data/reports/daily-YYYY-MM-DD.pdf (tanggal WIB saat dibuat)
+        + data/reports/index.json (maksimal 90 entri terakhir).
 
-PDF ~100-200 KB/minggu; biarkan terakumulasi di repo (setahun ~10 MB).
+PDF ~100-200 KB/hari; biarkan terakumulasi di repo (90 entri ~15 MB).
 """
 
 from __future__ import annotations
@@ -58,7 +61,7 @@ S_BADGE = ParagraphStyle("badge", fontName="Helvetica-Bold", fontSize=10,
 S_COVER_SUB = ParagraphStyle("coversub", fontName="Helvetica", fontSize=8,
                              leading=12, textColor=colors.HexColor("#b9b9c4"))
 
-KEEP = 52  # jumlah laporan di index.json
+KEEP = 90  # jumlah laporan di index.json (harian ~3 bulan)
 
 
 class _CoverBanner(Flowable):
@@ -97,7 +100,7 @@ class _CoverBanner(Flowable):
         c.drawString(24 * mm, h - 15 * mm, "GOLDPULSE")
         c.setFillColor(colors.white)
         c.setFont("Helvetica-Bold", 10.5)
-        c.drawString(24 * mm, h - 22 * mm, "LAPORAN MINGGUAN XAUUSD")
+        c.drawString(24 * mm, h - 22 * mm, "LAPORAN HARIAN XAUUSD")
         # garis info di bawah banner
         c.setFillColor(colors.HexColor("#b9b9c4"))
         c.setFont("Helvetica", 7.5)
@@ -222,7 +225,7 @@ def _price_chart(bars: list[dict], width: float, height: float) -> Drawing:
 
 
 def _week_summary(bars: list[dict], now: datetime) -> tuple[dict, list[dict]]:
-    """Statistik minggu berjalan (7 hari) + bar untuk grafik 4 minggu."""
+    """Statistik 7 hari terakhir + bar untuk grafik 4 minggu."""
     cutoff = now - timedelta(days=7)
     chart_cutoff = now - timedelta(days=28)
     week = [b for b in bars if store.parse(b["t"]) >= cutoff]
@@ -238,6 +241,28 @@ def _week_summary(bars: list[dict], now: datetime) -> tuple[dict, list[dict]]:
         "prev_close": prev[-1]["c"] if prev else None,
     }
     return summary, chart
+
+
+def _day_summary(bars: list[dict], now: datetime) -> dict:
+    """OHLC hari berjalan (per tanggal WIB) + close hari sebelumnya."""
+    today = now.astimezone(WIB).strftime("%Y-%m-%d")
+    day: list[dict] = []
+    prev_close: float | None = None
+    for b in bars:
+        d = store.parse(b["t"]).astimezone(WIB).strftime("%Y-%m-%d")
+        if d == today:
+            day.append(b)
+        elif d < today:
+            prev_close = b["c"]  # bar terakhir sebelum hari ini
+    if not day:
+        return {}
+    return {
+        "open": day[0]["o"],
+        "high": max(b["h"] for b in day),
+        "low": min(b["l"] for b in day),
+        "close": day[-1]["c"],
+        "prev_close": prev_close,
+    }
 
 
 def _monthly_recap(bars: list[dict], now: datetime,
@@ -316,15 +341,14 @@ def build(now: datetime | None = None) -> dict:
     news = _read_json("news.json")
 
     week, chart_bars = _week_summary(bars4h, now)
+    day = _day_summary(bars1h, now)
     month_rows, months = _monthly_recap(bars4h, now)
     stats = tracking.get("stats", {})
     results = sorted(
         patterns.get("results", []),
         key=lambda r: (r.get("tf", ""), -(r.get("oos_win_rate") or 0)))
 
-    periode_txt = (
-        f"{(now - timedelta(days=7)).astimezone(WIB).strftime('%d %b')} - "
-        f"{now.astimezone(WIB).strftime('%d %b %Y')}")
+    periode_txt = now.astimezone(WIB).strftime("%a %d %b %Y")
 
     # ---------- isi PDF ----------
     story: list = []
@@ -339,16 +363,22 @@ def build(now: datetime | None = None) -> dict:
     hit = stats.get("hit_rate")
 
     # 1. Ringkasan eksekutif
+    exec_txt = ""
+    if day:
+        chg_d = _pct(day["close"], day["prev_close"] or day["open"])
+        exec_txt += (
+            f"Hari ini (WIB) XAUUSD bergerak dari {day['open']:,.2f} ke "
+            f"{day['close']:,.2f} ({chg_d} terhadap close kemarin), "
+            f"tertinggi {day['high']:,.2f} dan terendah {day['low']:,.2f}. ")
     if week:
         chg = _pct(week["close"], week["prev_close"] or week["open"])
-        exec_txt = (
-            f"Minggu ini XAUUSD bergerak dari {week['open']:,.2f} ke "
-            f"{week['close']:,.2f} ({chg} terhadap close minggu lalu), "
-            f"tertinggi {week['high']:,.2f} dan terendah {week['low']:,.2f}. "
+        exec_txt += (
+            f"7 hari terakhir: {week['open']:,.2f} ke {week['close']:,.2f} "
+            f"({chg} terhadap close 7 hari lalu). "
             f"Tren H4 saat ini: {trend}. Rekomendasi terbaru ({rec.get('id', '-')}): "
             f"status <b>{status.upper()}</b>, bias {bias}, peluang historis {conf_txt}. ")
-    else:
-        exec_txt = "Data harga minggu ini belum tersedia. "
+    if not week:
+        exec_txt += "Data harga 7 hari terakhir belum tersedia. "
     if hit is not None:
         exec_txt += (f"Rekam jejak feedback loop: {round(hit * 100)}% rekomendasi "
                      f"teresolve kena TP1 ({stats.get('wins', 0)}/{stats.get('resolved', 0)}).")
@@ -458,7 +488,7 @@ def build(now: datetime | None = None) -> dict:
             "Belum cukup sampel pola (n>=50) untuk pembacaan yang berarti.", S_BODY))
 
     # 5b. TP2 (runner) + statistik risiko per pola — dihitung dari data H1
-    #     saat laporan dibuat (mingguan, jadi biaya hitung tidak masalah).
+    #     saat laporan dibuat (harian, jadi biaya hitung tidak masalah).
     if bars1h:
         df1 = research.bars_to_df(bars1h)
         sigs1 = research.dedup_signals(pat.detect_signals(df1, "1h"))
@@ -529,9 +559,61 @@ def build(now: datetime | None = None) -> dict:
         story.append(_table(rows, [30 * mm, 24 * mm, 42 * mm, 20 * mm, 40 * mm],
                             align_right_from=3))
 
-    # 7. Track event minggu depan
+    # 7. Hasil rekomendasi per hari (log EOD tracking.json, 7 hari terakhir)
+    eod_days = tracking.get("eod", [])[:7]
+    if eod_days:
+        story.append(Spacer(1, 4))
+        story.append(_section(7, "HASIL REKOMENDASI PER HARI (7 HARI TERAKHIR)"))
+        story.append(Spacer(1, 5))
+        rows = [["Tanggal (WIB)", "Entry", "TP1", "SL", "Timeout", "Hasil hari"]]
+        for d in eod_days:
+            ents = d.get("entries", [])
+            w = sum(1 for e in ents if e.get("status") == "win")
+            l = sum(1 for e in ents if e.get("status") == "loss")
+            t = sum(1 for e in ents if e.get("status") == "timeout")
+            if w > l:
+                note = f"net +{w - l} TP1" if w else "tanpa win"
+            elif l > w:
+                note = f"net -{l - w} SL"
+            else:
+                note = "seimbang" if w else "tanpa hasil"
+            rows.append([d.get("date", "-"), len(ents), w, l, t, note])
+        story.append(_table(rows, [34 * mm, 18 * mm, 16 * mm, 16 * mm, 20 * mm,
+                                   40 * mm], align_right_from=1))
+        # detail entry untuk hari terbaru yang punya hasil
+        detail = [e for e in eod_days[0].get("entries", []) if e.get("why")]
+        if detail:
+            story.append(Spacer(1, 5))
+            story.append(Paragraph(
+                f"Detail {eod_days[0].get('date', '-')} (hari terbaru berisi hasil):",
+                S_H2))
+            story.append(Spacer(1, 3))
+            drows = [["Pola", "Bias", "Hasil", "MFE/MAE USD", "Ringkas"]]
+            for e in detail[:8]:
+                mfe = e.get("mfe_usd")
+                mae = e.get("mae_usd")
+                mm_txt = ("-" if mfe is None or mae is None
+                          else f"+{mfe:.2f} / -{mae:.2f}")
+                why = (e.get("why") or "-")
+                if len(why) > 110:
+                    why = why[:107] + "..."
+                drows.append([
+                    e.get("pattern", "-"),
+                    e.get("bias", "-"),
+                    _fmt_rec_status(e.get("status", "-")),
+                    mm_txt,
+                    why,
+                ])
+            story.append(_table(drows, [34 * mm, 20 * mm, 20 * mm, 30 * mm,
+                                        48 * mm]))
+        story.append(Paragraph(
+            "Log EOD diturunkan dari history feedback loop (idempotent): setiap "
+            "rekomendasi entry dinilai vs harga aktual — SL dicek lebih dulu "
+            "(konservatif), timeout 24 bar H1.", S_SMALL))
+
+    # 8. Track event 7 hari ke depan
     story.append(Spacer(1, 4))
-    story.append(_section(7, "EVENT EKONOMI 3-STAR US MINGGU DEPAN"))
+    story.append(_section(8, "EVENT EKONOMI 3-STAR US 7 HARI KE DEPAN"))
     story.append(Spacer(1, 5))
     events = []
     for e in calendar.get("events", []):
@@ -562,9 +644,9 @@ def build(now: datetime | None = None) -> dict:
             "Tidak ada event 3-star US terjadwal dalam 7 hari ke depan "
             "(berdasarkan kalender tersimpan).", S_BODY))
 
-    # 8. Sorotan berita
+    # 9. Sorotan berita
     story.append(Spacer(1, 4))
-    story.append(_section(8, "SOROTAN BERITA TERVALIDASI (7 HARI TERAKHIR)"))
+    story.append(_section(9, "SOROTAN BERITA TERVALIDASI (7 HARI TERAKHIR)"))
     story.append(Spacer(1, 5))
     items = []
     for n in news.get("items", []):
@@ -602,13 +684,13 @@ def build(now: datetime | None = None) -> dict:
     out_dir = store.DATA_DIR / "reports"
     out_dir.mkdir(parents=True, exist_ok=True)
     date_wib = now.astimezone(WIB).strftime("%Y-%m-%d")
-    pdf_name = f"weekly-{date_wib}.pdf"
+    pdf_name = f"daily-{date_wib}.pdf"
     pdf_path = out_dir / pdf_name
     doc = SimpleDocTemplate(
         str(pdf_path), pagesize=A4,
         leftMargin=18 * mm, rightMargin=18 * mm,
         topMargin=16 * mm, bottomMargin=16 * mm,
-        title=f"GoldPulse Weekly {date_wib}",
+        title=f"GoldPulse Daily {date_wib}",
         author="goldpulse analyzer")
 
     def _page(canvas, _doc):
@@ -627,7 +709,7 @@ def build(now: datetime | None = None) -> dict:
         canvas.setFont("Helvetica", 6.5)
         canvas.setFillColor(GRAY)
         canvas.drawString(18 * mm, 8.5 * mm,
-                          f"GoldPulse weekly report {date_wib} - "
+                          f"GoldPulse daily report {date_wib} - "
                           f"CONFIDENTIAL - bukan saran finansial")
         canvas.drawRightString(A4[0] - 18 * mm, 8.5 * mm,
                                f"Hal. {canvas.getPageNumber()}")
@@ -636,7 +718,7 @@ def build(now: datetime | None = None) -> dict:
             canvas.setFont("Helvetica-Bold", 6.5)
             canvas.setFillColor(GRAY)
             canvas.drawString(18 * mm, A4[1] - 10 * mm,
-                              f"GOLDPULSE - LAPORAN MINGGUAN - {periode_txt}")
+                              f"GOLDPULSE - LAPORAN HARIAN - {periode_txt}")
 
     doc.build(story, onFirstPage=_page, onLaterPages=_page)
 
@@ -649,7 +731,7 @@ def build(now: datetime | None = None) -> dict:
         "name": pdf_name,
         "date_wib": _wib(now),
         "kb": round(pdf_path.stat().st_size / 1024),
-        "summary": (f"XAUUSD {week['close']:,.2f}" if week else "laporan mingguan")
+        "summary": (f"XAUUSD {week['close']:,.2f}" if week else "laporan harian")
                    + (f" | status {status} bias {bias}" if rec else ""),
         "rec_status": status,
     }

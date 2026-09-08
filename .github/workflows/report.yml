@@ -1,11 +1,13 @@
-name: Laporan Mingguan
+name: Laporan Harian
 
 on:
   schedule:
-    # Laporan PDF review mingguan: 04:23 WIB Senin (21:23 UTC Minggu).
-    # Menit ganjil biar tidak berebut antrean runner dengan jadwal populer.
-    # Rilis AS sudah tuntas untuk minggu berjalan, data sync lengkap.
-    - cron: "23 21 * * 0"
+    # Laporan PDF EOD harian: 23:07 WIB Sen-Jum (16:07 UTC) — setelah slot
+    # grid daily terakhir (22:37 WIB) selesai, jadi log EOD tracking.json
+    # sudah ter-update. Slot cadangan 23:53 WIB anti-drop (GitHub sering
+    # menunda run terjadwal; job idempotent, nama file per-tanggal sama).
+    - cron: "7 16 * * 1-5"
+    - cron: "53 16 * * 1-5"
   workflow_dispatch:
 
 permissions:
@@ -30,7 +32,7 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Build weekly PDF report
+      - name: Build daily PDF report
         run: python -m analyzer.jobs.report
 
       - name: Commit report
@@ -41,7 +43,7 @@ jobs:
           if git diff --cached --quiet; then
             echo "No report changes, nothing to commit."
           else
-            git commit -m "data: laporan mingguan $(date -u +'%Y-%m-%d') UTC"
+            git commit -m "data: laporan harian $(date -u +'%Y-%m-%d') UTC"
             git pull --rebase origin main
             git push
           fi

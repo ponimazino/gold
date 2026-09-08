@@ -1,4 +1,4 @@
-"""Smoke test job laporan mingguan: unduh data live dari repo ke folder
+"""Smoke test job laporan harian (EOD): unduh data live dari repo ke folder
 sementara, jalankan report.build(), pastikan PDF + index.json terbentuk.
 
 Run: python tests/test_report_smoke.py

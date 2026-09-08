@@ -130,12 +130,12 @@ export async function loadDashboard(): Promise<DashboardData> {
   };
 }
 
-// ---- laporan mingguan PDF (dibuat job report.yml tiap Senin pagi WIB) ----
+// ---- laporan harian PDF EOD (dibuat job report.yml tiap 23:07 WIB Sen–Jum) ----
 
 export const REPORTS_BASE = `${DATA_BASE}/reports`;
 // PDF dibuka via jsDelivr: raw.githubusercontent mengirim Content-Type
 // octet-stream (browser otomatis DOWNLOAD), jsDelivr mengirim application/pdf
-// (browser VIEW langsung). Cache CDN ~12 jam — cukup untuk laporan mingguan.
+// (browser VIEW langsung). Cache CDN ~12 jam — cukup untuk laporan harian.
 export const PDF_BASE = "https://cdn.jsdelivr.net/gh/ponimazino/gold@main/data/reports";
 // v = cache buster (mis. ukuran KB) supaya regenerasi PDF hari yang sama
 // tidak tersangkut cache browser pada filename identik.
