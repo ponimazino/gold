@@ -32,6 +32,7 @@ import {
   FlaskConical,
   Gauge,
   Globe2,
+  History,
   LayoutDashboard,
   Menu,
   Newspaper,
@@ -64,7 +65,7 @@ import {
   utcStringToTs,
 } from "../data";
 
-type ViewKey = "summary" | "overview" | "analysis" | "backtest" | "calendar" | "jadwal";
+type ViewKey = "summary" | "overview" | "analysis" | "backtest" | "riwayat" | "calendar" | "jadwal";
 type Timeframe = "4H" | "1H";
 
 const SOURCE_LINKS = {
@@ -86,6 +87,7 @@ const navItems: { key: ViewKey; label: string; icon: typeof LayoutDashboard }[] 
   { key: "summary", label: "Apa kata hari ini", icon: Sparkles },
   { key: "analysis", label: "Daily analysis", icon: Crosshair },
   { key: "backtest", label: "Backtest lab", icon: FlaskConical },
+  { key: "riwayat", label: "Riwayat", icon: History },
   { key: "calendar", label: "Fundamentals", icon: Newspaper },
   { key: "jadwal", label: "Jadwal", icon: Clock3 },
 ];
@@ -1049,6 +1051,116 @@ function BacktestView({ data }: { data: DashboardData }) {
   </>);
 }
 
+// ---- view: Riwayat rekomendasi (tracking.json history) ----
+
+const HIST_STATUS: Record<string, { label: string; tone: "green" | "amber" | "violet" | "slate"; icon: typeof Check }> = {
+  win: { label: "TP1", tone: "green", icon: Check },
+  loss: { label: "SL", tone: "amber", icon: AlertTriangle },
+  timeout: { label: "Timeout", tone: "slate", icon: Clock3 },
+  active: { label: "Berjalan", tone: "violet", icon: TimerReset },
+  entry: { label: "Berjalan", tone: "violet", icon: TimerReset },
+};
+
+function RiwayatView({ data }: { data: DashboardData }) {
+  const tracking = data.tracking;
+  const history = tracking?.history ?? [];
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [patternFilter, setPatternFilter] = useState("all");
+
+  const patterns = useMemo(
+    () => Array.from(new Set(history.map((h) => h.pattern).filter((p): p is string => !!p))),
+    [history]);
+  const filtered = useMemo(
+    () => history.filter((h) => {
+      const running = h.status === "active" || h.status === "entry";
+      if (statusFilter === "run") { if (!running) return false; }
+      else if (statusFilter !== "all" && h.status !== statusFilter) return false;
+      return patternFilter === "all" || h.pattern === patternFilter;
+    }),
+    [history, statusFilter, patternFilter]);
+
+  const stats = tracking?.stats;
+  const hitRate = stats?.hit_rate != null ? Math.round(stats.hit_rate * 100) : null;
+
+  return (<>
+    <section className="hero-row compact">
+      <div>
+        <div className="eyebrow"><History size={13} /> Feedback loop <span className="eyebrow-separator">/</span> Histori posisi</div>
+        <h1>Setiap rekomendasi. <span>Dinilai jujur.</span></h1>
+        <p className="hero-subtitle">Daftar lengkap rekomendasi entry yang pernah dicatat sistem beserta level dan hasilnya vs pergerakan harga aktual — SL dicek lebih dulu (konservatif), timeout 24 bar H1.</p>
+      </div>
+      <StatusPill tone="violet"><Database size={12} />{tracking?.updated_at_wib ?? "—"}</StatusPill>
+    </section>
+    {history.length === 0 ? (
+      <div className="panel"><div className="empty-feed">
+        <div className="empty-icon"><History size={20} /></div>
+        <h3>Belum ada riwayat rekomendasi</h3>
+        <p>Entry baru tercatat saat job harian menemukan pola H1 searah trend H4 — riwayat terisi otomatis seiring waktu.</p>
+      </div></div>
+    ) : (<>
+      <div className="result-strip">
+        <div><span>Total tercatat</span><strong>{stats?.total ?? history.length}</strong><small>rekomendasi entry sejak sistem aktif</small></div>
+        <div><span>Hit-rate TP1</span><strong>{hitRate != null ? `${hitRate}%` : "—"}</strong><small>{stats?.wins ?? 0} win / {stats?.losses ?? 0} SL</small></div>
+        <div><span>Timeout</span><strong>{stats?.timeouts ?? 0}</strong><small>24 bar H1 tanpa TP/SL</small></div>
+        <div><span>Berjalan</span><strong>{stats?.active ?? 0}</strong><small>menunggu hasil</small></div>
+      </div>
+      <div className="panel">
+        <div className="panel-header">
+          <div><div className="panel-kicker">Riwayat per rekomendasi</div><h2>{filtered.length} dari {history.length} entry</h2></div>
+        </div>
+        <div className="filter-bar">
+          <label>Hasil
+            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+              <option value="all">Semua</option>
+              <option value="win">TP1 (benar)</option>
+              <option value="loss">SL (salah)</option>
+              <option value="timeout">Timeout</option>
+              <option value="run">Masih berjalan</option>
+            </select>
+          </label>
+          <label>Pola
+            <select value={patternFilter} onChange={(e) => setPatternFilter(e.target.value)}>
+              <option value="all">Semua</option>
+              {patterns.map((p) => <option key={p} value={p}>{PATTERN_NAMES[p] ?? p}</option>)}
+            </select>
+          </label>
+        </div>
+        <div className="reasoning-ledger">
+          <div className="ledger-heading"><span>Tanggal · pola · bias — level, hasil &amp; narasi</span><span>log sistem</span></div>
+          {filtered.length === 0 ? (
+            <div className="empty-feed" style={{ padding: "14px 0" }}>
+              <h3>Tidak ada entry untuk filter ini</h3>
+              <p>Coba longgarkan filter hasil atau pola.</p>
+            </div>
+          ) : filtered.map((h, i) => {
+            const meta = HIST_STATUS[h.status ?? ""] ?? { label: h.status ?? "?", tone: "slate" as const, icon: Clock3 };
+            const Icon = meta.icon;
+            const lvl = h.levels;
+            const oc = h.outcome;
+            return (
+              <div className="ledger-row" key={h.id ?? i}>
+                <Icon size={15} className={h.status === "win" ? "ledger-good" : h.status === "loss" ? "ledger-caution" : undefined} />
+                <div>
+                  <b>{h.created_at_wib?.slice(0, 10) ?? h.id ?? "?"}{h.pattern ? ` · ${PATTERN_NAMES[h.pattern] ?? h.pattern}` : ""} · {h.bias ?? "netral"}</b>
+                  <span>{oc?.why ?? (h.status === "active" || h.status === "entry" ? "Masih berjalan — dinilai saat harga sentuh SL/TP1 atau timeout 24 bar H1." : "menunggu narasi hasil")}</span>
+                  <div className="hist-detail">
+                    {lvl && <span>Entry {fmtUsd(lvl.entry)} · SL {fmtUsd(lvl.sl)} · TP1 {fmtUsd(lvl.tp1)} · TP2 {fmtUsd(lvl.tp2)}</span>}
+                    {h.confidence != null && <span>Confidence {Math.round(h.confidence * 100)}%</span>}
+                    {oc && <span>Puncak +{(oc.mfe_usd ?? 0).toFixed(2)} / terburuk −{(oc.mae_usd ?? 0).toFixed(2)} USD · {oc.bars_held ?? "—"} jam</span>}
+                    {oc?.resolved_at_wib && <span>Resolve {oc.resolved_at_wib}</span>}
+                  </div>
+                </div>
+                <StatusPill tone={meta.tone}>{meta.label}</StatusPill>
+              </div>
+            );
+          })}
+        </div>
+        <div className="disclaimer-row"><FileCheck2 size={14} /> Dinilai dari harga aktual · SL dicek lebih dulu (konservatif) · probabilitas, bukan jaminan</div>
+      </div>
+    </>)}
+  </>);
+}
+
 // ---- view: Fundamentals (calendar.json + news.json) ----
 
 function FundamentalsView({ data, now }: { data: DashboardData; now: number }) {
@@ -1287,6 +1399,8 @@ export default function Home() {
     <AnalysisView data={data} now={now} />
   ) : view === "backtest" ? (
     <BacktestView data={data} />
+  ) : view === "riwayat" ? (
+    <RiwayatView data={data} />
   ) : view === "calendar" ? (
     <FundamentalsView data={data} now={now} />
   ) : (

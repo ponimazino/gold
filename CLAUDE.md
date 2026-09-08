@@ -14,8 +14,8 @@ Semua komunikasi dengan user dalam **Bahasa Indonesia**.
 - Repo: **github.com/ponimazino/gold** (public). Remote: `https://ponimazino@github.com/ponimazino/gold.git`.
 - Data 3 tahun ter-backfill: 20.493 bar H1 + 5.323 bar H4 (2023-09-06 → 2026-09-06).
 - Workflow GitHub Actions (checkout@v5, setup-python@v6, semua commit step pakai `git pull --rebase origin main` dulu untuk hindari race):
-  - `daily.yml` — grid 2 jam "37 1-15/2 * * 1-5" + "37 21,23 * * 0-4" (04:37–22:37 WIB, Sen–Jum; anchor 04:37 pra-Sydney, 14:37 London, 20:37 NY + rilis data AS; tiap pasangan candle H1 dievaluasi tepat sekali) + **slot cadangan :52** (anti-drop GitHub) → research + resolve feedback loop + `data/recommendation.json`, `data/tracking.json`. Recommendation.json dioverwrite tiap run; history tracking tetap 1 entry/hari (dedup per tanggal).
-  - `sync.yml` — "17,47 * * * *" (setiap hari termasuk Minggu; :47 = cadangan anti-drop): update bar H1/H4 tiap jam, gap-filling
+  - `daily.yml` — grid 2 jam "37 1-15/2 * * 1-5" + "37 21,23 * * 0-4" (04:37–22:37 WIB, Sen–Jum; anchor 04:37 pra-Sydney, 14:37 London, 20:37 NY + rilis data AS; tiap pasangan candle H1 dievaluasi tepat sekali) + **slot cadangan :52** → research + resolve feedback loop + `data/recommendation.json`, `data/tracking.json`. Recommendation.json dioverwrite tiap run; history tracking tetap 1 entry/hari (dedup per tanggal). **Watch loop (2026-09-08)**: begitu satu run lolos, runner tetap hidup ~6 jam dan tiap 2 jam menjalankan **sync sendiri + analisa + commit** — tidak lagi bergantung workflow sync jalan duluan. `concurrency: daily, cancel-in-progress: true` (maks 1 loop aktif).
+  - `sync.yml` — "17,47 * * * *" (setiap hari termasuk Minggu; :47 = cadangan anti-drop): update bar H1/H4, gap-filling. **Watch loop (2026-09-08)**: run yang lolos tetap hidup ~6 jam, sync + commit tiap 30 menit. `cancel-in-progress: true` (maks 1 loop, kuota Twelve Data terkendali ~24-48 req/run yang lolos).
   - `fundamental.yml` — "13 1-23/3 * * *" + cadangan ":28" (tiap 3 jam): kalender 3★ US + berita whitelist
   - `report.yml` — "23 21 * * 0" (04:23 WIB Senin) + dispatch: `analyzer/jobs/report.py` → PDF mingguan `data/reports/weekly-YYYY-MM-DD.pdf` + `data/reports/index.json` (max 52 entri; reportlab di requirements.txt; smoke test `tests/test_report_smoke.py`)
   - `backfill.yml` — dispatch only (jalankan manual saja; idempotent, merging)
@@ -25,7 +25,7 @@ Semua komunikasi dengan user dalam **Bahasa Indonesia**.
 ## Frontend produksi: folder `web/` (GoldPulse)
 - React 19 + Vite 7 + recharts + lucide-react, desain dari prototipe user di `gold-ui/` (Manus — **di-gitignore, jangan dipublish**).
 - Baca data dari `https://raw.githubusercontent.com/ponimazino/gold/main/data/*.json` (8 file) + `data/reports/index.json` (laporan mingguan) + spot live `https://xaus.com/api/v1/spot?compact=1` (field `xau.price`, tanpa key, display only).
-- Struktur: `web/src/data.ts` (layer data + tipe), `web/src/pages/Home.tsx` (5 view: **ringkasan** [tab pertama, bahasa awam] / overview / analysis / backtest [ada panel PDF mingguan] / calendar), `web/src/index.css` (design system goldpulse), PWA di `web/public/` (manifest+sw.js — navigasi network-first, asset cache-first).
+- Struktur: `web/src/data.ts` (layer data + tipe), `web/src/pages/Home.tsx` (7 view: overview / **ringkasan** ["Apa kata hari ini", bahasa awam] / analysis / backtest [ada panel PDF mingguan] / **riwayat** [history rekomendasi per entry: level entry/SL/TP + hasil + narasi, filter hasil & pola] / calendar / jadwal), `web/src/index.css` (design system goldpulse), PWA di `web/public/` (manifest+sw.js — navigasi network-first, asset cache-first).
 - Chart Primary Instrument: bisa **digeser (drag) & zoom (scroll + tombol +/−/reset)** — window 15..1000 bar dari 1200 bar dimuat; default 90 bar terakhir.
 - Build: `npm run check` (tsc) + `npm run build`. Bundle ~188 kB gzip.
 - **PWA vanilla lama masih ada di root repo** (index.html/app.js/style.css/sw.js/manifest.webmanifest) — tidak ter-deploy saat Vercel root=web, tapi kandidat pembersihan (tanya user dulu).
@@ -33,13 +33,13 @@ Semua komunikasi dengan user dalam **Bahasa Indonesia**.
 ## Next step user: deploy ke Vercel
 Root Directory = `web` (auto-detect Vite), lihat DEPLOY.md Bagian 5. Setelah itu: verifikasi workflow `daily.yml` jalan di grid 2 jam (cek tab Actions, run pertama setelah push di jam :37 WIB berikutnya).
 
-## Perubahan lokal BELUM di-push (2026-09-08, menunggu perintah user)
-- Grid jadwal: daily 3 jam → **2 jam** (04:37–22:37 WIB, Sen–Jum); fundamental 4 jam → 3 jam (:13).
-- Evaluasi akhir hari: narasi outcome + log `eod` di tracking.json (lihat bullet Feedback loop).
-- Mode aman: `levels_safe`/`confidence_safe` (TP 1×ATR / SL 0,75×ATR) + UI di Analysis & Ringkasan.
-- `data/patterns.json`, `recommendation.json`, `tracking.json` ikut berubah (smoke run lokal 2026-09-08).
-- Fix kecil: `tests/test_p4.py` `test_te_parse(None)` → `test_te_parse()` (bug test harness lama).
-- Verifikasi: 5/5 suite Python lolos, tsc + build bersih, daily job 10 detik di data nyata.
+## Perubahan lokal BELUM di-push (2026-09-08 malam, menunggu perintah user)
+- **Watch loop anti-drop GitHub Actions** di `sync.yml` + `daily.yml` (lihat bullet workflow + gotcha di atas). Dipicu insiden 2026-09-08: data candle basi 7 jam (16:47 WIB) karena 46/48 slot sync & 10/10 slot daily di-drop GitHub → analisa "no qualified setup" pakai data basi.
+- **View baru "Riwayat"** di Home.tsx (pilihan user: tab baru): daftar lengkap history rekomendasi dari `tracking.json` — strip statistik, filter hasil (TP1/SL/timeout/berjalan) + pola, ledger row per entry (level entry/SL/TP1/TP2, confidence, MFE/MAE, bars held, waktu resolve, narasi). `TrackingEntry` di data.ts diperluas (levels/confidence/direction/resolved_at_wib). CSS: `.filter-bar`, `.hist-detail`.
+- Job daily sekarang **sync sendiri sebelum analisa** — rekomendasi tidak pernah lagi dibangun dari candle basi.
+- `CLAUDE.md` ikut diubah (deskripsi workflow + gotcha + section ini). docs/ tetap TIDAK di-commit.
+- Verifikasi: YAML 5 workflow valid, dry-run loop (stub date/sleep/git/python) exit 0 di jalur normal + push-race + konflik rebase.
+- BATCH SEBELUMNYA (grid 2 jam, EOD, mode aman, cron cadangan) SUDAH di-push: `35d016d` + `abf57cd`.
 
 ## Audit 2026-09-06 — bug yang sudah diperbaiki (jangan kambuh)
 - `track.py`: job daily mencatat status "entry" tapi `_resolve_one` cuma proses "active" → rekomendasi tak pernah dinilai. FIXED: normalisasi entry→active (regression test di test_p5.py). Hit-rate baru muncul setelah rekomendasi mulai teresolve (24 bar H1 ~1 hari).
@@ -52,5 +52,5 @@ Root Directory = `web` (auto-detect Vite), lihat DEPLOY.md Bagian 5. Setelah itu
 - Push dari shell Claude pernah gagal "Cannot prompt / could not read Username" → kalau git butuh interaksi auth, minta user push sendiri.
 
 ## Gotcha GitHub Actions (terverifikasi 2026-09-08)
-- **GitHub sering MENUNDA/DROP run terjadwal** di menit ramai — bukan jitter 10 menit: Hourly Sync pernah cuma jalan 2×/hari (seharusnya 24×), run terjadwal daily pernah telat 2 jam. Akibat: data bisa basi berjam-jam → semua workflow penting sekarang punya **slot cron cadangan** (sync :47, daily :52, fundamental :28). Job semua idempotent jadi dobel-run aman.
+- **GitHub sering MENUNDA/DROP run terjadwal** — bukan jitter 10 menit: 2026-09-08 Hourly Sync cuma jalan 2×/hari (dari 48 slot), grid daily 10 slot jalan 0×. Slot cron cadangan menit-menit TIDAK cukup (yang di-drop jamnya juga). Solusi definitif: **watch loop** di sync.yml + daily.yml — run yang lolos tetap hidup ~6 jam dan bekerja sendiri secara berkala (sync tiap 30 mnt; daily: sync+analisa tiap 2 jam). Asal 3–4 run/hari lolos, data & rekomendasi segar terus. Job idempotent + `cancel-in-progress: true` jadi dobel-run aman dan kuota API terkendali.
 - `data/*.json` konflik saat `git pull --rebase` (auto-commit workflow remote vs commit lokal kita): saat rebase, versi commit lokal = `--theirs`.

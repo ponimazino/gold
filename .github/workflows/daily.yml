@@ -1,10 +1,9 @@
-﻿name: Analisa Harian
+name: Analisa Harian
 
 on:
   schedule:
     # Grid 2 jam (WIB) 04:37-22:37, Senin-Jumat, menit :37 (ganjil, anti
-    # antrean runner) — SELALU 20 menit setelah sync :17 jadi rekomendasi
-    # memakai candle terbaru. Grid 2 jam = tiap pasangan candle H1 dievaluasi
+    # antrean runner). Grid 2 jam = tiap pasangan candle H1 dievaluasi
     # tepat sekali (logika pola "2 bar terakhir" tidak ada yang terlewat).
     # Anchor jam krusial: 04:37 pra-open Sydney 05:00 · 14:37 open London
     # · 20:37 open NY + rilis data AS 8:30 ET (19:30/20:30 WIB).
@@ -14,10 +13,14 @@ on:
     # — grid ini tetap, hanya jarak ke open berubah maksimal 1 jam.
     - cron: "37 1-15/2 * * 1-5"  # Sen-Jum UTC 01:37-15:37 = 08:37-22:37 WIB hari sama
     - cron: "37 21,23 * * 0-4"   # Min-Kam UTC 21:37/23:37 = 04:37/06:37 WIB hari berikutnya
-    # Cadangan anti-drop: GitHub Actions sering menunda/DROP run terjadwal
-    # di menit ramai. Slot :52 (15 menit setelah utama) memberi kesempatan
-    # kedua tiap grid. Job idempotent: kalau keduanya jalan, rekomendasi cukup
-    # di-rebuild 15 menit kemudian; history tracking dedup per hari.
+    # Cadangan anti-drop: GitHub Actions terbukti DROP mayoritas run
+    # terjadwal (2026-09-08: grid 10 slot jalan 0). Slot :52 memberi
+    # kesempatan kedua tiap grid; PLUS job ini sekarang ber-mode watch loop:
+    # begitu satu run lolos, runner tetap hidup ~6 jam dan tiap 2 jam
+    # (sync dulu + analisa + commit). Job juga TIDAK lagi bergantung pada
+    # workflow sync — tiap iterasi menjalankan sync sendiri sebelum analisa,
+    # jadi rekomendasi selalu memakai candle terbaru. Semua idempotent:
+    # recommendation.json dioverwrite, tracking dedup per hari WIB.
     - cron: "52 1-15/2 * * 1-5"
     - cron: "52 21,23 * * 0-4"
   workflow_dispatch:
@@ -27,12 +30,15 @@ permissions:
 
 concurrency:
   group: daily
-  cancel-in-progress: false
+  # Run baru (slot berikutnya yang lolos) menggantikan loop lama —
+  # maksimal satu loop analisa aktif.
+  cancel-in-progress: true
 
 jobs:
   daily:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # Batas keras job GitHub = 6 jam; loop internal berhenti di ~5j50m.
+    timeout-minutes: 355
     steps:
       - uses: actions/checkout@v5
 
@@ -44,18 +50,39 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Build recommendation + update tracking
-        run: python -m analyzer.jobs.daily
-
-      - name: Commit updated data
+      - name: Watch loop — sync + analisa + commit tiap 2 jam (maks ~6 jam)
+        env:
+          TWELVEDATA_API_KEY: ${{ secrets.TWELVEDATA_API_KEY }}
         run: |
           git config user.name "analyzer-bot"
           git config user.email "actions@users.noreply.github.com"
-          git add data/patterns.json data/recommendation.json data/tracking.json
-          if git diff --cached --quiet; then
-            echo "No data changes, nothing to commit."
-          else
-            git commit -m "data: rekomendasi harian $(date -u +'%Y-%m-%d') UTC"
-            git pull --rebase origin main
-            git push
-          fi
+          end=$(( $(date +%s) + 21000 ))  # ~5j50m, keluar bersih sebelum timeout
+          iter=0
+          while [ "$(date +%s)" -lt "$end" ]; do
+            iter=$((iter+1))
+            echo "=== iterasi $iter · $(date -u +'%Y-%m-%d %H:%M') UTC ==="
+            # 1. sync candle dulu — analisa tidak pernah pakai data basi
+            #    (workflow sync bisa saja di-drop GitHub jam-jam sebelumnya)
+            python -m analyzer.jobs.sync || echo "[watch] sync gagal — analisa pakai data tersimpan"
+            # 2. research + rekomendasi + feedback loop
+            python -m analyzer.jobs.daily || echo "[watch] analisa gagal — coba iterasi berikutnya"
+            git add data
+            if git diff --cached --quiet; then
+              echo "Tidak ada perubahan — tidak commit."
+            else
+              git commit -m "data: rekomendasi harian $(date -u +'%Y-%m-%d %H:%M') UTC"
+              if git pull --rebase origin main; then
+                git push || echo "[watch] push gagal (race) — iterasi berikutnya mengejar"
+              else
+                # konflik rebase vs workflow sync: buang lokal, mulai dari
+                # origin/main — iterasi berikutnya sync + analisa ulang.
+                git rebase --abort || true
+                git reset --hard origin/main
+                echo "[watch] konflik rebase — reset ke origin/main"
+              fi
+            fi
+            now=$(date +%s)
+            [ "$now" -ge "$end" ] && break
+            sleep $(( end - now < 7200 ? end - now : 7200 ))
+          done
+          echo "[watch] selesai setelah $iter iterasi"

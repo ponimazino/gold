@@ -137,3 +137,10 @@ body::before { content: ""; position: fixed; inset: 0; pointer-events: none; opa
 .pdf-inline .pdf-ios-fallback { height: auto; min-height: 220px; }
 .pdf-inline .secondary-button { display: inline-flex; align-items: center; gap: 5px; font-size: 10px; padding: 5px 10px; }
 @media (max-width: 760px) { .pdf-modal { padding: 8px; } .pdf-modal-head b { max-width: 100%; } .pdf-inline .pdf-frame-box { height: 420px; } }
+
+/* ---- view: Riwayat (history rekomendasi) ---- */
+.filter-bar { display: flex; flex-wrap: wrap; gap: 8px 18px; margin: 12px 0 4px; }
+.filter-bar label { display: flex; align-items: center; gap: 7px; color: var(--muted); font-size: 9px; text-transform: uppercase; letter-spacing: .1em; font-weight: 700; }
+.filter-bar select { height: 28px; color: #e6e6eb; background: #15151b; border: 1px solid #353541; border-radius: 8px; padding: 0 9px; font-size: 10px; }
+.ledger-row .hist-detail { display: flex; flex-wrap: wrap; gap: 2px 14px; margin-top: 5px; }
+.ledger-row .hist-detail span { margin-top: 0; }

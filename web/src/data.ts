@@ -54,6 +54,11 @@ export interface TrackingStats {
 export interface TrackingEntry {
   id?: string; created_at_wib?: string; status?: string;
   bias?: string; pattern?: string;
+  confidence?: number | null;
+  direction?: number;
+  levels?: Levels | null;
+  rationale?: string[];
+  resolved_at_wib?: string;
   outcome?: {
     bars_held?: number; mfe_usd?: number; mae_usd?: number;
     events?: string[]; why?: string; resolved_at_wib?: string;

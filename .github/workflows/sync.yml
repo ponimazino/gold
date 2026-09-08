@@ -1,14 +1,18 @@
-﻿name: Hourly Sync
+name: Hourly Sync
 
 on:
   schedule:
     # Every hour, ALL days including Sunday (Twelve Data menyediakan bar
     # Minggu). DUA slot per jam (:17 utama + :47 cadangan) karena GitHub
-    # Actions terbukti sering menunda/DROP run terjadwal di menit ramai —
-    # dengan cadangan, paling lambat data baru masuk ~47 menit.
-    # Job idempotent + gap-filling (jam terlewat dikejar di run berikutnya),
-    # jadi dobel-run aman. Kuota aman: 2 request/run x maks 48 = 96 dari
-    # 800 kredit gratis Twelve Data per hari.
+    # Actions terbukti sering menunda/DROP run terjadwal — 2026-09-08 hanya
+    # 2 dari 48 slot/hari yang jalan.
+    # Strategi: sekali run MASUK, job tidak langsung selesai — runner tetap
+    # hidup ~6 jam (watch loop) dan sync + commit tiap 30 menit. Asal 3-4
+    # run/hari lolos dari GitHub, data tidak pernah basi berjam-jam.
+    # Job idempotent + gap-filling (jam terlewat dikejar iterasi berikutnya).
+    # Kuota Twelve Data: 2 request per iterasi; cancel-in-progress membatasi
+    # maks 1 loop aktif -> ~24-48 request per run yang lolos, jauh di bawah
+    # 800 kredit gratis/hari.
     - cron: "17,47 * * * *"
   workflow_dispatch:
 
@@ -17,12 +21,15 @@ permissions:
 
 concurrency:
   group: hourly-sync
-  cancel-in-progress: false
+  # Run baru (jadwal berikutnya yang lolos) MENGGANTIKAN loop lama —
+  # selalu maksimal satu loop sync aktif, kuota API terkendali.
+  cancel-in-progress: true
 
 jobs:
   sync:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # Batas keras job GitHub = 6 jam; loop internal berhenti di ~5j50m.
+    timeout-minutes: 355
     steps:
       - uses: actions/checkout@v5
 
@@ -34,20 +41,35 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Run sync
+      - name: Watch loop — sync + commit tiap 30 menit (maks ~6 jam)
         env:
           TWELVEDATA_API_KEY: ${{ secrets.TWELVEDATA_API_KEY }}
-        run: python -m analyzer.jobs.sync
-
-      - name: Commit updated data
         run: |
           git config user.name "analyzer-bot"
           git config user.email "actions@users.noreply.github.com"
-          git add data
-          if git diff --cached --quiet; then
-            echo "No new data, nothing to commit."
-          else
-            git commit -m "data: hourly sync $(date -u +'%Y-%m-%d %H:%M') UTC"
-            git pull --rebase origin main
-            git push
-          fi
+          end=$(( $(date +%s) + 21000 ))  # ~5j50m, keluar bersih sebelum timeout
+          iter=0
+          while [ "$(date +%s)" -lt "$end" ]; do
+            iter=$((iter+1))
+            echo "=== iterasi $iter · $(date -u +'%Y-%m-%d %H:%M') UTC ==="
+            python -m analyzer.jobs.sync || echo "[watch] sync gagal — coba iterasi berikutnya"
+            git add data
+            if git diff --cached --quiet; then
+              echo "Tidak ada data baru — tidak commit."
+            else
+              git commit -m "data: hourly sync $(date -u +'%Y-%m-%d %H:%M') UTC"
+              if git pull --rebase origin main; then
+                git push || echo "[watch] push gagal (race) — iterasi berikutnya mengejar"
+              else
+                # konflik rebase vs workflow lain: buang lokal, mulai dari
+                # origin/main — iterasi berikutnya re-sync (gap-filling).
+                git rebase --abort || true
+                git reset --hard origin/main
+                echo "[watch] konflik rebase — reset ke origin/main"
+              fi
+            fi
+            now=$(date +%s)
+            [ "$now" -ge "$end" ] && break
+            sleep $(( end - now < 1800 ? end - now : 1800 ))
+          done
+          echo "[watch] selesai setelah $iter iterasi"
