@@ -12,7 +12,7 @@ menjadi log akhir hari 'eod' di tracking.json.
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 from . import store
@@ -121,26 +121,52 @@ def _resolve_one(rec: dict, bars: list[dict], horizon: int = HORIZON_1H) -> bool
     return False  # masih berjalan
 
 
-def build_eod(tracking: dict) -> list[dict]:
+def build_eod(tracking: dict, now: datetime | None = None) -> list[dict]:
     """Log akhir hari per tanggal WIB: hasil + alasan tiap rekomendasi entry
-    yang sudah selesai dinilai. Diturunkan penuh dari 'history' — idempotent."""
+    yang sudah selesai dinilai, PLUS hari tanpa rekomendasi ditandai 'skip'
+    supaya riwayat harian lengkap — hari "kosong" jelas memang tanpa setup,
+    bukan lubang data. Diturunkan penuh dari 'history' — idempotent."""
+    now = now or datetime.now(timezone.utc)
     days: dict[str, dict] = {}
     for r in tracking.get("history", []):
-        if r.get("status") not in ("win", "loss", "timeout"):
+        rid = r.get("id") or "?"
+        if r.get("status") in ("win", "loss", "timeout"):
+            out = r.get("outcome") or {}
+            day = days.setdefault(rid, {"date": rid, "entries": []})
+            day["entries"].append({
+                "pattern": r.get("pattern"),
+                "bias": r.get("bias"),
+                "status": r["status"],
+                "entry_at_wib": r.get("created_at_wib"),
+                "resolved_at_wib": out.get("resolved_at_wib"),
+                "mfe_usd": out.get("mfe_usd"),
+                "mae_usd": out.get("mae_usd"),
+                "events": out.get("events", []),
+                "why": out.get("why"),
+            })
+        elif r.get("status") in ("entry", "active"):
+            # entry hari itu masih dievaluasi — hari tandai "run"
+            days.setdefault(rid, {"date": rid, "entries": [], "status": "run"})
+    # rentang hari pertama ada rekomendasi -> hari ini (WIB): hari tanpa
+    # entry apa pun ditandai 'skip' (netral/tunggu/pasar tutup). Hanya id
+    # berformat tanggal yang dipakai sebagai batas rentang.
+    ids = []
+    for r in tracking.get("history", []):
+        rid = r.get("id")
+        try:
+            datetime.strptime(rid, "%Y-%m-%d")
+        except (TypeError, ValueError):
             continue
-        out = r.get("outcome") or {}
-        day = days.setdefault(r.get("id") or "?", {"date": r.get("id"), "entries": []})
-        day["entries"].append({
-            "pattern": r.get("pattern"),
-            "bias": r.get("bias"),
-            "status": r["status"],
-            "entry_at_wib": r.get("created_at_wib"),
-            "resolved_at_wib": out.get("resolved_at_wib"),
-            "mfe_usd": out.get("mfe_usd"),
-            "mae_usd": out.get("mae_usd"),
-            "events": out.get("events", []),
-            "why": out.get("why"),
-        })
+        ids.append(rid)
+    if ids:
+        d = datetime.strptime(min(ids), "%Y-%m-%d").date()
+        last = now.astimezone(WIB).date()
+        while d <= last:
+            key = d.isoformat()
+            day = days.setdefault(key, {"date": key, "entries": []})
+            if not day["entries"] and day.get("status") != "run":
+                day.setdefault("status", "skip")
+            d += timedelta(days=1)
     return sorted(days.values(), key=lambda x: x["date"] or "", reverse=True)
 
 
@@ -149,7 +175,7 @@ def resolve_pending(tracking: dict, now: datetime | None = None) -> dict:
     bars = store.load("1h")
     for rec in tracking.get("history", []):
         _resolve_one(rec, bars)
-    tracking["eod"] = build_eod(tracking)
+    tracking["eod"] = build_eod(tracking, now=now)
     tracking["updated_at"] = now.strftime("%Y-%m-%dT%H:%M:%SZ")
     tracking["updated_at_wib"] = now.astimezone(WIB).strftime("%Y-%m-%d %H:%M WIB")
     return tracking

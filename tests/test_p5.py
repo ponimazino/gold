@@ -248,12 +248,17 @@ def test_outcome_narrative_and_eod():
     assert "Salah" in o2["why"] and "Nonfarm Payrolls" in o2["why"], o2
     assert "CPI" not in o2["why"], o2
 
-    # log akhir hari: per tanggal WIB, urut terbaru dulu
+    # log akhir hari: per tanggal WIB, urut terbaru dulu — kini lengkap
+    # sampai hari ini (now = t0+100j → 2026-09-08 WIB), hari tanpa entry
+    # ditandai "skip"
     eod = tracking["eod"]
-    assert [d["date"] for d in eod] == ["2026-09-05", "2026-09-04"], eod
-    assert eod[0]["entries"][0]["status"] == "loss"
-    assert eod[0]["entries"][0]["why"] == o2["why"]
-    assert eod[1]["entries"][0]["pattern"] is None  # rec tanpa pattern tetap aman
+    assert [d["date"] for d in eod] == [
+        "2026-09-08", "2026-09-07", "2026-09-06", "2026-09-05", "2026-09-04",
+    ], eod
+    assert all(d["status"] == "skip" for d in eod[:3]), eod  # hari kosong
+    assert eod[3]["entries"][0]["status"] == "loss"
+    assert eod[3]["entries"][0]["why"] == o2["why"]
+    assert eod[4]["entries"][0]["pattern"] is None  # rec tanpa pattern tetap aman
     print("ok: narasi outcome (mfe/mae/event/mengapa) + log EOD per tanggal WIB")
 
 

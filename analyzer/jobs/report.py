@@ -571,7 +571,9 @@ def build(now: datetime | None = None) -> dict:
             w = sum(1 for e in ents if e.get("status") == "win")
             l = sum(1 for e in ents if e.get("status") == "loss")
             t = sum(1 for e in ents if e.get("status") == "timeout")
-            if w > l:
+            if not ents and d.get("status") == "skip":
+                note = "skip — tanpa setup entry"
+            elif w > l:
                 note = f"net +{w - l} TP1" if w else "tanpa win"
             elif l > w:
                 note = f"net -{l - w} SL"
@@ -580,12 +582,16 @@ def build(now: datetime | None = None) -> dict:
             rows.append([d.get("date", "-"), len(ents), w, l, t, note])
         story.append(_table(rows, [34 * mm, 18 * mm, 16 * mm, 16 * mm, 20 * mm,
                                    40 * mm], align_right_from=1))
-        # detail entry untuk hari terbaru yang punya hasil
-        detail = [e for e in eod_days[0].get("entries", []) if e.get("why")]
-        if detail:
+        # detail entry untuk hari terbaru yang memang punya hasil (hari
+        # terbaru bisa berupa "skip" — jangan tampilkan detail kosong)
+        detail_day = next(
+            (d for d in eod_days
+             if any(e.get("why") for e in d.get("entries", []))), None)
+        detail = [e for e in (detail_day or {}).get("entries", []) if e.get("why")]
+        if detail and detail_day:
             story.append(Spacer(1, 5))
             story.append(Paragraph(
-                f"Detail {eod_days[0].get('date', '-')} (hari terbaru berisi hasil):",
+                f"Detail {detail_day.get('date', '-')} (hari terbaru berisi hasil):",
                 S_H2))
             story.append(Spacer(1, 3))
             drows = [["Pola", "Bias", "Hasil", "MFE/MAE USD", "Ringkas"]]

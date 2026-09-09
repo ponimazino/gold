@@ -8,8 +8,11 @@ Urutan langkah (penting):
   2. resolve rekomendasi lama yang masih active vs pergerakan aktual
   3. buat rekomendasi baru -> recommendation.json (UI membaca file ini)
   4. kalau status "entry", catat ke tracking.json (besok dinilai: win/loss/timeout)
+  5. web push (PWA, Web Push VAPID): notif entry + agenda event 3★ (H-3, 1x/hari).
+     Butuh secrets PUSH_* di workflow — kalau kosong, dilewati tanpa error.
 
-Tanpa notifikasi — output hidup di web (PWA), dibuka user kapan pun.
+Notifikasi hanya Web Push ke PWA milik sendiri (2026-09-09, permintaan user);
+Telegram tetap terlarang. Output utama tetap di web, dibuka user kapan pun.
 """
 
 from __future__ import annotations
@@ -17,7 +20,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 
-from .. import recommend, store, track
+from .. import push, recommend, store, track
 from ..backtest import DEFAULT_HORIZON
 from ..config import INTERVALS
 from . import research
@@ -79,6 +82,12 @@ def main() -> int:
     tracking["updated_at"] = now.strftime("%Y-%m-%dT%H:%M:%SZ")
     tracking["updated_at_wib"] = now.astimezone(WIB).strftime("%Y-%m-%d %H:%M WIB")
     store.write_json("tracking.json", tracking)
+
+    # 5. web push: notif entry + agenda event (dedup per hari WIB di push_state.json)
+    try:
+        push.dispatch(rec, now=now)
+    except Exception as exc:  # notif = bonus, jangan gagalkan analisa
+        print(f"[daily] push error (tidak fatal): {exc}")
 
     s = tracking["stats"]
     print(f"[daily] bias: {rec['bias']}  status: {rec['status']}  "

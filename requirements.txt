@@ -2,3 +2,4 @@ requests>=2.31
 pandas>=2.2
 numpy>=1.26
 reportlab>=4.0
+pywebpush>=1.14

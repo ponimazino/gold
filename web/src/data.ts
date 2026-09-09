@@ -5,6 +5,20 @@ export const REPO = "ponimazino/gold";
 export const DATA_BASE = `https://raw.githubusercontent.com/${REPO}/main/data`;
 export const SPOT_API = "https://xaus.com/api/v1/spot?compact=1";
 
+// Public key VAPID untuk Web Push (BUKAN rahasia — memang untuk frontend;
+// private key-nya hanya di GitHub Secrets). Dipakai pushManager.subscribe.
+export const VAPID_PUBLIC_KEY =
+  "BMW0eUFESMf4hkj1N3VwpbPJdTOW-8X5znsDsj3Pzh2EueTcGHABMKI4dI2cid2vZJtNwtQkPqV-ssFqaCiPGjo";
+
+// base64url -> Uint8Array<ArrayBuffer> untuk applicationServerKey
+export function urlBase64ToUint8Array(b64: string): Uint8Array<ArrayBuffer> {
+  const pad = "=".repeat((4 - (b64.length % 4)) % 4);
+  const raw = atob((b64 + pad).replace(/-/g, "+").replace(/_/g, "/"));
+  const out = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
+  return out;
+}
+
 const WIB = "Asia/Jakarta";
 
 // ---- tipe (defensif: semua field opsional kecuali kunci) ----
@@ -75,12 +89,24 @@ export interface EodEntry {
 }
 export interface EodDay {
   date?: string; entries?: EodEntry[];
+  // "skip" = hari tanpa rekomendasi entry (netral/tunggu/pasar tutup),
+  // "run" = ada entry hari itu tapi masih dievaluasi
+  status?: "skip" | "run" | string;
 }
 export interface Tracking {
   updated_at_wib?: string;
   stats?: TrackingStats;
   history?: TrackingEntry[];
   eod?: EodDay[];
+}
+
+// status pengiriman notif Web Push (data/push_state.json, ditulis job daily)
+export interface PushState {
+  updated_at_wib?: string;
+  agenda_date?: string;
+  entry_notified_id?: string;
+  last_status?: "ok" | "expired" | "error";
+  last_sent_wib?: string;
 }
 
 export interface DashboardData {
@@ -92,6 +118,7 @@ export interface DashboardData {
   news: { updated_at_wib?: string; items?: NewsItem[] } | null;
   recommendation: Recommendation | null;
   tracking: Tracking | null;
+  push: PushState | null;
 }
 
 // ---- fetch helpers ----
@@ -107,7 +134,7 @@ async function getJson<T>(url: string): Promise<T | null> {
 }
 
 export async function loadDashboard(): Promise<DashboardData> {
-  const [meta, c1, c4, patterns, calendar, news, recommendation, tracking] =
+  const [meta, c1, c4, patterns, calendar, news, recommendation, tracking, push] =
     await Promise.all([
       getJson<Meta>(`${DATA_BASE}/meta.json`),
       getJson<{ bars?: Bar[] }>(`${DATA_BASE}/xauusd_1h.json`),
@@ -117,6 +144,7 @@ export async function loadDashboard(): Promise<DashboardData> {
       getJson<DashboardData["news"]>(`${DATA_BASE}/news.json`),
       getJson<Recommendation>(`${DATA_BASE}/recommendation.json`),
       getJson<Tracking>(`${DATA_BASE}/tracking.json`),
+      getJson<PushState>(`${DATA_BASE}/push_state.json`),
     ]);
   return {
     meta,
@@ -127,6 +155,7 @@ export async function loadDashboard(): Promise<DashboardData> {
     news,
     recommendation,
     tracking,
+    push,
   };
 }
 

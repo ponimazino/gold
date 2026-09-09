@@ -4,7 +4,9 @@
 // - ikon & manifest: network-first (file tidak hashed — ganti logo tidak
 //   boleh tertahan versi lama di cache)
 // - asset shell (JS/CSS hashed): cache-first
-const VERSION = "goldpulse-v3";
+// - Web Push (VAPID): tampilkan notifikasi payload dari job daily,
+//   klik notif -> fokus/buka PWA (URL relatif terhadap scope, mis. "#/analysis")
+const VERSION = "goldpulse-v4";
 const SHELL = "./";
 const NET_FIRST_STATIC =
   /(^|\/)(icon[^/]*\.(svg|png)|apple-touch-icon\.png|manifest\.webmanifest)$/;
@@ -21,6 +23,45 @@ self.addEventListener("activate", (event) => {
     )
   );
   self.clients.claim();
+});
+
+// ---- Web Push: payload JSON dari analyzer.push (title/body/tag/url) ----
+
+self.addEventListener("push", (event) => {
+  let data = {};
+  try {
+    data = event.data ? event.data.json() : {};
+  } catch {
+    data = { body: event.data ? event.data.text() : "" };
+  }
+  event.waitUntil(
+    self.registration.showNotification(data.title || "GoldPulse", {
+      body: data.body || "",
+      // tag = notif baru menimpa yang lama (entry & agenda tidak numpuk)
+      tag: data.tag || "goldpulse",
+      icon: "./icon-192.png",
+      badge: "./icon-192.png",
+      data: { url: data.url || "./" },
+    })
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const hash = (event.notification.data && event.notification.data.url) || "./";
+  // url payload berupa hash route ("#/analysis") — resolve ke scope
+  const target = new URL(hash, self.registration.scope).href;
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((list) => {
+      for (const client of list) {
+        if ("focus" in client) {
+          client.navigate(target);
+          return client.focus();
+        }
+      }
+      return self.clients.openWindow(target);
+    })
+  );
 });
 
 self.addEventListener("fetch", (event) => {

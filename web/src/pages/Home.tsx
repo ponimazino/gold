@@ -18,11 +18,13 @@ import {
   Activity,
   AlertTriangle,
   ArrowUpRight,
+  Bell,
   BookOpen,
   CalendarDays,
   Check,
   ChevronDown,
   CircleHelp,
+  CircleSlash,
   Clock3,
   Crosshair,
   Database,
@@ -56,13 +58,17 @@ import {
   loadReports,
   PATTERN_NAMES,
   pctChange,
+  PushState,
   reportUrl,
   ReportFile,
   ReportsIndex,
   scoreScenario,
   Spot,
   toChartRows,
+  TrackingEntry,
+  urlBase64ToUint8Array,
   utcStringToTs,
+  VAPID_PUBLIC_KEY,
 } from "../data";
 
 type ViewKey = "summary" | "overview" | "analysis" | "backtest" | "riwayat" | "calendar" | "jadwal";
@@ -413,7 +419,7 @@ function SummaryView({ data, spot, now, onNavigate }: { data: DashboardData; spo
       ? { title: "Ada peluang entry hari ini", tone: "green" as const, icon: TrendingUp, copy: `Sistem melihat pola yang layak dipertimbangkan. Arahnya ${plainDir(bias)}. Tapi ingat: "layak dipertimbangkan" bukan "pasti untung" — baca batas ruginya di bawah.` }
       : status === "tunggu"
         ? { title: "Tunda dulu — sedang ada rilis data besar", tone: "amber" as const, icon: TimerReset, copy: `Rilis ${rec.blackout?.title ?? "data ekonomi AS"} sedang/akan berlangsung. Harga emas biasanya bergerak liar saat ini, jadi sistem menahan semua rekomendasi. Tunggu sampai jeda berlalu.` }
-        : { title: "Tidak ada peluang hari ini — diam itu oke", tone: "slate" as const, icon: ShieldAlert, copy: "Aturan sistem (pola H1 searah tren H4) tidak terpenuhi hari ini. Tidak masuk pasar adalah keputusan yang valid, dan sering kali yang paling menguntungkan." };
+        : { title: "Tidak ada peluang hari ini — diam itu oke", tone: "slate" as const, icon: ShieldAlert, copy: `Aturan sistem (pola H1 searah tren H4) tidak terpenuhi hari ini — jadi memang tidak ada rekomendasi, bukan error atau data kosong. Tidak masuk pasar adalah keputusan yang valid, dan sering kali yang paling menguntungkan. Sistem cek ulang otomatis tiap 2 jam — terakhir ${rec.created_at_wib ?? "—"}.` };
 
   const marketExplain =
     rec.h4_context?.trend === "up" ? "Beberapa hari terakhir harga emas bergerak NAIK (uptrend) — pembeli masih lebih kuat."
@@ -437,6 +443,7 @@ function SummaryView({ data, spot, now, onNavigate }: { data: DashboardData; spo
       </div>
       <div className="hero-actions">
         {livePrice != null && <StatusPill tone="green">XAUUSD {fmtUsd(livePrice)}</StatusPill>}
+        <StatusPill tone="slate"><Clock3 size={12} /> Update {rec.created_at_wib ?? "—"}</StatusPill>
         <button className="secondary-button" onClick={() => onNavigate("analysis")}>Detail teknis <ArrowUpRight size={15} /></button>
       </div>
     </section>
@@ -452,7 +459,7 @@ function SummaryView({ data, spot, now, onNavigate }: { data: DashboardData; spo
 
     <section className="metric-grid">
       <MetricCard label="Arah pasar (H4)" value={bias === "bullish" ? "Naik" : bias === "bearish" ? "Turun" : "Mendatar"} icon={TrendingUp} tone={bias === "bullish" ? "lime" : bias === "bearish" ? "amber" : "slate"} footnote={marketExplain} />
-      <MetricCard label="Status rekomendasi" value={status === "entry" ? "Ada setup" : status === "tunggu" ? "Tunggu event" : "Tidak ada setup"} icon={statusInfo.icon} footnote={status === "entry" ? "Level aktif — lihat kartu di bawah" : status === "tunggu" ? "Jeda rilis −2 jam s/d +1 jam" : "Kembali cek besok pagi"} />
+      <MetricCard label="Status rekomendasi" value={status === "entry" ? "Ada setup" : status === "tunggu" ? "Tunggu event" : "Tidak ada setup"} icon={statusInfo.icon} footnote={status === "entry" ? "Level aktif — lihat kartu di bawah" : status === "tunggu" ? "Jeda rilis −2 jam s/d +1 jam" : "Cek lagi nanti — analisa ulang tiap 2 jam"} />
       <MetricCard label="Peluang (menurut sejarah)" value={confidence != null ? `${confidence}%` : "—"} icon={Gauge} tone={confidence != null && confidence >= 55 ? "lime" : "amber"} footnote={verdict?.label ?? "Belum ada statistik"} />
       <MetricCard label="Rekam jejak sistem" value={hitRate != null ? `${hitRate}% kena target` : "Belum ada data"} icon={FileCheck2} tone="slate" footnote={`${stats?.resolved ?? 0} dari ${stats?.total ?? 0} rekomendasi sudah dinilai jujur`} />
     </section>
@@ -753,18 +760,18 @@ function AnalysisView({ data, now }: { data: DashboardData; now: number }) {
   const scenarioTitle =
     status === "tunggu" ? "Event hold" :
     bias === "bullish" ? "Pullback continuation" :
-    bias === "bearish" ? "Rejection continuation" : "No qualified setup";
+    bias === "bearish" ? "Rejection continuation" : "Flat by design";
 
   const lead = status === "entry" && lv
     ? `Bias ${bias} di H1${patternName ? ` dari pola ${patternName}` : ""}, searah konteks H4 (${rec.h4_context?.trend ?? "—"}). Setup terbersih adalah menunggu harga ke zona entry, lalu konfirmasi respons bullish/bearish sebelum eksekusi.`
     : status === "tunggu"
       ? `Event bintang-3 (${rec.blackout?.title ?? "US data"}) sedang dalam jendela rilis. Sistem menahan semua rekomendasi entry sampai jeda berlalu — jangan mengejar pergerakan saat rilis.`
-      : `Tidak ada pola H1 dalam 2 bar terakhir yang searah trend H4. Hari ini tidak ada basis entry — flat adalah keputusan yang valid.`;
+      : `Tidak ada pola H1 dalam 2 bar terakhir yang searah trend H4 — jadi memang tidak ada rekomendasi hari ini; ini keputusan sistem, bukan error atau data kosong. Flat adalah posisi yang valid, dan sistem mengecek ulang otomatis tiap 2 jam (terakhir ${rec.created_at_wib ?? "—"}).`;
 
   return (<>
     <section className="hero-row compact">
       <div>
-        <div className="eyebrow"><Crosshair size={13} /> Analysis workspace <span className="eyebrow-separator">/</span> {rec.created_at_wib ?? "Daily review"}</div>
+        <div className="eyebrow"><Crosshair size={13} /> Analysis workspace <span className="eyebrow-separator">/</span> update terakhir {rec.created_at_wib ?? "belum ada"}</div>
         <h1>Map the trade. <span>Respect the line.</span></h1>
         <p className="hero-subtitle">Pembacaan terstruktur atas price action, konteks, dan apa yang akan membantalkan pembacaan itu.</p>
       </div>
@@ -790,6 +797,11 @@ function AnalysisView({ data, now }: { data: DashboardData; now: number }) {
             <div className="level-card target"><span>First objective</span><strong>{lv ? fmtUsd(lv.tp1) : "—"}</strong><small>TP1 · 1,5× ATR dari entry</small></div>
             <div className="level-card invalidation"><span>Invalidation</span><strong>{lv ? fmtUsd(lv.sl) : "—"}</strong><small>SL · 1× ATR; close {bias === "bearish" ? "di atas" : "di bawah"} batalkan setup</small></div>
           </div>
+          {!lv && (
+            <div className="risk-note" style={{ marginTop: 14 }}>
+              <ShieldAlert size={15} /><span><b>Level "—" artinya memang belum ada rekomendasi — bukan error.</b> Entry/TP/SL baru diisi saat 3 syarat terpenuhi: (1) pola H1 terbentuk di 2 candle terakhir, (2) polanya searah trend H4 (EMA20/50), (3) tidak sedang jeda event bintang-3 (−2 jam s/d +1 jam). Analisa dijalankan ulang otomatis tiap 2 jam — update terakhir {rec.created_at_wib ?? "—"}.</span>
+            </div>
+          )}
           {lvSafe && (
             <div className="risk-note" style={{ marginTop: 14 }}>
               <ShieldAlert size={15} /><span><b>Mode aman (untuk "beberapa pips asal aman"):</b> TP1 {fmtUsd(lvSafe.tp1)} · SL {fmtUsd(lvSafe.sl)} — target 1× ATR (lebih dekat), SL 0,75× ATR (lebih ketat), entry sama. Peluang historis {safeConf != null ? `${safeConf}%` : "—"}{confidence != null ? ` vs ${confidence}% standar` : ""} — dinilai dari backtest 3 tahun dengan rule terpisah; feedback loop harian masih menilai level standar.</span>
@@ -1079,6 +1091,31 @@ function RiwayatView({ data }: { data: DashboardData }) {
     }),
     [history, statusFilter, patternFilter]);
 
+  // hari tanpa rekomendasi entry (dari log EOD) — ditandai "skip" supaya
+  // riwayat harian lengkap: hari kosong itu memang tanpa setup, bukan gap.
+  const skipDays = useMemo(
+    () => (tracking?.eod ?? []).filter((d) => d.status === "skip" && d.date),
+    [tracking?.eod]);
+  // baris ledger = entry + hari skip, urut tanggal turun (entry dulu, lalu
+  // baris skip hari itu). Baris skip hanya saat tanpa filter.
+  const rows = useMemo(() => {
+    const items: { key: string; date: string; skip?: boolean; h?: TrackingEntry }[] =
+      filtered.map((h, i) => ({
+        key: h.id ?? `e${i}`,
+        date: h.created_at_wib?.slice(0, 10) ?? h.id ?? "",
+        h,
+      }));
+    if (statusFilter === "all" && patternFilter === "all") {
+      for (const d of skipDays) {
+        items.push({ key: `skip-${d.date}`, date: d.date ?? "", skip: true });
+      }
+    }
+    return items.sort((a, b) => {
+      if (a.date !== b.date) return a.date < b.date ? 1 : -1; // tanggal turun
+      return a.skip ? 1 : -1; // sehari: entry dulu, skip terakhir
+    });
+  }, [filtered, skipDays, statusFilter, patternFilter]);
+
   const stats = tracking?.stats;
   const hitRate = stats?.hit_rate != null ? Math.round(stats.hit_rate * 100) : null;
 
@@ -1106,7 +1143,7 @@ function RiwayatView({ data }: { data: DashboardData }) {
       </div>
       <div className="panel">
         <div className="panel-header">
-          <div><div className="panel-kicker">Riwayat per rekomendasi</div><h2>{filtered.length} dari {history.length} entry</h2></div>
+          <div><div className="panel-kicker">Riwayat per rekomendasi</div><h2>{statusFilter === "all" && patternFilter === "all" ? `${filtered.length} entry · ${skipDays.length} hari skip` : `${filtered.length} dari ${history.length} entry`}</h2></div>
         </div>
         <div className="filter-bar">
           <label>Hasil
@@ -1127,21 +1164,35 @@ function RiwayatView({ data }: { data: DashboardData }) {
         </div>
         <div className="reasoning-ledger hist-ledger">
           <div className="ledger-heading"><span>Tanggal · pola · bias — level, hasil &amp; narasi</span><span>log sistem</span></div>
-          {filtered.length === 0 ? (
+          {rows.length === 0 ? (
             <div className="empty-feed" style={{ padding: "14px 0" }}>
               <h3>Tidak ada entry untuk filter ini</h3>
               <p>Coba longgarkan filter hasil atau pola.</p>
             </div>
-          ) : filtered.map((h, i) => {
+          ) : rows.map((r) => {
+            // baris "skip": hari tanpa rekomendasi entry — tetap dicatat
+            if (r.skip) {
+              return (
+                <div className="ledger-row" key={r.key}>
+                  <CircleSlash size={15} className="muted-icon" />
+                  <div>
+                    <b>{r.date} · tanpa setup</b>
+                    <span>Tidak ada rekomendasi entry hari ini — pola H1 tidak searah trend H4, dalam jeda event 3★, atau pasar tutup. Tetap dicatat supaya riwayat harian lengkap (bukan gap data).</span>
+                  </div>
+                  <StatusPill tone="slate">Skip</StatusPill>
+                </div>
+              );
+            }
+            const h = r.h!;
             const meta = HIST_STATUS[h.status ?? ""] ?? { label: h.status ?? "?", tone: "slate" as const, icon: Clock3 };
             const Icon = meta.icon;
             const lvl = h.levels;
             const oc = h.outcome;
             return (
-              <div className="ledger-row" key={h.id ?? i}>
+              <div className="ledger-row" key={r.key}>
                 <Icon size={15} className={h.status === "win" ? "ledger-good" : h.status === "loss" ? "ledger-caution" : undefined} />
                 <div>
-                  <b>{h.created_at_wib?.slice(0, 10) ?? h.id ?? "?"}{h.pattern ? ` · ${PATTERN_NAMES[h.pattern] ?? h.pattern}` : ""} · {h.bias ?? "netral"}</b>
+                  <b>{h.created_at_wib ?? h.id ?? "?"}{h.pattern ? ` · ${PATTERN_NAMES[h.pattern] ?? h.pattern}` : ""} · {h.bias ?? "netral"}</b>
                   <span>{oc?.why ?? (h.status === "active" || h.status === "entry" ? "Masih berjalan — dinilai saat harga sentuh SL/TP1 atau timeout 24 bar H1." : "menunggu narasi hasil")}</span>
                   <div className="hist-detail">
                     {lvl && <>
@@ -1380,7 +1431,105 @@ function JadwalView({ data, now }: { data: DashboardData; now: number }) {
       <div><CircleHelp size={14} /><b>Kuota API</b></div>
       <p>Twelve Data gratis 800 kredit/hari. Pemakaian sekarang ±48/hari (2 request per sync × 24 jam) — masih sangat longgar. Kalender berita memakai scraping ringan (tanpa kredit).</p>
     </div>
+    <PushPanel repoState={data.push ?? null} />
   </>);
+}
+
+// ---- panel langganan notifikasi Android (Web Push, VAPID) ----
+
+function PushPanel({ repoState }: { repoState: PushState | null }) {
+  const supported = typeof Notification !== "undefined" && "serviceWorker" in navigator;
+  const [perm, setPerm] = useState<NotificationPermission | null>(
+    typeof Notification === "undefined" ? null : Notification.permission
+  );
+  const [sub, setSub] = useState<PushSubscription | null>(null);
+  const [checked, setChecked] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!("serviceWorker" in navigator)) { setChecked(true); return; }
+    navigator.serviceWorker.ready
+      .then((reg) => reg.pushManager.getSubscription())
+      .then(setSub)
+      .catch(() => {})
+      .finally(() => setChecked(true));
+  }, []);
+
+  const enable = async () => {
+    setErr(null); setCopied(false);
+    try {
+      if (typeof Notification === "undefined")
+        throw new Error("Browser ini tidak mendukung Web Push — buka GoldPulse lewat Chrome/Edge di Android.");
+      const p = await Notification.requestPermission();
+      setPerm(p);
+      if (p !== "granted") {
+        setErr("Izin notifikasi ditolak — izinkan dari ikon 🔒 di address bar browser, lalu coba lagi.");
+        return;
+      }
+      const reg = await navigator.serviceWorker.ready;
+      const existing = await reg.pushManager.getSubscription();
+      const s = existing ?? await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+      });
+      setSub(s);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Gagal berlangganan notifikasi.");
+    }
+  };
+
+  const copy = async () => {
+    if (!sub) return;
+    try {
+      await navigator.clipboard.writeText(JSON.stringify(sub));
+      setCopied(true);
+    } catch {
+      setErr("Salin manual: tekan lama / pilih semua teks JSON di kotak bawah.");
+    }
+  };
+
+  const repoExpired = repoState?.last_status === "expired";
+  const active = supported && perm === "granted" && sub != null;
+
+  return (
+    <div className="panel" style={{ marginTop: 14 }}>
+      <div className="panel-header">
+        <div><div className="panel-kicker">Notifikasi Android · Web Push</div><h2>Notif masuk tanpa buka web</h2></div>
+        <StatusPill tone={active ? (repoExpired ? "amber" : "green") : "slate"}>
+          {active ? (repoExpired ? "perlu ulang" : "aktif") : "belum aktif"}
+        </StatusPill>
+      </div>
+      <div style={{ display: "grid", gap: 10, fontSize: 12, lineHeight: 1.65, color: "#c9c9d1" }}>
+        <p style={{ margin: 0 }}>Dua notifikasi saja — tidak pernah spam: <b>setup entry</b> (pola H1 searah trend H4, maksimal 1× per hari) dan <b>agenda event bintang-3</b> hari itu (H-3 jam sebelum event pertama, 1× per hari). Dikirim GitHub Actions lewat Google push — hemat baterai, sama seperti notifikasi aplikasi biasa.</p>
+        {!supported ? (
+          <p style={{ margin: 0, color: "#e2b26a" }}>Browser ini tidak mendukung Web Push — buka GoldPulse lewat Chrome atau Edge di Android.</p>
+        ) : (
+          <>
+            {!active ? (
+              <>
+                <div><button className="primary-button" onClick={enable} disabled={!checked}><Bell size={15} />Aktifkan notifikasi</button></div>
+                {perm === "denied" && <p style={{ margin: 0, color: "#e2b26a" }}>Izin pernah ditolak — izinkan dulu dari ikon 🔒 di address bar (Pengaturan situs → Notifikasi), lalu klik tombol lagi.</p>}
+              </>
+            ) : (
+              <>
+                {repoExpired && (
+                  <p style={{ margin: 0, color: "#e2b26a" }}><b>⚠ Notifikasi terakhir gagal terkirim</b> — langganan ditolak server (biasanya karena data browser dibersihkan). Salin JSON di bawah, lalu perbarui Secret <b>PUSH_SUBSCRIPTIONS</b> di GitHub.</p>
+                )}
+                {repoState?.last_sent_wib && <p style={{ margin: 0 }}>Notif terakhir dikirim sistem: {repoState.last_sent_wib}.</p>}
+                <p style={{ margin: 0 }}>Langkah terakhir (sekali saja): <b>salin JSON langganan</b> di bawah → repo GitHub → Settings → Secrets and variables → Actions → perbarui Secret <b>PUSH_SUBSCRIPTIONS</b>.</p>
+                <div><button className="secondary-button" onClick={copy}>{copied ? "Tersalin ✓" : "Salin JSON langganan"}</button></div>
+                <textarea readOnly rows={6} value={sub ? JSON.stringify(sub, null, 2) : ""} onFocus={(e) => e.currentTarget.select()}
+                  style={{ width: "100%", fontFamily: "monospace", fontSize: 10.5, color: "#a9a9b5", background: "#17171d", border: "1px solid #2a2a33", borderRadius: 8, padding: "8px 10px", resize: "vertical" }} />
+              </>
+            )}
+            {err && <p style={{ margin: 0, color: "#e2b26a" }}>{err}</p>}
+          </>
+        )}
+      </div>
+      <div className="disclaimer-row"><Bell size={14} /> Tanpa credential di web · bisa dimatikan kapan pun dari pengaturan situs browser</div>
+    </div>
+  );
 }
 
 // ---- shell ----
@@ -1388,7 +1537,12 @@ function JadwalView({ data, now }: { data: DashboardData; now: number }) {
 export default function Home() {
   const { data, spot, loading, now } = useDashboard();
   const wibClock = useWibClock();
-  const [view, setView] = useState<ViewKey>("overview");
+  // deep-link dari notifikasi Web Push ("#/analysis", "#/calendar") —
+  // sw.js notificationclick membuka URL dengan hash route ini.
+  const [view, setView] = useState<ViewKey>(() => {
+    const h = typeof location !== "undefined" ? location.hash.replace(/^#\/?/, "") : "";
+    return navItems.find((n) => n.key === h)?.key ?? "overview";
+  });
   const [mobileOpen, setMobileOpen] = useState(false);
   const [noticeHidden, setNoticeHidden] = useState(false);
   const activeLabel = navItems.find((item) => item.key === view)?.label ?? "Overview";
@@ -1470,7 +1624,7 @@ export default function Home() {
             <div className="demo-notice">
               <div>
                 <AlertTriangle size={14} />
-                <span><b>Bukan grafik real-time.</b> Harga live di kartu atas (tiap 30 dtk) hanya tampilan — grafik menampilkan candle final per jam: bar terakhir disinkron tiap jam :17 WIB (terakhir {data?.meta?.updated_at_wib ?? "—"}), rekomendasi dibuat ulang tiap 2 jam saat pasar aktif ({rec?.created_at_wib ?? "—"}). Probabilitas statistik, bukan saran finansial.</span>
+                <span>{data?.push?.last_status === "expired" && <b style={{ color: "#e2b26a" }}>⚠ Notifikasi putus — aktifkan ulang di tab Jadwal (salin JSON langganan, perbarui Secret PUSH_SUBSCRIPTIONS). </b>}<b>Bukan grafik real-time.</b> Harga live di kartu atas (tiap 30 dtk) hanya tampilan — grafik menampilkan candle final per jam: bar terakhir disinkron tiap jam :17 WIB (terakhir {data?.meta?.updated_at_wib ?? "—"}), rekomendasi dibuat ulang tiap 2 jam saat pasar aktif ({rec?.created_at_wib ?? "—"}). Probabilitas statistik, bukan saran finansial.</span>
               </div>
               <button aria-label="Dismiss notice" onClick={() => setNoticeHidden(true)}><X size={14} /></button>
             </div>

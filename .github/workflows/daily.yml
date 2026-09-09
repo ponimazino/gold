@@ -53,6 +53,12 @@ jobs:
       - name: Watch loop — sync + analisa + commit tiap 2 jam (maks ~6 jam)
         env:
           TWELVEDATA_API_KEY: ${{ secrets.TWELVEDATA_API_KEY }}
+          # Web Push ke PWA (2026-09-09): kosong = notif dilewati tanpa error.
+          # Subscription disimpan sebagai Secret (repo public — endpoint
+          # subscription tidak boleh ter-expose).
+          PUSH_VAPID_PRIVATE_KEY: ${{ secrets.PUSH_VAPID_PRIVATE_KEY }}
+          PUSH_CONTACT_EMAIL: ${{ secrets.PUSH_CONTACT_EMAIL }}
+          PUSH_SUBSCRIPTIONS: ${{ secrets.PUSH_SUBSCRIPTIONS }}
         run: |
           git config user.name "analyzer-bot"
           git config user.email "actions@users.noreply.github.com"
