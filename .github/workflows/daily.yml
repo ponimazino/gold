@@ -67,6 +67,16 @@ jobs:
           while [ "$(date +%s)" -lt "$end" ]; do
             iter=$((iter+1))
             echo "=== iterasi $iter · $(date -u +'%Y-%m-%d %H:%M') UTC ==="
+            # 0. mulai dari kondisi terbaru origin (commit loop sync / analisa
+            #    lain) — working tree masih bersih di titik ini.
+            #    -X theirs: hunk konflik data/*.json diselesaikan otomatis
+            #    dengan versi commit lokal (barusan sync — paling segar);
+            #    kalau salah, gap-filling iterasi berikutnya memulihkan.
+            if ! git pull --rebase -X theirs origin main; then
+              git rebase --abort || true
+              git reset --hard origin/main
+              echo "[watch] konflik rebase awal — reset ke origin/main"
+            fi
             # 1. sync candle dulu — analisa tidak pernah pakai data basi
             #    (workflow sync bisa saja di-drop GitHub jam-jam sebelumnya)
             python -m analyzer.jobs.sync || echo "[watch] sync gagal — analisa pakai data tersimpan"
@@ -77,11 +87,17 @@ jobs:
               echo "Tidak ada perubahan — tidak commit."
             else
               git commit -m "data: rekomendasi harian $(date -u +'%Y-%m-%d %H:%M') UTC"
-              if git pull --rebase origin main; then
+              # BUGFIX 2026-09-09: rebase polos KONFLIK dengan commit loop
+              # sync (keduanya menulis data/xauusd_*.json) -> commit analisa
+              # DIBUANG diam-diam tiap iterasi. -X theirs menyelesaikan
+              # konflik otomatis: versi commit lokal menang (data barusan
+              # di-sync + hasil analisa), commit loop sync terpisah tetap
+              # utuh dalam sejarah.
+              if git pull --rebase -X theirs origin main; then
                 git push || echo "[watch] push gagal (race) — iterasi berikutnya mengejar"
               else
-                # konflik rebase vs workflow sync: buang lokal, mulai dari
-                # origin/main — iterasi berikutnya sync + analisa ulang.
+                # rebase gagal total: buang lokal, mulai dari origin/main —
+                # iterasi berikutnya sync + analisa ulang.
                 git rebase --abort || true
                 git reset --hard origin/main
                 echo "[watch] konflik rebase — reset ke origin/main"

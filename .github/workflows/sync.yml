@@ -52,17 +52,29 @@ jobs:
           while [ "$(date +%s)" -lt "$end" ]; do
             iter=$((iter+1))
             echo "=== iterasi $iter · $(date -u +'%Y-%m-%d %H:%M') UTC ==="
+            # 0. mulai dari kondisi terbaru origin (commit loop analisa /
+            #    sync lain). -X theirs: hunk konflik diselesaikan otomatis
+            #    dengan versi commit lokal (barusan sync — paling segar);
+            #    gap-filling iterasi berikutnya memulihkan kalau salah.
+            if ! git pull --rebase -X theirs origin main; then
+              git rebase --abort || true
+              git reset --hard origin/main
+              echo "[watch] konflik rebase awal — reset ke origin/main"
+            fi
             python -m analyzer.jobs.sync || echo "[watch] sync gagal — coba iterasi berikutnya"
             git add data
             if git diff --cached --quiet; then
               echo "Tidak ada data baru — tidak commit."
             else
               git commit -m "data: hourly sync $(date -u +'%Y-%m-%d %H:%M') UTC"
-              if git pull --rebase origin main; then
+              # BUGFIX 2026-09-09: rebase polos konflik dengan commit loop
+              # analisa (keduanya menulis data/xauusd_*.json) -> commit
+              # sync dibuang. -X theirs = versi lokal (paling segar) menang.
+              if git pull --rebase -X theirs origin main; then
                 git push || echo "[watch] push gagal (race) — iterasi berikutnya mengejar"
               else
-                # konflik rebase vs workflow lain: buang lokal, mulai dari
-                # origin/main — iterasi berikutnya re-sync (gap-filling).
+                # rebase gagal total: buang lokal, mulai dari origin/main —
+                # iterasi berikutnya re-sync (gap-filling).
                 git rebase --abort || true
                 git reset --hard origin/main
                 echo "[watch] konflik rebase — reset ke origin/main"
