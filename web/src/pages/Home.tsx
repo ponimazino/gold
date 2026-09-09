@@ -1101,7 +1101,9 @@ function RiwayatView({ data }: { data: DashboardData }) {
   const rows = useMemo(() => {
     const items: { key: string; date: string; skip?: boolean; h?: TrackingEntry }[] =
       filtered.map((h, i) => ({
-        key: h.id ?? `e${i}`,
+        // key unik per entry: boleh ada >1 entry sehari (re-entry setelah
+        // posisi selesai) -> id tanggal bisa dobel, created_at_wib tidak
+        key: h.created_at_wib ?? h.id ?? `e${i}`,
         date: h.created_at_wib?.slice(0, 10) ?? h.id ?? "",
         h,
       }));
@@ -1119,6 +1121,32 @@ function RiwayatView({ data }: { data: DashboardData }) {
   const stats = tracking?.stats;
   const hitRate = stats?.hit_rate != null ? Math.round(stats.hit_rate * 100) : null;
 
+  // ---- panel per hari: slot analisa tiap ±2 jam (data/rec_log.json),
+  // default hari ini WIB — tiap run dicatat jam + status (entry/tunggu/skip)
+  const reclog = data.reclog;
+  const rDays = reclog?.days ?? [];
+  const todayWib = useMemo(() =>
+    new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Jakarta", year: "numeric", month: "2-digit", day: "2-digit",
+    }).format(new Date()), []);
+  const [daySel, setDaySel] = useState("");
+  const selDay = daySel || todayWib; // default: hari saat diakses
+  const selSlots = useMemo(
+    () => [...(rDays.find((d) => d.date === selDay)?.slots ?? [])]
+      .sort((a, b) => (a.t_wib ?? "").localeCompare(b.t_wib ?? "")),
+    [rDays, selDay]);
+  const dayOptions = useMemo(() => {
+    const set = new Set<string>([todayWib]);
+    for (const d of rDays) if (d.date) set.add(d.date);
+    return Array.from(set).sort().reverse();
+  }, [rDays, todayWib]);
+  const slotLabel = (st?: string) =>
+    st === "entry" ? "Entry" : st === "tunggu" ? "Tunggu" : "Skip";
+  const slotNote = (st?: string) =>
+    st === "entry" ? "Setup entry dicatat — hasil dinilai vs pergerakan aktual."
+    : st === "tunggu" ? "Ada pola tapi jatuh di jeda event 3★ (−2j..+1j) — tanpa level, entry tidak dikonfirmasi."
+    : "Tidak ada setup — pola H1 di 2 bar terakhir tidak searah trend H4 EMA20/50 (atau tidak ada pola).";
+
   return (<>
     <section className="hero-row compact">
       <div>
@@ -1128,6 +1156,80 @@ function RiwayatView({ data }: { data: DashboardData }) {
       </div>
       <StatusPill tone="violet"><Database size={12} />{tracking?.updated_at_wib ?? "—"}</StatusPill>
     </section>
+    <div className="panel">
+      <div className="panel-header">
+        <div>
+          <div className="panel-kicker">Riwayat per hari · slot analisa tiap ±2 jam</div>
+          <h2>{selDay === todayWib ? `Hari ini — ${selDay}` : selDay}</h2>
+        </div>
+      </div>
+      <div className="filter-bar">
+        <label>Tanggal
+          <select value={selDay} onChange={(e) => setDaySel(e.target.value)}>
+            {dayOptions.map((d) => (
+              <option key={d} value={d}>{d}{d === todayWib ? " (hari ini)" : ""}</option>
+            ))}
+          </select>
+        </label>
+      </div>
+      {selSlots.length === 0 ? (
+        <div className="empty-feed" style={{ minHeight: 120 }}>
+          <div className="empty-icon"><Clock3 size={20} /></div>
+          <h3>Belum ada slot analisa untuk tanggal ini</h3>
+          <p>{selDay === todayWib
+            ? "Analisa berjalan 04:37–22:37 WIB (Sen–Jum) tiap ±2 jam — coba lagi nanti atau pilih tanggal lain di atas."
+            : "Tanggal ini tidak punya log slot (pencatatan per-slot mulai aktif 2026-09-10)."}</p>
+        </div>
+      ) : (
+        <div className="reasoning-ledger">
+          <div className="ledger-heading"><span>Jam WIB · slot analisa</span><span>{selSlots.length} run</span></div>
+          {selSlots.map((s, i) => {
+            const st = s.status ?? "netral";
+            if (st !== "entry") {
+              const isTunggu = st === "tunggu";
+              return (
+                <div className="ledger-row" key={i}>
+                  {isTunggu
+                    ? <Clock3 size={15} className="muted-icon" />
+                    : <CircleSlash size={15} className="muted-icon" />}
+                  <div>
+                    <b>{s.t_wib ?? "—"} WIB · {isTunggu ? "jeda event 3★" : "tanpa setup"}</b>
+                    <span>{slotNote(st)}</span>
+                  </div>
+                  <StatusPill tone={isTunggu ? "amber" : "slate"}>{slotLabel(st)}</StatusPill>
+                </div>
+              );
+            }
+            // slot entry: cari hasilnya di tracking (match tanggal + jam)
+            const h = history.find((x) => x.created_at_wib === `${selDay} ${s.t_wib} WIB`);
+            const meta = h ? HIST_STATUS[h.status ?? ""] : null;
+            const Icon = meta?.icon ?? Crosshair;
+            const oc = h?.outcome;
+            const lvl = s.levels ?? {};
+            return (
+              <div className="ledger-row" key={i}>
+                <Icon size={15} className={h?.status === "win" ? "ledger-good" : h?.status === "loss" ? "ledger-caution" : undefined} />
+                <div>
+                  <b>{s.t_wib} WIB · {PATTERN_NAMES[s.pattern ?? ""] ?? s.pattern ?? "pola"} · {s.bias ?? "netral"}</b>
+                  <span>{oc?.why ?? (h ? "Masih berjalan — dinilai saat harga sentuh SL/TP1 atau timeout 24 bar H1." : "Level dicatat — hasil mulai dinilai oleh run analisa berikutnya.")}</span>
+                  <div className="hist-detail">
+                    {lvl.entry != null && <span className="lvl">Entry {fmtUsd(lvl.entry)}</span>}
+                    {lvl.sl != null && <span className="lvl bad">SL {fmtUsd(lvl.sl)}</span>}
+                    {lvl.tp1 != null && <span className="lvl good">TP1 {fmtUsd(lvl.tp1)}</span>}
+                    {lvl.tp2 != null && <span className="lvl good">TP2 {fmtUsd(lvl.tp2)}</span>}
+                    {s.confidence != null && <span>Confidence {Math.round(s.confidence * 100)}%</span>}
+                    {oc && <span>MFE +{(oc.mfe_usd ?? 0).toFixed(2)} / MAE −{(oc.mae_usd ?? 0).toFixed(2)} USD</span>}
+                    {oc && <span>{oc.bars_held ?? "—"} jam</span>}
+                  </div>
+                </div>
+                <StatusPill tone={meta?.tone ?? "violet"}>{meta?.label ?? "Entry"}</StatusPill>
+              </div>
+            );
+          })}
+        </div>
+      )}
+      <div className="disclaimer-row"><Clock3 size={14} /> Log run analisa otomatis (job harian) · slot "skip" = memang tanpa setup, bukan data kosong · arsip 30 hari</div>
+    </div>
     {history.length === 0 ? (
       <div className="panel"><div className="empty-feed">
         <div className="empty-icon"><History size={20} /></div>

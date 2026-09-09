@@ -319,6 +319,43 @@ def test_research_payload_safe_stats():
     print("ok: payload research menggabungkan statistik mode aman per pola")
 
 
+def test_record_entry_one_active_position():
+    """Aturan 2026-09-10: entry baru hanya dicatat kalau posisi terakhir
+    sudah selesai — boleh re-entry sehari yang sama, yang dilarang hanya
+    posisi overlap."""
+    from analyzer.jobs.daily import record_entry
+
+    def _entry(rid):
+        return {"id": rid, "status": "entry", "rationale": [],
+                "levels": {"entry": 100.0, "sl": 95.0, "tp1": 110.0, "tp2": 130.0}}
+
+    # status bukan entry -> tidak dicatat
+    t = {"history": []}
+    assert record_entry({"status": "netral", "rationale": []}, t) is False
+    assert t["history"] == []
+
+    # entry + history kosong -> dicatat
+    r1 = _entry("2026-09-10")
+    assert record_entry(r1, t) is True
+    assert t["history"] == [r1]
+
+    # entry baru saat r1 masih 'entry'/'active' -> TIDAK dicatat + catatan
+    # rationale menjelaskan kenapa (tampil di UI)
+    r2 = _entry("2026-09-10")
+    assert record_entry(r2, t) is False
+    assert t["history"] == [r1]
+    assert "masih berjalan" in r2["rationale"][-1], r2["rationale"]
+    r1["status"] = "active"
+    assert record_entry(_entry("2026-09-10"), t) is False
+
+    # posisi selesai (win) -> re-entry SEHARI YANG SAMA boleh dicatat
+    r1["status"] = "win"
+    r3 = _entry("2026-09-10")
+    assert record_entry(r3, t) is True
+    assert t["history"] == [r1, r3]
+    print("ok: record_entry — 1 posisi aktif, re-entry sehari sama setelah selesai")
+
+
 def main() -> int:
     test_entry_signal()
     test_blackout_blocks_entry()
@@ -329,6 +366,7 @@ def main() -> int:
     test_outcome_narrative_and_eod()
     test_safe_mode_levels_and_stats()
     test_research_payload_safe_stats()
+    test_record_entry_one_active_position()
     print("\nALL P5 TESTS PASSED")
     return 0
 

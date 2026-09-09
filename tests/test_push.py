@@ -38,7 +38,7 @@ def _env() -> None:
 def _rec(status: str = "entry", rid: str = "2026-09-09") -> dict:
     return {
         "id": rid, "status": status, "bias": "bearish", "pattern": "inside_bar",
-        "confidence": 0.45,
+        "confidence": 0.45, "created_at": "2026-09-09T10:00:00Z",
         "levels": {"entry": 2300.0, "sl": 2290.0, "tp1": 2315.0, "tp2": 2330.0,
                    "atr14": 10.0},
     }
@@ -84,14 +84,26 @@ def test_dispatch_entry_dedup() -> None:
     push.dispatch(_rec(), now=now)
     assert calls == ["entry"], calls
     state = push.load_state()
-    assert state["entry_notified_id"] == "2026-09-09", state
+    assert state["entry_notified_id"] == "2026-09-09T10:00:00Z", state
     assert state["last_status"] == "ok", state
 
-    # dispatch kedua dengan id sama -> tidak kirim ulang
+    # dispatch kedua dengan created_at sama -> tidak kirim ulang
     push.dispatch(_rec(), now=now + timedelta(hours=2))
     assert calls == ["entry"], calls
+
+    # re-entry sehari yang sama (created_at baru) -> notif BARU kirim
+    reentry = _rec(); reentry["created_at"] = "2026-09-09T14:00:00Z"
+    push.dispatch(reentry, now=now + timedelta(hours=4))
+    assert calls == ["entry", "entry"], calls
+    assert push.load_state()["entry_notified_id"] == "2026-09-09T14:00:00Z"
+
+    # sinyal entry saat posisi masih aktif (entry_recorded=False) -> senyap
+    sig3 = _rec(); sig3["created_at"] = "2026-09-09T16:00:00Z"
+    push.dispatch(sig3, now=now + timedelta(hours=6), entry_recorded=False)
+    assert calls == ["entry", "entry"], calls
     push._send = orig
-    print("ok: notif entry 1x per hari (dedup id rec) + state tersimpan")
+    print("ok: notif entry 1x per entry TERCATAT (dedup created_at, "
+          "re-entry dapat notif baru, posisi aktif = senyap)")
 
 
 def test_dispatch_agenda_window() -> None:

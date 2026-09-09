@@ -13,6 +13,7 @@ from __future__ import annotations
 import json
 import os
 import tempfile
+import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -129,7 +130,16 @@ def _atomic_write(path: Path, payload: dict) -> None:
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as fh:
             json.dump(payload, fh, ensure_ascii=False)
-        os.replace(tmp, path)
+        # Windows: AV/indexer bisa mengunci file target sesaat saat ditulis
+        # rapat — coba beberapa kali sebelum menyerah.
+        for attempt in range(5):
+            try:
+                os.replace(tmp, path)
+                return
+            except PermissionError:
+                if attempt == 4:
+                    raise
+                time.sleep(0.1 * (attempt + 1))
     finally:
         if os.path.exists(tmp):
             os.remove(tmp)

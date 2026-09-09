@@ -1,7 +1,9 @@
 """Web Push (VAPID) ke PWA GoldPulse — dipicu job daily (P5).
 
 Dua notifikasi (teks WIB, storage UTC):
-  1. ENTRY  — rekomendasi status "entry": 1x per hari WIB (dedup id rec).
+  1. ENTRY  — rekomendasi status "entry" yang dicatat feedback loop:
+     1x per entry (dedup created_at — re-entry sehari yang sama tetap
+     dapat notif; sinyal saat posisi masih aktif tidak dinotifikasi).
   2. AGENDA — 1x per hari WIB: H-3 jam sebelum event bintang-3 PERTAMA
      hari itu, isi = daftar SEMUA event 3★ hari yang sama (kalau run
      pertama yang lolos sudah lewat H-3, kirim segera — sisa event hari
@@ -161,8 +163,12 @@ def _send(subs: list[dict], payload: dict, claims: dict) -> str:
     return status
 
 
-def dispatch(rec: dict, now: datetime | None = None) -> None:
+def dispatch(rec: dict, now: datetime | None = None,
+             entry_recorded: bool = True) -> None:
     """Pintu job daily: notif ENTRY + AGENDA (dedup + status push_state.json).
+
+    entry_recorded=False → sinyal entry tidak dinotifikasi (posisi masih
+    aktif — aturan 1 posisi, lihat jobs/daily.record_entry).
 
     Tidak pernah raise — notif adalah bonus, bukan critical path analisa.
     """
@@ -178,13 +184,16 @@ def dispatch(rec: dict, now: datetime | None = None) -> None:
     status: str | None = None
     sent_wib: str | None = None
 
-    # --- 1. notif entry (1x per hari WIB) ---
-    if rec.get("status") == "entry" and state.get("entry_notified_id") != rec.get("id"):
+    # --- 1. notif entry (1x per entry TERCATAT; dedup via created_at —
+    #     re-entry sehari yang sama tetap dapat notif, sinyal yang tidak
+    #     dicatat karena posisi masih aktif TIDAK dinotifikasi) ---
+    if (rec.get("status") == "entry" and entry_recorded
+            and state.get("entry_notified_id") != rec.get("created_at")):
         st = _send(subs, entry_payload(rec), claims)
         status = st or status
         sent_wib = now.astimezone(WIB).strftime("%Y-%m-%d %H:%M WIB")
         if st != "expired":
-            state["entry_notified_id"] = rec.get("id")
+            state["entry_notified_id"] = rec.get("created_at")
             print("[push] notif entry terkirim")
         else:
             print("[push] notif entry GAGAL — subscription expired")

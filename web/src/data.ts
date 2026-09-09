@@ -93,6 +93,16 @@ export interface EodDay {
   // "run" = ada entry hari itu tapi masih dievaluasi
   status?: "skip" | "run" | string;
 }
+// slot per-run analisa harian (data/rec_log.json, ditulis job daily
+// tiap ~2 jam: jam WIB + status entry/tunggu/netral per slot)
+export interface RecLogSlot {
+  t_wib?: string; status?: string;
+  pattern?: string | null; bias?: string; confidence?: number | null;
+  levels?: Partial<Levels> | null;
+  levels_safe?: Partial<LevelsSafe> | null;
+}
+export interface RecLogDay { date?: string; slots?: RecLogSlot[] }
+export interface RecLog { updated_at_wib?: string; days?: RecLogDay[] }
 export interface Tracking {
   updated_at_wib?: string;
   stats?: TrackingStats;
@@ -118,6 +128,7 @@ export interface DashboardData {
   news: { updated_at_wib?: string; items?: NewsItem[] } | null;
   recommendation: Recommendation | null;
   tracking: Tracking | null;
+  reclog: RecLog | null;
   push: PushState | null;
 }
 
@@ -134,7 +145,7 @@ async function getJson<T>(url: string): Promise<T | null> {
 }
 
 export async function loadDashboard(): Promise<DashboardData> {
-  const [meta, c1, c4, patterns, calendar, news, recommendation, tracking, push] =
+  const [meta, c1, c4, patterns, calendar, news, recommendation, tracking, reclog, push] =
     await Promise.all([
       getJson<Meta>(`${DATA_BASE}/meta.json`),
       getJson<{ bars?: Bar[] }>(`${DATA_BASE}/xauusd_1h.json`),
@@ -144,6 +155,7 @@ export async function loadDashboard(): Promise<DashboardData> {
       getJson<DashboardData["news"]>(`${DATA_BASE}/news.json`),
       getJson<Recommendation>(`${DATA_BASE}/recommendation.json`),
       getJson<Tracking>(`${DATA_BASE}/tracking.json`),
+      getJson<RecLog>(`${DATA_BASE}/rec_log.json`),
       getJson<PushState>(`${DATA_BASE}/push_state.json`),
     ]);
   return {
@@ -155,6 +167,7 @@ export async function loadDashboard(): Promise<DashboardData> {
     news,
     recommendation,
     tracking,
+    reclog,
     push,
   };
 }
