@@ -117,6 +117,8 @@ def build_payload(all_results: list[dict], horizon_map: dict,
             for src, dst in fields.items():
                 if src == "oos_win_rate":
                     row[dst] = o.get("win_rate")
+                elif src == "oos_avg_r":
+                    row[dst] = o.get("avg_r")
                 elif src == "oos_n":
                     row[dst] = o.get("resolved", 0)
                 else:
@@ -128,10 +130,12 @@ def build_payload(all_results: list[dict], horizon_map: dict,
         "n": "safe_n", "win_rate": "safe_win_rate",
         "oos_n": "safe_oos_n", "oos_win_rate": "safe_oos_win_rate"})
     cost_map = _rule_map(cost_results, {
-        "win_rate": "cost_win_rate", "oos_win_rate": "cost_oos_win_rate"})
+        "win_rate": "cost_win_rate", "oos_win_rate": "cost_oos_win_rate",
+        "avg_r": "cost_avg_r", "oos_avg_r": "cost_oos_avg_r"})
     safe_cost_map = _rule_map(safe_cost_results, {
         "win_rate": "safe_cost_win_rate",
-        "oos_win_rate": "safe_cost_oos_win_rate"})
+        "oos_win_rate": "safe_cost_oos_win_rate",
+        "avg_r": "safe_cost_avg_r", "oos_avg_r": "safe_cost_oos_avg_r"})
 
     merged = []
     for r in full:
@@ -166,6 +170,8 @@ def build_payload(all_results: list[dict], horizon_map: dict,
                  "cost_*/safe_cost_* = NET of cost (spread "
                  f"${backtest.COST_USD:.2f}/oz: barrier TP lebih jauh, SL lebih "
                  "dekat dalam harga mid; R nominal tetap); "
+                 "cost_avg_r = EV per sinyal NET (rata-rata R, timeout ikut "
+                 "dihitung) — dipakai gate kualitas rekomendasi; "
                  "TP+SL di bar yang sama dihitung LOSS (konservatif); "
                  "oos_win_rate = 30% data terakhir (cek overfitting); "
                  f"sinyal tumpang tindih dalam {COOLDOWN_BARS} bar didedup (n jujur)"),

@@ -25,6 +25,12 @@ WIB = ZoneInfo("Asia/Jakarta")
 RECENT_BARS = 2          # sinyal H1 dihitung valid jika muncul di N bar terakhir
 TP2_ATR = 3.0            # target kedua: 3x ATR (di luar TP1 1,5x ATR)
 
+# Gate kualitas (2026-09-10, tahap 1 "moderat"): pola yang searah trend pun
+# TIDAK otomatis layak entry — backtest-nya harus membuktikan EV positif
+# setelah biaya. Fail-closed: tanpa statistik = tidak ada bukti = tidak entry.
+GATE_MIN_N = 30      # pola dengan n dedup < ini belum punya bukti bermakna
+GATE_MIN_EV_R = 0.0  # EV per sinyal (R, termasuk timeout) harus di atas ini
+
 
 def _recent_signals(df: pd.DataFrame, tf: str, n: int = RECENT_BARS) -> list[dict]:
     sigs = patterns.detect_signals(df, tf)
@@ -60,6 +66,33 @@ def _load_calendar_events() -> list[dict]:
 
 def _trend_name(t: int) -> str:
     return {1: "up", -1: "down", 0: "sideways"}[t]
+
+
+def _gate_ev(stats: dict) -> float | None:
+    """EV per sinyal dalam R (termasuk timeout). Prioritas estimat paling
+    jujur: full-sample net of cost -> OOS net -> full-sample gross."""
+    for k in ("cost_avg_r", "cost_oos_avg_r", "avg_r"):
+        v = stats.get(k)
+        if v is not None:
+            return float(v)
+    return None
+
+
+def _gate_check(stats: dict | None) -> tuple[bool, str, dict]:
+    """Kembalikan (lolos, alasan, meta) untuk satu pola. Meta dipakai untuk
+    field rec["gate"] supaya keputusan gate bisa diaudit dari UI/log."""
+    if not stats:
+        return False, "statistik pola belum tersedia — tanpa bukti, tanpa entry", {}
+    n = stats.get("n") or 0
+    ev = _gate_ev(stats)
+    meta = {"n": n, "ev_net_r": ev}
+    if n < GATE_MIN_N:
+        return False, f"n={n} (< {GATE_MIN_N}) — bukti statistik belum cukup", meta
+    if ev is None:
+        return False, "EV net belum bisa dihitung — tanpa bukti, tanpa entry", meta
+    if ev <= GATE_MIN_EV_R:
+        return False, f"EV net {ev:+.3f}R — backtest negatif setelah biaya", meta
+    return True, f"lolos gate kualitas: EV net {ev:+.3f}R, n={n}", meta
 
 
 def build_recommendation(now: datetime | None = None) -> dict:
@@ -138,7 +171,27 @@ def build_recommendation(now: datetime | None = None) -> dict:
             rec["rationale"].append("pola H1 terakhir tidak searah trend H4 — dilewati")
         return rec  # netral
 
-    sig = matched[-1]
+    # --- gate kualitas: pola searah trend pun harus lolos bukti EV net ---
+    qualified: list[tuple[dict, dict, str, dict]] = []
+    for s in matched:
+        st = _pattern_stats("1h", s["pattern"])
+        ok, why, meta = _gate_check(st)
+        if ok:
+            qualified.append((s, st, why, meta))
+        else:
+            rec["rationale"].append(
+                f"pola '{s['pattern']}' searah trend TAPI disaring gate kualitas: {why}")
+    if not qualified:
+        last = matched[-1]
+        _, last_why, last_meta = _gate_check(_pattern_stats("1h", last["pattern"]))
+        rec["gate"] = {"pattern": last["pattern"], "passed": False,
+                       "reason": last_why, **last_meta}
+        return rec  # netral — ada pola searah, tapi tidak ada yang lolos gate
+
+    sig, stats, why_ok, meta_ok = qualified[-1]
+    rec["gate"] = {"pattern": sig["pattern"], "passed": True,
+                   "reason": why_ok, **meta_ok}
+    rec["rationale"].append(why_ok)
     atr = float(df1["atr14"].iloc[-1])
     entry = float(df1["c"].iloc[-1])
     d = sig["dir"]
@@ -167,7 +220,7 @@ def build_recommendation(now: datetime | None = None) -> dict:
         "levels_safe": levels_safe,
     })
 
-    stats = _pattern_stats("1h", sig["pattern"])
+    # stats sudah diambil saat cek gate (qualified) — pasti lolos & ada
     if stats:
         conf = stats.get("oos_win_rate") or stats.get("win_rate")
         rec["confidence"] = conf

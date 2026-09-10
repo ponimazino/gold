@@ -56,11 +56,25 @@ def test_entry_signal():
     now = datetime(2026, 9, 4, 15, 0, tzinfo=timezone.utc)
     _seed(now)
 
+    # gate kualitas fail-closed: pola searah trend TAPI tanpa statistik ->
+    # tidak entry (tidak ada bukti, tidak ada trade)
+    rec0 = recommend.build_recommendation(now=now)
+    assert rec0["status"] == "netral", rec0
+    assert rec0["gate"]["passed"] is False, rec0
+    assert any("gate kualitas" in r for r in rec0["rationale"]), rec0["rationale"]
+    print("ok: gate fail-closed — pola tanpa statistik tidak entry")
+
+    # patterns.json -> lolos gate -> confidence terisi dari win-rate OOS
+    store.write_json("patterns.json", {"results": [
+        {"tf": "1h", "pattern": "bullish_engulfing", "n": 92,
+         "win_rate": 0.61, "oos_win_rate": 0.58, "avg_r": 0.2},
+    ]})
     rec = recommend.build_recommendation(now=now)
     assert rec["status"] == "entry", rec
     assert rec["bias"] == "bullish", rec
     assert rec["pattern"] == "bullish_engulfing", rec
     assert rec["h4_context"]["trend"] == "up", rec
+    assert rec["gate"]["passed"] is True, rec
     lv = rec["levels"]
     assert lv["sl"] < lv["entry"] < lv["tp1"] < lv["tp2"], lv
     # TP1 = 1.5x (entry - SL), TP2 = 3x (ATR rounding: toleransi 0.05)
@@ -70,15 +84,45 @@ def test_entry_signal():
     assert any("engulfing" in r for r in rec["rationale"]), rec["rationale"]
     print("ok: rekomendasi entry (pola searah trend, level ATR benar)")
 
-    # patterns.json -> confidence terisi dari win-rate OOS
-    store.write_json("patterns.json", {"results": [
-        {"tf": "1h", "pattern": "bullish_engulfing", "n": 92,
-         "win_rate": 0.61, "oos_win_rate": 0.58, "avg_r": 0.2},
-    ]})
     rec2 = recommend.build_recommendation(now=now)
     assert rec2["confidence"] == 0.58, rec2
     assert "OOS" in rec2["confidence_note"], rec2["confidence_note"]
     print("ok: confidence dari statistik pola (OOS diprioritaskan)")
+
+
+def test_gate_quality_filters_bad_patterns():
+    """Gate EV net: pola terbukti rugi (EV <= 0) atau n terlalu kecil
+    tidak boleh jadi rekomendasi entry meski searah trend H4."""
+    _isolate_data_dir()
+    now = datetime(2026, 9, 4, 15, 0, tzinfo=timezone.utc)
+    _seed(now)
+
+    # EV net negatif (angka nyata bearish/bullish engulfing produksi)
+    store.write_json("patterns.json", {"results": [
+        {"tf": "1h", "pattern": "bullish_engulfing", "n": 380,
+         "win_rate": 0.402, "cost_avg_r": -0.021},
+    ]})
+    rec = recommend.build_recommendation(now=now)
+    assert rec["status"] == "netral", rec
+    assert rec["levels"] is None
+    assert rec["gate"]["passed"] is False, rec
+    assert "EV net" in rec["gate"]["reason"], rec["gate"]
+    assert any("disaring gate kualitas" in r for r in rec["rationale"])
+    # rec_log: slot non-entry bawa catatan gate (bukan terlihat kosong)
+    from analyzer import reclog
+    log = reclog.log_run(rec, now=now)
+    slot = log["days"][0]["slots"][-1]
+    assert slot["status"] == "netral" and "EV net" in slot["note"], slot
+    print("ok: gate menyaring pola EV net negatif + catatan slot rec_log")
+
+    # n di bawah ambang: bukti belum cukup, juga tersaring
+    store.write_json("patterns.json", {"results": [
+        {"tf": "1h", "pattern": "bullish_engulfing", "n": 4, "cost_avg_r": 0.5},
+    ]})
+    rec2 = recommend.build_recommendation(now=now)
+    assert rec2["status"] == "netral", rec2
+    assert "n=4" in rec2["gate"]["reason"], rec2["gate"]
+    print("ok: gate menyaring pola dengan n < ambang bukti")
 
 
 def test_blackout_blocks_entry():
@@ -270,7 +314,7 @@ def test_safe_mode_levels_and_stats():
     _seed(now)
     store.write_json("patterns.json", {"results": [
         {"tf": "1h", "pattern": "bullish_engulfing", "n": 92,
-         "win_rate": 0.61, "oos_win_rate": 0.58,
+         "win_rate": 0.61, "oos_win_rate": 0.58, "avg_r": 0.2,
          "safe_win_rate": 0.72, "safe_oos_win_rate": 0.70},
     ]})
 

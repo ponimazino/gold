@@ -51,6 +51,13 @@ def log_run(rec: dict, now: datetime | None = None) -> dict:
             slot["levels_safe"] = {
                 k: rec["levels_safe"][k] for k in ("entry", "sl", "tp1")
                 if k in rec["levels_safe"]}
+    else:
+        # slot tanpa entry: bawa alasan gate bila ada pola yang disaring —
+        # riwayat harus jujur "ada sinyal tapi kualitasnya tidak lolos",
+        # bukan terlihat seperti data kosong
+        gate = rec.get("gate")
+        if isinstance(gate, dict) and gate.get("reason"):
+            slot["note"] = f"{gate.get('pattern')}: {gate['reason']}"
 
     log = load()
     days = {d.get("date"): d for d in log["days"] if d.get("date")}

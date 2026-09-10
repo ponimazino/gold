@@ -1193,8 +1193,10 @@ function RiwayatView({ data }: { data: DashboardData }) {
                     ? <Clock3 size={15} className="muted-icon" />
                     : <CircleSlash size={15} className="muted-icon" />}
                   <div>
-                    <b>{s.t_wib ?? "—"} WIB · {isTunggu ? "jeda event 3★" : "tanpa setup"}</b>
-                    <span>{slotNote(st)}</span>
+                    <b>{s.t_wib ?? "—"} WIB · {isTunggu
+                      ? "jeda event 3★"
+                      : s.note ? "disaring gate kualitas" : "tanpa setup"}</b>
+                    <span>{s.note ?? slotNote(st)}</span>
                   </div>
                   <StatusPill tone={isTunggu ? "amber" : "slate"}>{slotLabel(st)}</StatusPill>
                 </div>

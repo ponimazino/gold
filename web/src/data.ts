@@ -100,6 +100,9 @@ export interface RecLogSlot {
   pattern?: string | null; bias?: string; confidence?: number | null;
   levels?: Partial<Levels> | null;
   levels_safe?: Partial<LevelsSafe> | null;
+  // slot non-entry yang disaring gate kualitas: pola + alasan EV (mis.
+  // "bearish_engulfing: EV net -0.131R — backtest negatif setelah biaya")
+  note?: string | null;
 }
 export interface RecLogDay { date?: string; slots?: RecLogSlot[] }
 export interface RecLog { updated_at_wib?: string; days?: RecLogDay[] }
