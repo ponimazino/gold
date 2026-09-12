@@ -105,8 +105,13 @@ def entry_payload(rec: dict) -> dict:
             f"TP1 {lv.get('tp1', 0):,.2f} (USD/oz).")
     if conf is not None:
         body += f"\nPeluang historis {round(conf * 100)}%."
+    if rec.get("experiment"):
+        # gate sadar-arah: backtest arah ini negatif — entry eksperimen,
+        # dinilai terpisah (jangan disamakan dengan entry lolos gate)
+        body += "\n⚠ EKSPERIMEN — backtest arah ini negatif, dinilai terpisah."
     return {
-        "title": "GoldPulse — setup entry hari ini",
+        "title": "GoldPulse — setup entry hari ini"
+        + (" (EKSPERIMEN)" if rec.get("experiment") else ""),
         "body": body,
         "tag": "entry",
         "url": "#/analysis",

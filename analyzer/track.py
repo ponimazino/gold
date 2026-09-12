@@ -136,6 +136,7 @@ def build_eod(tracking: dict, now: datetime | None = None) -> list[dict]:
             day["entries"].append({
                 "pattern": r.get("pattern"),
                 "bias": r.get("bias"),
+                **({"experiment": True} if r.get("experiment") else {}),
                 "status": r["status"],
                 "entry_at_wib": r.get("created_at_wib"),
                 "resolved_at_wib": out.get("resolved_at_wib"),
@@ -183,13 +184,23 @@ def resolve_pending(tracking: dict, now: datetime | None = None) -> dict:
 
 def compute_stats(tracking: dict) -> dict:
     hist = tracking.get("history", [])
-    wins = sum(1 for r in hist if r.get("status") == "win")
-    losses = sum(1 for r in hist if r.get("status") == "loss")
-    timeouts = sum(1 for r in hist if r.get("status") == "timeout")
+    # entry EKSPERIMEN (gate sadar-arah 2026-09-12: arah dengan bukti
+    # bermakna tapi EV negatif) dinilai TERPISAH — jangan mencemari
+    # hit-rate statistik utama; review saat n live eksperimen >= 30
+    exp = [r for r in hist if r.get("experiment")]
+    main = [r for r in hist if not r.get("experiment")]
+
+    def _count(rows: list[dict], status: str) -> int:
+        return sum(1 for r in rows if r.get("status") == status)
+
+    # statistik utama (tanpa entry eksperimen)
+    wins = _count(main, "win")
+    losses = _count(main, "loss")
+    timeouts = _count(main, "timeout")
     # "entry" = baru dicatat job daily, belum dinormalisasi _resolve_one ke
     # "active" — dua-duanya posisi berjalan (audit 2026-09-12: tile UI
     # "Berjalan" pernah tampil 0 padahal ada 1 posisi entry aktif)
-    active = sum(1 for r in hist if r.get("status") in ("active", "entry"))
+    active = sum(1 for r in main if r.get("status") in ("active", "entry"))
     resolved = wins + losses + timeouts
     tracking["stats"] = {
         "total": len(hist),
@@ -200,4 +211,18 @@ def compute_stats(tracking: dict) -> dict:
         "resolved": resolved,
         "hit_rate": round(wins / resolved, 3) if resolved else None,
     }
+    if exp:
+        exp_wins = _count(exp, "win")
+        exp_resolved = sum(1 for r in exp
+                           if r.get("status") in ("win", "loss", "timeout"))
+        tracking["stats"]["experiment"] = {
+            "total": len(exp),
+            "wins": exp_wins,
+            "losses": _count(exp, "loss"),
+            "timeouts": _count(exp, "timeout"),
+            "active": sum(1 for r in exp
+                          if r.get("status") in ("active", "entry")),
+            "resolved": exp_resolved,
+            "hit_rate": round(exp_wins / exp_resolved, 3) if exp_resolved else None,
+        }
     return tracking

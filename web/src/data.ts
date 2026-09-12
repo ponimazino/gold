@@ -40,6 +40,13 @@ export interface PatternStat {
   safe_oos_n?: number; safe_oos_win_rate?: number | null;
   cost_win_rate?: number | null; cost_oos_win_rate?: number | null;
   safe_cost_win_rate?: number | null; safe_cost_oos_win_rate?: number | null;
+  // statistik PER ARAH sinyal (net of cost, dari research._direction_map) —
+  // dipakai gate sadar-arah: EV long dan short dinilai terpisah
+  cost_avg_r?: number | null; cost_oos_avg_r?: number | null;
+  n_long?: number; win_rate_long?: number | null;
+  cost_avg_r_long?: number | null; cost_oos_avg_r_long?: number | null;
+  n_short?: number; win_rate_short?: number | null;
+  cost_avg_r_short?: number | null; cost_oos_avg_r_short?: number | null;
 }
 export interface CalEvent {
   title?: string; t_utc?: string;
@@ -63,10 +70,18 @@ export interface Recommendation {
   blackout?: { title?: string; t_utc?: string; minutes_to_event?: number } | null;
   next_event?: { title?: string; t_utc?: string } | null;
   rationale?: string[];
+  // true = entry EKSPERIMEN (gate sadar-arah): arah ini punya bukti
+  // bermakna tapi EV backtest-nya negatif — dinilai terpisah
+  experiment?: boolean;
 }
 export interface TrackingStats {
   total?: number; wins?: number; losses?: number; timeouts?: number;
   active?: number; resolved?: number; hit_rate?: number | null;
+  // hit-rate entry eksperimen — TERPISAH dari hit_rate utama
+  experiment?: {
+    total?: number; wins?: number; losses?: number; timeouts?: number;
+    active?: number; resolved?: number; hit_rate?: number | null;
+  };
 }
 export interface TrackingEntry {
   id?: string; created_at_wib?: string; status?: string;
@@ -80,9 +95,11 @@ export interface TrackingEntry {
     bars_held?: number; mfe_usd?: number; mae_usd?: number;
     events?: string[]; why?: string; resolved_at_wib?: string;
   } | null;
+  experiment?: boolean;
 }
 export interface EodEntry {
   pattern?: string | null; bias?: string; status?: string;
+  experiment?: boolean;
   entry_at_wib?: string; resolved_at_wib?: string | null;
   mfe_usd?: number | null; mae_usd?: number | null;
   events?: string[]; why?: string | null;
@@ -103,6 +120,7 @@ export interface RecLogSlot {
   // slot non-entry yang disaring gate kualitas: pola + alasan EV (mis.
   // "bearish_engulfing: EV net -0.131R — backtest negatif setelah biaya")
   note?: string | null;
+  experiment?: boolean;
 }
 export interface RecLogDay { date?: string; slots?: RecLogSlot[] }
 export interface RecLog { updated_at_wib?: string; days?: RecLogDay[] }

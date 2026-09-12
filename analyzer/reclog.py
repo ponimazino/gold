@@ -55,6 +55,8 @@ def log_run(rec: dict, now: datetime | None = None,
             slot["levels_safe"] = {
                 k: rec["levels_safe"][k] for k in ("entry", "sl", "tp1")
                 if k in rec["levels_safe"]}
+        if rec.get("experiment"):
+            slot["experiment"] = True
         if not entry_recorded:
             slot["note"] = ("sinyal saat posisi lain masih berjalan — "
                             "tidak dicatat/dinilai feedback loop "

@@ -763,7 +763,10 @@ function AnalysisView({ data, now }: { data: DashboardData; now: number }) {
     bias === "bearish" ? "Rejection continuation" : "Flat by design";
 
   const lead = status === "entry" && lv
-    ? `Bias ${bias} di H1${patternName ? ` dari pola ${patternName}` : ""}, searah konteks H4 (${rec.h4_context?.trend ?? "—"}). Setup terbersih adalah menunggu harga ke zona entry, lalu konfirmasi respons bullish/bearish sebelum eksekusi.`
+    ? `Bias ${bias} di H1${patternName ? ` dari pola ${patternName}` : ""}, searah konteks H4 (${rec.h4_context?.trend ?? "—"}).`
+      + (rec.experiment
+        ? " Ini entry EKSPERIMEN: backtest arah ini negatif setelah biaya — entry diambil untuk mengumpulkan bukti live dan dinilai terpisah dari statistik utama."
+        : " Setup terbersih adalah menunggu harga ke zona entry, lalu konfirmasi respons bullish/bearish sebelum eksekusi.")
     : status === "tunggu"
       ? `Event bintang-3 (${rec.blackout?.title ?? "US data"}) sedang dalam jendela rilis. Sistem menahan semua rekomendasi entry sampai jeda berlalu — jangan mengejar pergerakan saat rilis.`
       : `Tidak ada pola H1 dalam 2 bar terakhir yang searah trend H4 — jadi memang tidak ada rekomendasi hari ini; ini keputusan sistem, bukan error atau data kosong. Flat adalah posisi yang valid, dan sistem mengecek ulang otomatis tiap 2 jam (terakhir ${rec.created_at_wib ?? "—"}).`;
@@ -789,7 +792,7 @@ function AnalysisView({ data, now }: { data: DashboardData; now: number }) {
         <div className="panel analysis-card">
           <div className="analysis-card-top">
             <div><div className="panel-kicker">Scenario 01 · Base case</div><h2>{scenarioTitle}</h2></div>
-            <div className="scenario-probability"><strong>{confidence != null ? `${confidence}%` : "—"}</strong><span>scenario weight</span></div>
+            <div className="scenario-probability">{rec.experiment && <StatusPill tone="amber">EKSPERIMEN</StatusPill>}<strong>{confidence != null ? `${confidence}%` : "—"}</strong><span>scenario weight</span></div>
           </div>
           <p className="analysis-lead">{lead}{rec.confidence_note ? ` ${rec.confidence_note}.` : ""}</p>
           <div className="level-grid">
@@ -979,7 +982,7 @@ function BacktestView({ data }: { data: DashboardData }) {
       </div>
       <div className="backtest-results">
         <div className="result-strip">
-          <div><span>Avg. R per trade</span><strong>{current?.avg_r != null ? `${current.avg_r >= 0 ? "+" : ""}${current.avg_r.toFixed(2)}R` : "—"}</strong><small>{PATTERN_NAMES[current?.pattern ?? ""] ?? current?.pattern ?? ""} · {tf.toUpperCase()}</small></div>
+          <div><span>Avg. R per trade</span><strong>{current?.avg_r != null ? `${current.avg_r >= 0 ? "+" : ""}${current.avg_r.toFixed(2)}R` : "—"}</strong><small>{PATTERN_NAMES[current?.pattern ?? ""] ?? current?.pattern ?? ""} · {tf.toUpperCase()}{current?.cost_avg_r_long != null && current?.cost_avg_r_short != null ? ` · per arah (net): long ${current.cost_avg_r_long >= 0 ? "+" : ""}${current.cost_avg_r_long.toFixed(2)}R · short ${current.cost_avg_r_short >= 0 ? "+" : ""}${current.cost_avg_r_short.toFixed(2)}R` : ""}</small></div>
           <div><span>Win rate</span><strong>{current?.win_rate != null ? `${(current.win_rate * 100).toFixed(1)}%` : "—"}</strong><small>{current?.resolved ?? 0} sinyal{current?.win_rate_lo != null && current?.win_rate_hi != null ? ` · 95% CI ${(current.win_rate_lo * 100).toFixed(0)}–${(current.win_rate_hi * 100).toFixed(0)}%` : ""}</small></div>
           <div><span>Out-of-sample</span><strong>{current?.oos_win_rate != null ? `${(current.oos_win_rate * 100).toFixed(1)}%` : "—"}</strong><small>30% data terakhir (n={current?.oos_n ?? 0}){current?.cost_oos_win_rate != null ? ` · net biaya ${(current.cost_oos_win_rate * 100).toFixed(1)}%` : ""}</small></div>
           <div><span>Sample size</span><strong>{current?.n ?? 0}</strong><small>Total sinyal (dedup {params?.cooldown_bars ?? "—"} bar)</small></div>
@@ -1221,6 +1224,7 @@ function RiwayatView({ data }: { data: DashboardData }) {
                     {lvl.sl != null && <span className="lvl bad">SL {fmtUsd(lvl.sl)}</span>}
                     {lvl.tp1 != null && <span className="lvl good">TP1 {fmtUsd(lvl.tp1)}</span>}
                     {lvl.tp2 != null && <span className="lvl good">TP2 {fmtUsd(lvl.tp2)}</span>}
+                    {s.experiment && <span style={{ color: "#e8b667", fontWeight: 600 }}>⚠ EKSPERIMEN — dinilai terpisah</span>}
                     {s.confidence != null && <span>Confidence {Math.round(s.confidence * 100)}%</span>}
                     {oc && <span>MFE +{(oc.mfe_usd ?? 0).toFixed(2)} / MAE −{(oc.mae_usd ?? 0).toFixed(2)} USD</span>}
                     {oc && <span>{oc.bars_held ?? "—"} jam</span>}
@@ -1246,6 +1250,9 @@ function RiwayatView({ data }: { data: DashboardData }) {
         <div><span>Hit-rate TP1</span><strong>{hitRate != null ? `${hitRate}%` : "—"}</strong><small>{stats?.wins ?? 0} win / {stats?.losses ?? 0} SL</small></div>
         <div><span>Timeout</span><strong>{stats?.timeouts ?? 0}</strong><small>24 bar H1 tanpa TP/SL</small></div>
         <div><span>Berjalan</span><strong>{stats?.active ?? 0}</strong><small>menunggu hasil</small></div>
+        {stats?.experiment && (
+          <div><span>Eksperimen</span><strong>{stats.experiment.hit_rate != null ? `${Math.round(stats.experiment.hit_rate * 100)}%` : "—"}</strong><small>{stats.experiment.total ?? 0} entry arah EV-negatif · dinilai terpisah</small></div>
+        )}
       </div>
       <div className="panel">
         <div className="panel-header">
@@ -1307,6 +1314,7 @@ function RiwayatView({ data }: { data: DashboardData }) {
                       <span className="lvl good">TP1 {fmtUsd(lvl.tp1)}</span>
                       <span className="lvl good">TP2 {fmtUsd(lvl.tp2)}</span>
                     </>}
+                    {h.experiment && <span style={{ color: "#e8b667", fontWeight: 600 }}>⚠ EKSPERIMEN — backtest arah ini negatif, dinilai terpisah</span>}
                     {h.confidence != null && <span>Confidence {Math.round(h.confidence * 100)}%</span>}
                     {oc && <span>MFE +{(oc.mfe_usd ?? 0).toFixed(2)} / MAE −{(oc.mae_usd ?? 0).toFixed(2)} USD</span>}
                     {oc && <span>{oc.bars_held ?? "—"} jam</span>}

@@ -27,6 +27,32 @@ from ..config import INTERVALS
 COOLDOWN_BARS = 4
 
 
+def _tag_h4_alignment(signals: list[dict], df1: pd.DataFrame) -> list[dict]:
+    """Tandai tiap sinyal H1 dengan 'aligned_h4' — apakah trend H4 AS-OF
+    searah sinyalnya, persis aturan live rekomendasi (pola H1 searah trend
+    H4). As-of: bar H1 waktu T closes T+1j, jadi trend H4 yang sah = bar H4
+    terakhir yang sudah CLOSE sebelum T+1j (t_h4 + 4j <= T + 1j). Tanpa
+    filter ini statistik per arah mengukur kolam sinyal H1-saja, padahal
+    live HANYA memperdagangkan subset aligned — bukti gate harus dari kolam
+    yang sama dengan yang diperdagangkan (audit 2026-09-12: inside_bar long
+    aligned +0.03R OOS vs unaligned -0.04R)."""
+    bars4 = store.load("4h")
+    if not bars4 or not signals:
+        for s in signals:
+            s.setdefault("aligned_h4", True)
+        return signals
+    df4 = patterns.add_indicators(bars_to_df(bars4))
+    t4 = pd.to_datetime(df4.index, utc=True) + pd.Timedelta(hours=4)
+    keys = list(t4)  # waktu close tiap bar H4
+    tr4 = df4["trend"].values
+    import bisect
+    for s in signals:
+        T = pd.to_datetime(s["t"], utc=True) + pd.Timedelta(hours=1)
+        i = bisect.bisect_right(keys, T) - 1
+        s["aligned_h4"] = (i >= 0 and int(tr4[i]) == s["dir"])
+    return signals
+
+
 def bars_to_df(bars: list[dict]) -> pd.DataFrame:
     return pd.DataFrame(bars).set_index("t")[["o", "h", "l", "c"]]
 
@@ -74,6 +100,10 @@ def run_all(tf: str, horizon: int) -> tuple[list[dict], list[dict], list[dict], 
         return [], [], [], []
     df = bars_to_df(bars)
     signals = dedup_signals(patterns.detect_signals(df, tf))
+    if tf == "1h":
+        # statistik per arah dipakai gate sadar-arah -> wajib mengukur kolam
+        # SEARAH H4 (aturan live), bukan semua sinyal H1-trend
+        signals = _tag_h4_alignment(signals, df)
     ind = patterns.add_indicators(df)
     std = backtest.evaluate(ind, signals, horizon)
     safe = backtest.evaluate(ind, signals, horizon,
@@ -87,6 +117,44 @@ def run_all(tf: str, horizon: int) -> tuple[list[dict], list[dict], list[dict], 
           f"std {len(std)} / aman {len(safe)} / std-net {len(std_cost)} / "
           f"aman-net {len(safe_cost)} terevaluasi")
     return std, safe, std_cost, safe_cost
+
+
+def _direction_map(cost_results: list[dict] | None) -> dict[tuple, dict]:
+    """Statistik net-of-cost PER ARAH sinyal, HANYA dari sinyal yang searah
+    trend H4 as-of (aturan live): {tf,pattern} -> {n_long, win_rate_long,
+    cost_avg_r_long, cost_oos_avg_r_long, ..._short}. Dipakai gate sadar-arah
+    rekomendasi (keputusan user 2026-09-12): long dan short dinilai buktinya
+    masing-masing — inside_bar long +0.12R vs short -0.13R adalah asimetri
+    nyata (bull market 2023-26), arah itu informasi, bukan noise. Kolam
+    harus sama dengan yang live diperdagangkan: sinyal tanpa aligned_h4
+    (data lama) dianggap aligned supaya backward-compat. OOS 30% per arah,
+    urut waktu."""
+    if not cost_results:
+        return {}
+    grouped: dict[tuple, dict[int, list[dict]]] = {}
+    for r in cost_results:
+        if not r.get("aligned_h4", True):
+            continue
+        grouped.setdefault((r["tf"], r["pattern"]), {}).setdefault(
+            r.get("dir", 0), []).append(r)
+    out: dict[tuple, dict] = {}
+    for key, by_dir in grouped.items():
+        row: dict = {}
+        for d, nm in ((1, "long"), (-1, "short")):
+            rows = by_dir.get(d) or []
+            if not rows:
+                continue
+            wins = sum(1 for r in rows if r["outcome"] == "win")
+            losses = sum(1 for r in rows if r["outcome"] == "loss")
+            resolved = wins + losses
+            oos = rows[int(len(rows) * 0.7):]
+            row[f"n_{nm}"] = len(rows)
+            row[f"win_rate_{nm}"] = round(wins / resolved, 3) if resolved else None
+            row[f"cost_avg_r_{nm}"] = round(sum(r["r"] for r in rows) / len(rows), 3)
+            row[f"cost_oos_avg_r_{nm}"] = (
+                round(sum(r["r"] for r in oos) / len(oos), 3) if oos else None)
+        out[key] = row
+    return out
 
 
 def build_payload(all_results: list[dict], horizon_map: dict,
@@ -138,6 +206,7 @@ def build_payload(all_results: list[dict], horizon_map: dict,
         "avg_r": "safe_cost_avg_r", "oos_avg_r": "safe_cost_oos_avg_r"})
 
     merged = []
+    dir_map = _direction_map(cost_results)
     for r in full:
         o = oos_map.get((r["tf"], r["pattern"]), {})
         merged.append({
@@ -147,6 +216,7 @@ def build_payload(all_results: list[dict], horizon_map: dict,
             **safe_map.get((r["tf"], r["pattern"]), {}),
             **cost_map.get((r["tf"], r["pattern"]), {}),
             **safe_cost_map.get((r["tf"], r["pattern"]), {}),
+            **dir_map.get((r["tf"], r["pattern"]), {}),
         })
     merged.sort(key=lambda r: -r["n"])
 
@@ -174,7 +244,11 @@ def build_payload(all_results: list[dict], horizon_map: dict,
                  "dihitung) — dipakai gate kualitas rekomendasi; "
                  "TP+SL di bar yang sama dihitung LOSS (konservatif); "
                  "oos_win_rate = 30% data terakhir (cek overfitting); "
-                 f"sinyal tumpang tindih dalam {COOLDOWN_BARS} bar didedup (n jujur)"),
+                 f"sinyal tumpang tindih dalam {COOLDOWN_BARS} bar didedup (n jujur); "
+                 "*_long/*_short = statistik PER ARAH sinyal yang SEARAH "
+                 "trend H4 as-of (aturan live, net of cost, OOS 30% per "
+                 "arah) — dipakai gate sadar-arah: sinyal searah trend pun "
+                 "dinilai EV arahnya sendiri"),
         "results": merged,
     }
 

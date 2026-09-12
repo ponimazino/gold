@@ -54,6 +54,31 @@ def _seed(now: datetime) -> datetime:
     return now
 
 
+def downtrend_bars(base: datetime, n: int, step_h: int, close0: float) -> list[dict]:
+    """Mirror uptrend_bars: n bar turun konsisten + green kecil lalu
+    engulfing red (setup short)."""
+    bars = []
+    for i in range(n):
+        c = close0 - i * 0.5
+        t = base + timedelta(hours=i * step_h)
+        bars.append({"t": iso(t), "o": c + 0.1, "h": c + 0.5, "l": c - 0.4, "c": c})
+    t_green = base + timedelta(hours=n * step_h)
+    bottom = close0 - n * 0.5
+    bars.append({"t": iso(t_green), "o": bottom - 0.2, "h": bottom + 0.3,
+                 "l": bottom - 0.5, "c": bottom + 0.2})
+    t_eng = base + timedelta(hours=(n + 1) * step_h)
+    bars.append({"t": iso(t_eng), "o": bottom + 0.3, "h": bottom + 0.5,
+                 "l": bottom - 2.4, "c": bottom - 2.0})
+    return bars
+
+
+def _seed_short(now: datetime) -> datetime:
+    """H1/H4 DOWNTREND berakhir engulfing red — sinyal short searah trend H4."""
+    store.save("1h", downtrend_bars(now - timedelta(hours=202), 200, 1, 2000.0))
+    store.save("4h", downtrend_bars(now - timedelta(hours=808), 200, 4, 2000.0))
+    return now
+
+
 def test_entry_signal():
     _isolate_data_dir()
     now = datetime(2026, 9, 4, 15, 0, tzinfo=timezone.utc)
@@ -119,12 +144,13 @@ def test_gate_quality_filters_bad_patterns():
     print("ok: gate menyaring pola EV net negatif + catatan slot rec_log")
 
     # n di bawah ambang: bukti belum cukup, juga tersaring
+    # (reason kini menyebut arah — gate sadar-arah)
     store.write_json("patterns.json", {"results": [
         {"tf": "1h", "pattern": "bullish_engulfing", "n": 4, "cost_avg_r": 0.5},
     ]})
     rec2 = recommend.build_recommendation(now=now)
     assert rec2["status"] == "netral", rec2
-    assert "n=4" in rec2["gate"]["reason"], rec2["gate"]
+    assert "n long=4" in rec2["gate"]["reason"], rec2["gate"]
     print("ok: gate menyaring pola dengan n < ambang bukti")
 
 
@@ -460,9 +486,122 @@ def test_stats_counts_entry_as_active():
     print("ok: compute_stats menghitung status entry + active sebagai berjalan")
 
 
+def test_direction_gate_and_experiment():
+    """Gate sadar-arah (keputusan user 2026-09-12, opsi 2+3): EV dinilai per
+    arah sinyal (*_long/*_short). (a) long lolos lewat EV per-arah meski EV
+    keseluruhan negatif; (b) short EV per-arah negatif + bukti cukup -> entry
+    EKSPERIMEN (level STANDAR, flag + dinilai terpisah); (c) tanpa statistik
+    per-arah -> fail-closed netral, BUKAN eksperimen."""
+    _isolate_data_dir()
+    now = datetime(2026, 9, 4, 15, 0, tzinfo=timezone.utc)
+
+    # (a) long: EV keseluruhan negatif tapi EV long positif -> tetap entry
+    _seed(now)
+    store.write_json("patterns.json", {"results": [
+        {"tf": "1h", "pattern": "bullish_engulfing", "n": 300,
+         "win_rate": 0.45, "avg_r": -0.05,
+         "n_long": 100, "win_rate_long": 0.62,
+         "cost_avg_r_long": 0.122, "cost_oos_avg_r_long": 0.033},
+    ]})
+    rec = recommend.build_recommendation(now=now)
+    assert rec["status"] == "entry", rec
+    assert rec.get("experiment") is None, rec          # bukan eksperimen
+    assert rec["gate"]["passed"] is True, rec["gate"]
+    assert "+0.033R" in rec["gate"]["reason"], rec["gate"]
+    assert rec["confidence"] == 0.62, rec             # win-rate per arah
+    assert "arah long" in rec["confidence_note"], rec["confidence_note"]
+    print("ok: gate sadar-arah — long lolos via EV per-arah (EV total diabaikan)")
+
+    # (b) short: EV keseluruhan positif tapi EV short negatif, bukti cukup
+    # -> EKSPERIMEN: entry level standar + flag + dinilai terpisah
+    _isolate_data_dir()
+    _seed_short(now)
+    store.write_json("patterns.json", {"results": [
+        {"tf": "1h", "pattern": "bearish_engulfing", "n": 1065,
+         "win_rate": 0.5, "cost_avg_r": 0.006,
+         "n_long": 672, "win_rate_long": 0.62,
+         "cost_avg_r_long": 0.122, "cost_oos_avg_r_long": 0.033,
+         "n_short": 393, "win_rate_short": 0.38,
+         "cost_avg_r_short": -0.133, "cost_oos_avg_r_short": -0.05},
+    ]})
+    rec2 = recommend.build_recommendation(now=now)
+    assert rec2["status"] == "entry", rec2
+    assert rec2["bias"] == "bearish", rec2
+    assert rec2["experiment"] is True, rec2
+    assert rec2["gate"]["passed"] is False and rec2["gate"]["experiment"] is True, rec2["gate"]
+    lv = rec2["levels"]
+    assert lv["tp1"] < lv["entry"] < lv["sl"], lv      # level short standar
+    # level standar: SL = 1xATR (bukan 0.75xATR mode aman)
+    assert abs((lv["sl"] - lv["entry"]) - (lv["entry"] - lv["tp1"]) / 1.5) < 0.05, lv
+    assert rec2["confidence"] == 0.38, rec2
+    assert any("EKSPERIMEN" in r for r in rec2["rationale"]), rec2["rationale"]
+    # notif push diberi label eksperimen
+    from analyzer import push
+    pl = push.entry_payload(rec2)
+    assert "EKSPERIMEN" in pl["title"] and "EKSPERIMEN" in pl["body"], pl
+    # slot rec_log entry eksperimen juga ditandai
+    from analyzer import reclog
+    log = reclog.log_run(rec2, now=now)
+    assert log["days"][0]["slots"][-1]["experiment"] is True
+    print("ok: short EV-negatif + bukti cukup -> entry EKSPERIMEN level standar")
+
+    # (c) tanpa statistik per-arah: fail-closed netral, bukan eksperimen
+    store.write_json("patterns.json", {"results": [
+        {"tf": "1h", "pattern": "bearish_engulfing", "n": 1065,
+         "win_rate": 0.5, "cost_avg_r": -0.131},
+    ]})
+    rec3 = recommend.build_recommendation(now=now)
+    assert rec3["status"] == "netral", rec3
+    assert rec3.get("experiment") is None and rec3["levels"] is None, rec3
+    assert "EV net short" in rec3["gate"]["reason"], rec3["gate"]
+    print("ok: tanpa bukti per-arah -> netral fail-closed (bukan eksperimen)")
+
+
+def test_stats_experiment_split():
+    """compute_stats: entry eksperimen dihitung TERPISAH dari statistik
+    utama (jangan mencemari hit-rate); flag ikut ke log EOD."""
+    tracking = {"history": [
+        {"status": "win"},
+        {"status": "entry"},                      # posisi utama berjalan
+        {"status": "loss", "experiment": True},
+        {"status": "win", "experiment": True},
+        {"status": "active", "experiment": True},
+    ]}
+    track.compute_stats(tracking)
+    s = tracking["stats"]
+    # statistik utama: entry eksperimen tidak dihitung di sini
+    assert s["total"] == 5, s
+    assert s["wins"] == 1 and s["losses"] == 0, s
+    assert s["active"] == 1 and s["resolved"] == 1, s
+    assert s["hit_rate"] == 1.0, s
+    # statistik eksperimen terpisah
+    e = s["experiment"]
+    assert e["total"] == 3 and e["wins"] == 1 and e["losses"] == 1, e
+    assert e["active"] == 1 and e["resolved"] == 2 and e["hit_rate"] == 0.5, e
+    # tanpa entry eksperimen -> field "experiment" tidak muncul (payload ramping)
+    t2 = {"history": [{"status": "win"}]}
+    track.compute_stats(t2)
+    assert "experiment" not in t2["stats"], t2["stats"]
+
+    # build_eod: flag eksperimen ikut ke entri log harian
+    t3 = {"history": [
+        {"id": "2026-09-04", "status": "win", "experiment": True,
+         "outcome": {"why": "x", "resolved_at_wib": "2026-09-04 10:00 WIB"}},
+        {"id": "2026-09-04", "status": "loss",
+         "outcome": {"why": "y", "resolved_at_wib": "2026-09-04 12:00 WIB"}},
+    ]}
+    eod = track.build_eod(t3, now=datetime(2026, 9, 4, 13, tzinfo=timezone.utc))
+    day0 = eod[0]["entries"]
+    assert day0[0]["experiment"] is True, day0[0]
+    assert "experiment" not in day0[1], day0[1]
+    print("ok: statistik eksperimen terpisah + flag ikut ke log EOD")
+
+
 def main() -> int:
     test_entry_signal()
     test_partial_bar_dropped()
+    test_direction_gate_and_experiment()
+    test_stats_experiment_split()
     test_blackout_blocks_entry()
     test_neutral_when_no_signal()
     test_feedback_loop()

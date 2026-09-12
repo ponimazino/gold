@@ -68,14 +68,49 @@ def _trend_name(t: int) -> str:
     return {1: "up", -1: "down", 0: "sideways"}[t]
 
 
-def _gate_ev(stats: dict) -> float | None:
+def _gate_ev(stats: dict, direction: int | None = None) -> float | None:
     """EV per sinyal dalam R (termasuk timeout). Prioritas estimat paling
-    jujur: full-sample net of cost -> OOS net -> full-sample gross."""
+    jujur: PER ARAH sinyal (OOS net -> full net) -> keseluruhan -> gross.
+    Statistik per arah (_long/_short) dihitung research._direction_map —
+    long dan short punya bukti berbeda (audit 2026-09-12: inside_bar long
+    +0.12R vs short -0.13R di bull market 2023-26)."""
+    if direction is not None:
+        nm = "long" if direction == 1 else "short"
+        for k in (f"cost_oos_avg_r_{nm}", f"cost_avg_r_{nm}"):
+            v = stats.get(k)
+            if v is not None:
+                return float(v)
     for k in ("cost_avg_r", "cost_oos_avg_r", "avg_r"):
         v = stats.get(k)
         if v is not None:
             return float(v)
     return None
+
+
+def _gate_n(stats: dict, direction: int | None = None) -> int:
+    """n jujur (dedup) — per arah kalau tersedia, else keseluruhan."""
+    if direction is not None:
+        nm = "long" if direction == 1 else "short"
+        n = stats.get(f"n_{nm}")
+        if n is not None:
+            return int(n)
+    return int(stats.get("n") or 0)
+
+
+def _experiment_eligible(stats: dict | None, direction: int | None) -> bool:
+    """Kandidat EKSPERIMEN (keputusan user 2026-09-12, opsi 2+3): arah ini
+    PUNYA bukti per-arah bermakna (n_{long/short} >= ambang) tapi EV
+    arahnya negatif. Boleh entry untuk mengumpulkan bukti live — dinilai
+    terpisah, direview saat n live eksperimen >= 30. Wajib bukti PER ARAH
+    (bukan fallback statistik keseluruhan): tanpa *_long/*_short = tanpa
+    bukti arah ini = fail-closed netral, bukan eksperimen."""
+    if not stats or direction is None:
+        return False
+    nm = "long" if direction == 1 else "short"
+    n = stats.get(f"n_{nm}")
+    if n is None:
+        return False
+    return int(n) >= GATE_MIN_N and _gate_ev(stats, direction) is not None
 
 
 def _closed_only(bars: list[dict], step_h: int, now: datetime) -> list[dict]:
@@ -91,21 +126,26 @@ def _closed_only(bars: list[dict], step_h: int, now: datetime) -> list[dict]:
     return bars
 
 
-def _gate_check(stats: dict | None) -> tuple[bool, str, dict]:
-    """Kembalikan (lolos, alasan, meta) untuk satu pola. Meta dipakai untuk
-    field rec["gate"] supaya keputusan gate bisa diaudit dari UI/log."""
+def _gate_check(stats: dict | None,
+                direction: int | None = None) -> tuple[bool, str, dict]:
+    """Kembalikan (lolos, alasan, meta) untuk satu pola + arahnya. Meta dipakai
+    untuk field rec["gate"] supaya keputusan gate bisa diaudit dari UI/log.
+    Sadar-arah (2026-09-12): long dan short dinilai EV arahnya sendiri
+    (*_long/*_short dari research._direction_map) — kalau per-arah tidak
+    tersedia, fallback ke statistik keseluruhan."""
     if not stats:
         return False, "statistik pola belum tersedia — tanpa bukti, tanpa entry", {}
-    n = stats.get("n") or 0
-    ev = _gate_ev(stats)
-    meta = {"n": n, "ev_net_r": ev}
+    nm = f" {'long' if direction == 1 else 'short'}" if direction is not None else ""
+    n = _gate_n(stats, direction)
+    ev = _gate_ev(stats, direction)
+    meta = {"n": n, "ev_net_r": ev, "direction": direction}
     if n < GATE_MIN_N:
-        return False, f"n={n} (< {GATE_MIN_N}) — bukti statistik belum cukup", meta
+        return False, f"n{nm}={n} (< {GATE_MIN_N}) — bukti statistik belum cukup", meta
     if ev is None:
         return False, "EV net belum bisa dihitung — tanpa bukti, tanpa entry", meta
     if ev <= GATE_MIN_EV_R:
-        return False, f"EV net {ev:+.3f}R — backtest negatif setelah biaya", meta
-    return True, f"lolos gate kualitas: EV net {ev:+.3f}R, n={n}", meta
+        return False, f"EV net{nm} {ev:+.3f}R — backtest negatif setelah biaya", meta
+    return True, f"lolos gate kualitas: EV net{nm} {ev:+.3f}R, n{nm}={n}", meta
 
 
 def build_recommendation(now: datetime | None = None) -> dict:
@@ -184,27 +224,48 @@ def build_recommendation(now: datetime | None = None) -> dict:
             rec["rationale"].append("pola H1 terakhir tidak searah trend H4 — dilewati")
         return rec  # netral
 
-    # --- gate kualitas: pola searah trend pun harus lolos bukti EV net ---
+    # --- gate kualitas sadar-arah: EV dinilai per arah sinyal (long/short) ---
     qualified: list[tuple[dict, dict, str, dict]] = []
+    experiments: list[tuple[dict, dict, str, dict]] = []
     for s in matched:
         st = _pattern_stats("1h", s["pattern"])
-        ok, why, meta = _gate_check(st)
+        ok, why, meta = _gate_check(st, s["dir"])
         if ok:
             qualified.append((s, st, why, meta))
+        elif _experiment_eligible(st, s["dir"]):
+            experiments.append((s, st, why, meta))
+            rec["rationale"].append(
+                f"pola '{s['pattern']}' arah ini disaring gate kualitas: {why}")
         else:
             rec["rationale"].append(
                 f"pola '{s['pattern']}' searah trend TAPI disaring gate kualitas: {why}")
-    if not qualified:
+    if not qualified and not experiments:
         last = matched[-1]
-        _, last_why, last_meta = _gate_check(_pattern_stats("1h", last["pattern"]))
+        _, last_why, last_meta = _gate_check(
+            _pattern_stats("1h", last["pattern"]), last["dir"])
         rec["gate"] = {"pattern": last["pattern"], "passed": False,
                        "reason": last_why, **last_meta}
         return rec  # netral — ada pola searah, tapi tidak ada yang lolos gate
 
-    sig, stats, why_ok, meta_ok = qualified[-1]
-    rec["gate"] = {"pattern": sig["pattern"], "passed": True,
-                   "reason": why_ok, **meta_ok}
-    rec["rationale"].append(why_ok)
+    if qualified:
+        sig, stats, why_ok, meta_ok = qualified[-1]
+        rec["gate"] = {"pattern": sig["pattern"], "passed": True,
+                       "reason": why_ok, **meta_ok}
+        rec["rationale"].append(why_ok)
+    else:
+        # EKSPERIMEN (keputusan user 2026-09-12, opsi 2+3): arah ini PUNYA
+        # bukti bermakna tapi EV-nya negatif — entry tetap diambil dengan
+        # level STANDAR (mode aman terbukti TIDAK menolong short: -0.18R vs
+        # -0.13R, diukur di data 3 tahun) supaya bukti live terkumpul.
+        # Dinilai TERPISAH di feedback loop, direview saat n live >= ambang.
+        sig, stats, why_bad, meta_bad = experiments[-1]
+        rec["experiment"] = True
+        rec["gate"] = {"pattern": sig["pattern"], "passed": False,
+                       "experiment": True, "reason": why_bad, **meta_bad}
+        rec["rationale"].append(
+            f"EKSPERIMEN: {why_bad} — entry tetap diambil (level standar) "
+            f"untuk mengumpulkan bukti live, dinilai TERPISAH dari statistik "
+            f"utama, review saat n live eksperimen >= {GATE_MIN_N}")
     atr = float(df1["atr14"].iloc[-1])
     entry = float(df1["c"].iloc[-1])
     d = sig["dir"]
@@ -233,9 +294,11 @@ def build_recommendation(now: datetime | None = None) -> dict:
         "levels_safe": levels_safe,
     })
 
-    # stats sudah diambil saat cek gate (qualified) — pasti lolos & ada
+    # stats sudah diambil saat cek gate (qualified/eksperimen) — pasti ada
     if stats:
-        conf = stats.get("oos_win_rate") or stats.get("win_rate")
+        nm = "long" if d == 1 else "short"
+        conf = (stats.get(f"win_rate_{nm}") or stats.get("oos_win_rate")
+                or stats.get("win_rate"))
         rec["confidence"] = conf
         conf_safe = stats.get("safe_oos_win_rate") or stats.get("safe_win_rate")
         if conf_safe:
@@ -258,11 +321,15 @@ def build_recommendation(now: datetime | None = None) -> dict:
         lo, hi = stats.get("win_rate_lo"), stats.get("win_rate_hi")
         ci_txt = (f", rentang 95% {round(lo * 100)}-{round(hi * 100)}%"
                   if lo is not None and hi is not None else "")
+        dir_wr = stats.get(f"win_rate_{nm}")
+        dir_n = stats.get(f"n_{nm}")
+        dir_txt = (f", arah {nm}: {(dir_wr or 0) * 100:.0f}% (n={dir_n})"
+                   if dir_wr is not None else "")
         rec["confidence_note"] = (
             f"win-rate historis pola '{sig['pattern']}' H1: "
             f"{(stats.get('win_rate') or 0) * 100:.0f}% (n={stats.get('n')}, "
-            f"OOS {(stats.get('oos_win_rate') or 0) * 100:.0f}%{ci_txt}) — "
-            f"probabilitas, bukan jaminan")
+            f"OOS {(stats.get('oos_win_rate') or 0) * 100:.0f}%{ci_txt}"
+            f"{dir_txt}) — probabilitas, bukan jaminan")
     else:
         rec["confidence_note"] = "statistik pola belum tersedia (jalankan research)"
     rec["rationale"].append(
