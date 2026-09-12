@@ -11,7 +11,7 @@ Urutan langkah (penting):
      posisi aktif (aturan 2026-09-10: posisi terakhir harus sudah selesai
      TP1/SL/timeout — boleh re-entry sehari yang sama, tidak ada overlap)
   5. catat slot run ini ke rec_log.json (jam WIB + status — supaya riwayat
-     harian per 2 jam lengkap, jam tanpa setup kelihatan 'skip')
+     harian per 1 jam lengkap, jam tanpa setup kelihatan 'skip')
   6. web push (PWA, Web Push VAPID): notif entry + agenda event 3★ (H-3, 1x/hari).
      Butuh secrets PUSH_* di workflow — kalau kosong, dilewati tanpa error.
 

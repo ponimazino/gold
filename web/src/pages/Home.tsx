@@ -419,7 +419,7 @@ function SummaryView({ data, spot, now, onNavigate }: { data: DashboardData; spo
       ? { title: "Ada peluang entry hari ini", tone: "green" as const, icon: TrendingUp, copy: `Sistem melihat pola yang layak dipertimbangkan. Arahnya ${plainDir(bias)}. Tapi ingat: "layak dipertimbangkan" bukan "pasti untung" — baca batas ruginya di bawah.` }
       : status === "tunggu"
         ? { title: "Tunda dulu — sedang ada rilis data besar", tone: "amber" as const, icon: TimerReset, copy: `Rilis ${rec.blackout?.title ?? "data ekonomi AS"} sedang/akan berlangsung. Harga emas biasanya bergerak liar saat ini, jadi sistem menahan semua rekomendasi. Tunggu sampai jeda berlalu.` }
-        : { title: "Tidak ada peluang hari ini — diam itu oke", tone: "slate" as const, icon: ShieldAlert, copy: `Aturan sistem (pola H1 searah tren H4) tidak terpenuhi hari ini — jadi memang tidak ada rekomendasi, bukan error atau data kosong. Tidak masuk pasar adalah keputusan yang valid, dan sering kali yang paling menguntungkan. Sistem cek ulang otomatis tiap 2 jam — terakhir ${rec.created_at_wib ?? "—"}.` };
+        : { title: "Tidak ada peluang hari ini — diam itu oke", tone: "slate" as const, icon: ShieldAlert, copy: `Aturan sistem (pola H1 searah tren H4) tidak terpenuhi hari ini — jadi memang tidak ada rekomendasi, bukan error atau data kosong. Tidak masuk pasar adalah keputusan yang valid, dan sering kali yang paling menguntungkan. Sistem cek ulang otomatis tiap 1 jam — terakhir ${rec.created_at_wib ?? "—"}.` };
 
   const marketExplain =
     rec.h4_context?.trend === "up" ? "Beberapa hari terakhir harga emas bergerak NAIK (uptrend) — pembeli masih lebih kuat."
@@ -459,7 +459,7 @@ function SummaryView({ data, spot, now, onNavigate }: { data: DashboardData; spo
 
     <section className="metric-grid">
       <MetricCard label="Arah pasar (H4)" value={bias === "bullish" ? "Naik" : bias === "bearish" ? "Turun" : "Mendatar"} icon={TrendingUp} tone={bias === "bullish" ? "lime" : bias === "bearish" ? "amber" : "slate"} footnote={marketExplain} />
-      <MetricCard label="Status rekomendasi" value={status === "entry" ? "Ada setup" : status === "tunggu" ? "Tunggu event" : "Tidak ada setup"} icon={statusInfo.icon} footnote={status === "entry" ? "Level aktif — lihat kartu di bawah" : status === "tunggu" ? "Jeda rilis −2 jam s/d +1 jam" : "Cek lagi nanti — analisa ulang tiap 2 jam"} />
+      <MetricCard label="Status rekomendasi" value={status === "entry" ? "Ada setup" : status === "tunggu" ? "Tunggu event" : "Tidak ada setup"} icon={statusInfo.icon} footnote={status === "entry" ? "Level aktif — lihat kartu di bawah" : status === "tunggu" ? "Jeda rilis −2 jam s/d +1 jam" : "Cek lagi nanti — analisa ulang tiap 1 jam"} />
       <MetricCard label="Peluang (menurut sejarah)" value={confidence != null ? `${confidence}%` : "—"} icon={Gauge} tone={confidence != null && confidence >= 55 ? "lime" : "amber"} footnote={verdict?.label ?? "Belum ada statistik"} />
       <MetricCard label="Rekam jejak sistem" value={hitRate != null ? `${hitRate}% kena target` : "Belum ada data"} icon={FileCheck2} tone="slate" footnote={`${stats?.resolved ?? 0} dari ${stats?.total ?? 0} rekomendasi sudah dinilai jujur`} />
     </section>
@@ -769,7 +769,7 @@ function AnalysisView({ data, now }: { data: DashboardData; now: number }) {
         : " Setup terbersih adalah menunggu harga ke zona entry, lalu konfirmasi respons bullish/bearish sebelum eksekusi.")
     : status === "tunggu"
       ? `Event bintang-3 (${rec.blackout?.title ?? "US data"}) sedang dalam jendela rilis. Sistem menahan semua rekomendasi entry sampai jeda berlalu — jangan mengejar pergerakan saat rilis.`
-      : `Tidak ada pola H1 dalam 2 bar terakhir yang searah trend H4 — jadi memang tidak ada rekomendasi hari ini; ini keputusan sistem, bukan error atau data kosong. Flat adalah posisi yang valid, dan sistem mengecek ulang otomatis tiap 2 jam (terakhir ${rec.created_at_wib ?? "—"}).`;
+      : `Tidak ada pola H1 dalam 2 bar terakhir yang searah trend H4 — jadi memang tidak ada rekomendasi hari ini; ini keputusan sistem, bukan error atau data kosong. Flat adalah posisi yang valid, dan sistem mengecek ulang otomatis tiap 1 jam (terakhir ${rec.created_at_wib ?? "—"}).`;
 
   return (<>
     <section className="hero-row compact">
@@ -802,7 +802,7 @@ function AnalysisView({ data, now }: { data: DashboardData; now: number }) {
           </div>
           {!lv && (
             <div className="risk-note" style={{ marginTop: 14 }}>
-              <ShieldAlert size={15} /><span><b>Level "—" artinya memang belum ada rekomendasi — bukan error.</b> Entry/TP/SL baru diisi saat 3 syarat terpenuhi: (1) pola H1 terbentuk di 2 candle terakhir, (2) polanya searah trend H4 (EMA20/50), (3) tidak sedang jeda event bintang-3 (−2 jam s/d +1 jam). Analisa dijalankan ulang otomatis tiap 2 jam — update terakhir {rec.created_at_wib ?? "—"}.</span>
+              <ShieldAlert size={15} /><span><b>Level "—" artinya memang belum ada rekomendasi — bukan error.</b> Entry/TP/SL baru diisi saat 3 syarat terpenuhi: (1) pola H1 terbentuk di 2 candle terakhir, (2) polanya searah trend H4 (EMA20/50), (3) tidak sedang jeda event bintang-3 (−2 jam s/d +1 jam). Analisa dijalankan ulang otomatis tiap 1 jam — update terakhir {rec.created_at_wib ?? "—"}.</span>
             </div>
           )}
           {lvSafe && (
@@ -976,7 +976,7 @@ function BacktestView({ data }: { data: DashboardData }) {
         <label>Parameter tersimpan<div className="range-row"><input type="range" min={10} max={35} value={((params?.sl_atr ?? 1) * 10).toFixed(0)} readOnly /><b>SL {(params?.sl_atr ?? 1).toFixed(1)}× · TP {(params?.tp_atr ?? 1.5).toFixed(1)}× ATR</b></div></label>
         <div className="assumption-box">
           <div><CircleHelp size={14} /><b>Definisi aturan</b></div>
-          <p>Entry saat pola muncul di bar H1/H4 searah trend EMA. SL {params?.sl_atr ?? 1}×ATR, TP {params?.tp_atr ?? 1.5}×ATR dalam horizon {params?.horizon?.[tf] ?? "—"} bar. TP+SL di bar sama dihitung LOSS (konservatif). Kolom "net biaya" memotong spread ${params?.cost_usd != null ? params.cost_usd.toFixed(2) : "0.35"}/oz; sinyal searah yang tumpang tindih dalam {params?.cooldown_bars ?? 4} bar didedup supaya n jujur. Statistik di-refresh tiap 2 jam oleh GitHub Actions.</p>
+          <p>Entry saat pola muncul di bar H1/H4 searah trend EMA. SL {params?.sl_atr ?? 1}×ATR, TP {params?.tp_atr ?? 1.5}×ATR dalam horizon {params?.horizon?.[tf] ?? "—"} bar. TP+SL di bar sama dihitung LOSS (konservatif). Kolom "net biaya" memotong spread ${params?.cost_usd != null ? params.cost_usd.toFixed(2) : "0.35"}/oz; sinyal searah yang tumpang tindih dalam {params?.cooldown_bars ?? 4} bar didedup supaya n jujur. Statistik di-refresh tiap 1 jam oleh GitHub Actions.</p>
         </div>
         <div style={{ fontSize: 9, color: "#666674", lineHeight: 1.5 }}>Engine berjalan serverless (schedule harian) — panel ini menampilkan hasil tersimpan terbaru, bukan simulasi lokal.</div>
       </div>
@@ -1124,7 +1124,7 @@ function RiwayatView({ data }: { data: DashboardData }) {
   const stats = tracking?.stats;
   const hitRate = stats?.hit_rate != null ? Math.round(stats.hit_rate * 100) : null;
 
-  // ---- panel per hari: slot analisa tiap ±2 jam (data/rec_log.json),
+  // ---- panel per hari: slot analisa tiap ±1 jam (data/rec_log.json),
   // default hari ini WIB — tiap run dicatat jam + status (entry/tunggu/skip)
   const reclog = data.reclog;
   const rDays = reclog?.days ?? [];
@@ -1162,7 +1162,7 @@ function RiwayatView({ data }: { data: DashboardData }) {
     <div className="panel">
       <div className="panel-header">
         <div>
-          <div className="panel-kicker">Riwayat per hari · slot analisa tiap ±2 jam</div>
+          <div className="panel-kicker">Riwayat per hari · slot analisa tiap ±1 jam</div>
           <h2>{selDay === todayWib ? `Hari ini — ${selDay}` : selDay}</h2>
         </div>
       </div>
@@ -1180,7 +1180,7 @@ function RiwayatView({ data }: { data: DashboardData }) {
           <div className="empty-icon"><Clock3 size={20} /></div>
           <h3>Belum ada slot analisa untuk tanggal ini</h3>
           <p>{selDay === todayWib
-            ? "Analisa berjalan 04:37–22:37 WIB (Sen–Jum) tiap ±2 jam — coba lagi nanti atau pilih tanggal lain di atas."
+            ? "Analisa berjalan 04:37–22:37 WIB (Sen–Jum) tiap ±1 jam — coba lagi nanti atau pilih tanggal lain di atas."
             : "Tanggal ini tidak punya log slot (pencatatan per-slot mulai aktif 2026-09-10)."}</p>
         </div>
       ) : (
@@ -1468,14 +1468,14 @@ const SCHEDULE_ROWS: Array<{
     sumber: "Twelve Data · workflow Hourly Sync",
     catatan: "gap-filling: jam yang terlewat otomatis dikejar di run berikutnya; slot cadangan menjaga data tetap segar kalau GitHub menunda jadwal",
     next: { kind: "hourly", minute: 17 } },
-  { icon: Sparkles, fitur: "Rekomendasi harian (entry/tunggu/netral)", jadwal: "Tiap 2 jam saat pasar aktif — 04:37 s.d. 22:37 WIB, Senin–Jumat",
+  { icon: Sparkles, fitur: "Rekomendasi harian (entry/tunggu/netral)", jadwal: "Tiap 1 jam saat pasar aktif — 04:37 s.d. 22:37 WIB, Senin–Jumat (~19 slot/hari)",
     sumber: "workflow Analisa Harian",
-    catatan: "grid 2 jam = tiap pasangan candle H1 dievaluasi tepat sekali (cadangan :52 kalau jadwal tertunda); nempel jam krusial: 04:37 pra-open Sydney, 14:37 open London, 20:37 open NY + rilis data AS; sekalian menilai rekomendasi lama vs harga aktual",
-    next: { kind: "grid", minute: 37, hours: [4, 6, 8, 10, 12, 14, 16, 18, 20, 22], tradingDaysOnly: true } },
-  { icon: FlaskConical, fitur: "Statistik backtest per pola", jadwal: "Tiap 2 jam (ikut analisa harian)",
+    catatan: "grid 1 jam = tiap candle H1 baru dievaluasi ≤ 37 menit setelah close, tepat sekali sebagai bar terakhir (cadangan :52 kalau jadwal tertunda); nempel jam krusial: 04:37 pra-open Sydney, 14:37 open London, 20:37 open NY + rilis data AS; sekalian menilai rekomendasi lama vs harga aktual",
+    next: { kind: "grid", minute: 37, hours: [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22], tradingDaysOnly: true } },
+  { icon: FlaskConical, fitur: "Statistik backtest per pola", jadwal: "Tiap 1 jam (ikut analisa harian)",
     sumber: "workflow Analisa Harian",
     catatan: "walk-forward 70/30, data sampai detik itu",
-    next: { kind: "grid", minute: 37, hours: [4, 6, 8, 10, 12, 14, 16, 18, 20, 22], tradingDaysOnly: true } },
+    next: { kind: "grid", minute: 37, hours: [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22], tradingDaysOnly: true } },
   { icon: CalendarDays, fitur: "Kalender ekonomi 3★ US", jadwal: "Tiap 3 jam, menit :13 WIB (+ cadangan :28)",
     sumber: "Trading Economics · workflow Fundamental",
     catatan: "hanya importance 3★, country US; jendela jeda event dihitung dari waktu event di kalender, jadi selalu akurat",
@@ -1738,7 +1738,7 @@ export default function Home() {
             <div className="demo-notice">
               <div>
                 <AlertTriangle size={14} />
-                <span>{data?.push?.last_status === "expired" && <b style={{ color: "#e2b26a" }}>⚠ Notifikasi putus — aktifkan ulang di tab Jadwal (salin JSON langganan, perbarui Secret PUSH_SUBSCRIPTIONS). </b>}<b>Bukan grafik real-time.</b> Harga live di kartu atas (tiap 30 dtk) hanya tampilan — grafik menampilkan candle final per jam: bar terakhir disinkron tiap jam :17 WIB (terakhir {data?.meta?.updated_at_wib ?? "—"}), rekomendasi dibuat ulang tiap 2 jam saat pasar aktif ({rec?.created_at_wib ?? "—"}). Probabilitas statistik, bukan saran finansial.</span>
+                <span>{data?.push?.last_status === "expired" && <b style={{ color: "#e2b26a" }}>⚠ Notifikasi putus — aktifkan ulang di tab Jadwal (salin JSON langganan, perbarui Secret PUSH_SUBSCRIPTIONS). </b>}<b>Bukan grafik real-time.</b> Harga live di kartu atas (tiap 30 dtk) hanya tampilan — grafik menampilkan candle final per jam: bar terakhir disinkron tiap jam :17 WIB (terakhir {data?.meta?.updated_at_wib ?? "—"}), rekomendasi dibuat ulang tiap 1 jam saat pasar aktif ({rec?.created_at_wib ?? "—"}). Probabilitas statistik, bukan saran finansial.</span>
               </div>
               <button aria-label="Dismiss notice" onClick={() => setNoticeHidden(true)}><X size={14} /></button>
             </div>
