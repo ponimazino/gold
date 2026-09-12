@@ -186,7 +186,10 @@ def compute_stats(tracking: dict) -> dict:
     wins = sum(1 for r in hist if r.get("status") == "win")
     losses = sum(1 for r in hist if r.get("status") == "loss")
     timeouts = sum(1 for r in hist if r.get("status") == "timeout")
-    active = sum(1 for r in hist if r.get("status") == "active")
+    # "entry" = baru dicatat job daily, belum dinormalisasi _resolve_one ke
+    # "active" — dua-duanya posisi berjalan (audit 2026-09-12: tile UI
+    # "Berjalan" pernah tampil 0 padahal ada 1 posisi entry aktif)
+    active = sum(1 for r in hist if r.get("status") in ("active", "entry"))
     resolved = wins + losses + timeouts
     tracking["stats"] = {
         "total": len(hist),

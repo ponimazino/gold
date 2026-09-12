@@ -94,7 +94,7 @@ export interface EodDay {
   status?: "skip" | "run" | string;
 }
 // slot per-run analisa harian (data/rec_log.json, ditulis job daily
-// tiap ~2 jam: jam WIB + status entry/tunggu/netral per slot)
+// tiap ~1 jam: jam WIB + status entry/tunggu/netral per slot)
 export interface RecLogSlot {
   t_wib?: string; status?: string;
   pattern?: string | null; bias?: string; confidence?: number | null;

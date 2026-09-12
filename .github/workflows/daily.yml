@@ -2,27 +2,31 @@ name: Analisa Harian
 
 on:
   schedule:
-    # Grid 2 jam (WIB) 04:37-22:37, Senin-Jumat, menit :37 (ganjil, anti
-    # antrean runner). Grid 2 jam = tiap pasangan candle H1 dievaluasi
-    # tepat sekali (logika pola "2 bar terakhir" tidak ada yang terlewat).
+    # Grid 1 jam (WIB) 04:37-22:37, Senin-Jumat, menit :37 (ganjil, anti
+    # antrean runner). Grid 1 jam + analisa hanya pakai candle CLOSED
+    # (recommend._closed_only membuang bar yang belum selesai) = tiap
+    # candle H1 baru dievaluasi <= 37 menit setelah close, tepat sekali
+    # sebagai bar terakhir — konsisten dengan backtest.
     # Anchor jam krusial: 04:37 pra-open Sydney 05:00 · 14:37 open London
     # · 20:37 open NY + rilis data AS 8:30 ET (19:30/20:30 WIB).
-    # Cron UTC = WIB-7: 04:37/06:37 WIB = 21:37/23:37 UTC hari sebelumnya
-    # (baris kedua, Min-Kam UTC), 08:37-22:37 WIB = 01:37-15:37 UTC hari sama.
+    # Cron UTC = WIB-7: 04:37-06:37 WIB = 21:37-23:37 UTC hari sebelumnya
+    # (baris kedua, Min-Kam UTC), 07:37-22:37 WIB = 00:37-15:37 UTC hari sama.
     # Catatan: open London/NY bergeser ±1 jam WIB sepanjang tahun (DST US/EU)
     # — grid ini tetap, hanya jarak ke open berubah maksimal 1 jam.
-    - cron: "37 1-15/2 * * 1-5"  # Sen-Jum UTC 01:37-15:37 = 08:37-22:37 WIB hari sama
-    - cron: "37 21,23 * * 0-4"   # Min-Kam UTC 21:37/23:37 = 04:37/06:37 WIB hari berikutnya
+    - cron: "37 0-15 * * 1-5"   # Sen-Jum UTC 00:37-15:37 = 07:37-22:37 WIB hari sama
+    - cron: "37 21-23 * * 0-4"  # Min-Kam UTC 21:37-23:37 = 04:37-06:37 WIB hari berikutnya
     # Cadangan anti-drop: GitHub Actions terbukti DROP mayoritas run
     # terjadwal (2026-09-08: grid 10 slot jalan 0). Slot :52 memberi
     # kesempatan kedua tiap grid; PLUS job ini sekarang ber-mode watch loop:
-    # begitu satu run lolos, runner tetap hidup ~6 jam dan tiap 2 jam
+    # begitu satu run lolos, runner tetap hidup ~6 jam dan tiap 1 jam
     # (sync dulu + analisa + commit). Job juga TIDAK lagi bergantung pada
     # workflow sync — tiap iterasi menjalankan sync sendiri sebelum analisa,
     # jadi rekomendasi selalu memakai candle terbaru. Semua idempotent:
     # recommendation.json dioverwrite, tracking dedup per hari WIB.
-    - cron: "52 1-15/2 * * 1-5"
-    - cron: "52 21,23 * * 0-4"
+    # Kuota Twelve Data: ~19 run/hari kerja x 2 request = ~38 kredit dari
+    # 800/hari — masih jauh dari batas.
+    - cron: "52 0-15 * * 1-5"
+    - cron: "52 21-23 * * 0-4"
   workflow_dispatch:
 
 permissions:
@@ -50,7 +54,7 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Watch loop — sync + analisa + commit tiap 2 jam (maks ~6 jam)
+      - name: Watch loop — sync + analisa + commit tiap 1 jam (maks ~6 jam)
         env:
           TWELVEDATA_API_KEY: ${{ secrets.TWELVEDATA_API_KEY }}
           # Web Push ke PWA (2026-09-09): kosong = notif dilewati tanpa error.
@@ -105,6 +109,6 @@ jobs:
             fi
             now=$(date +%s)
             [ "$now" -ge "$end" ] && break
-            sleep $(( end - now < 7200 ? end - now : 7200 ))
+            sleep $(( end - now < 3600 ? end - now : 3600 ))
           done
           echo "[watch] selesai setelah $iter iterasi"

@@ -1,5 +1,5 @@
 """Log per-run analisa harian (slot per iterasi job daily) di
-data/rec_log.json: TIAP run 2-jam dicatat jam WIB + status rekomendasi
+data/rec_log.json: TIAP run dicatat jam WIB + status rekomendasi
 (entry / tunggu / netral) supaya riwayat harian lengkap per slot — jam
 tanpa setup terlihat jelas 'skip', bukan lubang data. Tanpa log ini,
 recommendation.json yang dioverwrite tiap run menghapus jejak analisa
@@ -14,7 +14,7 @@ from zoneinfo import ZoneInfo
 from . import store
 
 WIB = ZoneInfo("Asia/Jakarta")
-KEEP_DAYS = 30  # riwayat slot disimpan 30 hari (10 slot/hari kerja)
+KEEP_DAYS = 30  # riwayat slot disimpan 30 hari (~19 slot/hari kerja, grid 1 jam)
 
 
 def load() -> dict:
@@ -31,9 +31,13 @@ def load() -> dict:
         return {"updated_at": None, "days": []}
 
 
-def log_run(rec: dict, now: datetime | None = None) -> dict:
+def log_run(rec: dict, now: datetime | None = None,
+            entry_recorded: bool = True) -> dict:
     """Catat satu run analisa. Idempotent per menit WIB: dobel-run pada
-    menit yang sama menimpa slot lama, bukan menambah baris baru."""
+    menit yang sama menimpa slot lama, bukan menambah baris baru.
+    entry_recorded=False = sinyal entry tidak jadi posisi (aturan 1 posisi
+    aktif) — slot diberi catatan supaya Riwayat jujur bahwa sinyal itu
+    tidak akan pernah dinilai feedback loop."""
     now = now or datetime.now(timezone.utc)
     now_wib = now.astimezone(WIB)
     date = now_wib.strftime("%Y-%m-%d")
@@ -51,6 +55,10 @@ def log_run(rec: dict, now: datetime | None = None) -> dict:
             slot["levels_safe"] = {
                 k: rec["levels_safe"][k] for k in ("entry", "sl", "tp1")
                 if k in rec["levels_safe"]}
+        if not entry_recorded:
+            slot["note"] = ("sinyal saat posisi lain masih berjalan — "
+                            "tidak dicatat/dinilai feedback loop "
+                            "(aturan 1 posisi aktif)")
     else:
         # slot tanpa entry: bawa alasan gate bila ada pola yang disaring —
         # riwayat harus jujur "ada sinyal tapi kualitasnya tidak lolos",

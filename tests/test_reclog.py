@@ -73,9 +73,36 @@ def test_dedup_minute_and_trim():
     print("ok: trim 30 hari, urut terbaru dulu")
 
 
+def test_entry_note_when_not_recorded():
+    """Audit 2026-09-12: sinyal entry yang tidak jadi posisi (posisi lain
+    masih aktif) diberi catatan supaya Riwayat jujur bahwa sinyal itu tidak
+    akan pernah dinilai feedback loop — bukan 'menunggu dinilai'."""
+    _isolate()
+    from datetime import datetime, timedelta, timezone
+    now = datetime(2026, 9, 11, 19, 20, tzinfo=timezone.utc)
+    entry = {
+        "status": "entry", "pattern": "inside_bar", "bias": "bearish",
+        "confidence": 0.43,
+        "levels": {"entry": 4317.42, "sl": 4336.02, "tp1": 4289.5, "tp2": 4261.59},
+    }
+    log = reclog.log_run(entry, now=now, entry_recorded=False)
+    s = log["days"][0]["slots"][-1]
+    assert s["status"] == "entry", s
+    assert "1 posisi aktif" in s["note"], s
+    assert "tidak dicatat" in s["note"], s
+    print("ok: slot entry tanpa posisi diberi catatan jujur")
+
+    # tanpa flag (default) = perilaku lama: entry tercatat, tanpa note
+    reclog.log_run(entry, now=now + timedelta(hours=2))
+    s2 = reclog.load()["days"][0]["slots"][-1]
+    assert s2["status"] == "entry" and "note" not in s2, s2
+    print("ok: entry yang dicatat tetap tanpa note (kompatibel)")
+
+
 def main():
     test_entry_and_netral_slots()
     test_dedup_minute_and_trim()
+    test_entry_note_when_not_recorded()
     print("\nALL RECLOG TESTS PASSED")
 
 

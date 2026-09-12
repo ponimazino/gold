@@ -1213,7 +1213,9 @@ function RiwayatView({ data }: { data: DashboardData }) {
                 <Icon size={15} className={h?.status === "win" ? "ledger-good" : h?.status === "loss" ? "ledger-caution" : undefined} />
                 <div>
                   <b>{s.t_wib} WIB · {PATTERN_NAMES[s.pattern ?? ""] ?? s.pattern ?? "pola"} · {s.bias ?? "netral"}</b>
-                  <span>{oc?.why ?? (h ? "Masih berjalan — dinilai saat harga sentuh SL/TP1 atau timeout 24 bar H1." : "Level dicatat — hasil mulai dinilai oleh run analisa berikutnya.")}</span>
+                  <span>{oc?.why ?? (h
+                    ? "Masih berjalan — dinilai saat harga sentuh SL/TP1 atau timeout 24 bar H1."
+                    : s.note ?? "Sinyal tidak jadi posisi — aturan 1 posisi aktif: tidak dicatat/dinilai feedback loop.")}</span>
                   <div className="hist-detail">
                     {lvl.entry != null && <span className="lvl">Entry {fmtUsd(lvl.entry)}</span>}
                     {lvl.sl != null && <span className="lvl bad">SL {fmtUsd(lvl.sl)}</span>}

@@ -1,7 +1,7 @@
 """Job harian (P5): statistik pola -> rekomendasi hari ini -> nilai hasil kemarin.
 
 Local:  python -m analyzer.jobs.daily
-GitHub: workflow daily.yml, grid 2 jam "37 1-15/2 * * 1-5" + "37 21,23 * * 0-4" (04:37-22:37 WIB, Sen-Jum).
+GitHub: workflow daily.yml, grid 1 jam "37 0-15 * * 1-5" + "37 21-23 * * 0-4" (04:37-22:37 WIB, Sen-Jum).
 
 Urutan langkah (penting):
   1. refresh statistik pola (walk-forward — selalu pakai data sampai detik ini)
@@ -110,9 +110,9 @@ def main() -> int:
     tracking["updated_at_wib"] = now.astimezone(WIB).strftime("%Y-%m-%d %H:%M WIB")
     store.write_json("tracking.json", tracking)
 
-    # 5. slot log: riwayat per-run 2 jam (jam WIB + status) untuk UI Riwayat
+    # 5. slot log: riwayat per-run (jam WIB + status) untuk UI Riwayat
     try:
-        reclog.log_run(rec, now=now)
+        reclog.log_run(rec, now=now, entry_recorded=entry_recorded)
     except Exception as exc:  # log = bonus, jangan gagalkan analisa
         print(f"[daily] rec_log error (tidak fatal): {exc}")
 

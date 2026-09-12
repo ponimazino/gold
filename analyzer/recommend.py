@@ -11,7 +11,7 @@ Semua reasoning ditulis eksplisit di 'rationale' supaya bisa diaudit.
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 import pandas as pd
@@ -78,6 +78,19 @@ def _gate_ev(stats: dict) -> float | None:
     return None
 
 
+def _closed_only(bars: list[dict], step_h: int, now: datetime) -> list[dict]:
+    """Buang bar terakhir yang belum selesai (partial). Sync menyimpan candle
+    yang sedang berjalan — bar itu tidak boleh dipakai analisa: pola bisa
+    'batal' di menit-menit akhir jamnya dan level entry-nya cuma snapshot
+    harga live, sedangkan statistik gate (n, EV) dihitung murni dari candle
+    yang sudah close. Konsisten backtest <-> live (audit 2026-09-12)."""
+    if bars:
+        last = store.parse(bars[-1]["t"])
+        if (now - last).total_seconds() < step_h * 3600:
+            return bars[:-1]
+    return bars
+
+
 def _gate_check(stats: dict | None) -> tuple[bool, str, dict]:
     """Kembalikan (lolos, alasan, meta) untuk satu pola. Meta dipakai untuk
     field rec["gate"] supaya keputusan gate bisa diaudit dari UI/log."""
@@ -118,8 +131,8 @@ def build_recommendation(now: datetime | None = None) -> dict:
                    "cost_usd": COST_USD},
     }
 
-    h1_bars = store.load("1h")
-    h4_bars = store.load("4h")
+    h1_bars = _closed_only(store.load("1h"), 1, now)
+    h4_bars = _closed_only(store.load("4h"), 4, now)
     if not h1_bars or not h4_bars:
         rec["rationale"] = ["data H1/H4 belum tersedia — jalankan backfill/sync dulu"]
         return rec

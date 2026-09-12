@@ -43,10 +43,13 @@ def uptrend_bars(base: datetime, n: int, step_h: int, close0: float) -> list[dic
 
 
 def _seed(now: datetime) -> datetime:
-    """Isi data dir dengan H1/H4 uptrend berakhir engulfing. Return waktu 'now'."""
-    base_h1 = now - timedelta(hours=200)
+    """Isi data dir dengan H1/H4 uptrend berakhir engulfing. Return waktu 'now'.
+    Bar terakhir sengaja CLOSED (H1 = now-1j, H4 = now-4j) — recommend
+    membuang bar yang belum selesai, jadi seeding bar masa depan akan
+    membuat sinyalnya terlihat 'hilang'."""
+    base_h1 = now - timedelta(hours=202)
     store.save("1h", uptrend_bars(base_h1, 200, 1, 2000.0))
-    base_h4 = now - timedelta(hours=800)
+    base_h4 = now - timedelta(hours=808)
     store.save("4h", uptrend_bars(base_h4, 200, 4, 2000.0))
     return now
 
@@ -151,7 +154,7 @@ def test_neutral_when_no_signal():
              "h": 2000 + i * 0.1 + 0.4, "l": 2000 + i * 0.1 - 0.5,
              "c": 2000 + i * 0.1 + 0.05} for i in range(200)]
     store.save("1h", bars)
-    store.save("4h", uptrend_bars(now - timedelta(hours=800), 200, 4, 2000.0))
+    store.save("4h", uptrend_bars(now - timedelta(hours=808), 200, 4, 2000.0))
     rec = recommend.build_recommendation(now=now)
     assert rec["status"] == "netral", rec
     assert rec["levels"] is None
@@ -400,12 +403,71 @@ def test_record_entry_one_active_position():
     print("ok: record_entry — 1 posisi aktif, re-entry sehari sama setelah selesai")
 
 
+def test_partial_bar_dropped():
+    """Audit 2026-09-12: sync menyimpan candle yang sedang berjalan —
+    analisa TIDAK boleh memakainya (pola bisa batal di menit akhir,
+    level entry-nya cuma snapshot live). Sinyal + level harus murni dari
+    candle yang sudah close, konsisten dengan backtest."""
+    _isolate_data_dir()
+    now = datetime(2026, 9, 4, 15, 0, tzinfo=timezone.utc)
+    _seed(now)
+    store.write_json("patterns.json", {"results": [
+        {"tf": "1h", "pattern": "bullish_engulfing", "n": 92,
+         "win_rate": 0.61, "oos_win_rate": 0.58, "cost_avg_r": 0.05},
+    ]})
+    ref = recommend.build_recommendation(now=now)
+    assert ref["status"] == "entry", ref
+    entry_ref = ref["levels"]["entry"]
+
+    # bar PARTIMAL: t = now (belum genap 1 jam) — harga melompat jauh.
+    # Tanpa fix, level entry tergeser ke snapshot harga live bar ini.
+    bars = store.load("1h")
+    bars.append({"t": iso(now), "o": entry_ref + 5.0, "h": entry_ref + 9.0,
+                 "l": entry_ref + 4.0, "c": entry_ref + 8.0})
+    store.save("1h", bars)
+    rec = recommend.build_recommendation(now=now)
+    assert rec["status"] == "entry", rec
+    assert abs(rec["levels"]["entry"] - entry_ref) < 0.01, (rec["levels"], entry_ref)
+    print("ok: bar partial diabaikan — level dari candle yang sudah close")
+
+    # H4 partial juga dibuang: bar 20:00Z saat run 21:20Z (belum genap 4 jam)
+    h4 = store.load("4h")
+    last4 = h4[-1]
+    h4.append({"t": iso(now - timedelta(hours=3)), "o": last4["c"] + 5.0,
+               "h": last4["c"] + 9.0, "l": last4["c"] + 4.0, "c": last4["c"] + 8.0})
+    store.save("4h", h4)
+    rec4 = recommend.build_recommendation(now=now)
+    # trend H4 tetap dibaca dari bar closed — level entry tidak berubah
+    assert abs(rec4["levels"]["entry"] - entry_ref) < 0.01, rec4["levels"]
+    print("ok: bar H4 partial juga diabaikan")
+
+
+def test_stats_counts_entry_as_active():
+    """Audit 2026-09-12: posisi baru dicatat berstatus 'entry' (belum
+    dinormalisasi 'active') — compute_stats tetap harus menghitungnya
+    sebagai posisi berjalan, jangan sampai tile UI 'Berjalan' tampil 0."""
+    tracking = {"history": [
+        {"status": "entry"},   # baru dicatat job daily
+        {"status": "active"},  # sudah dinormalisasi
+        {"status": "win"},
+        {"status": "loss"},
+    ]}
+    track.compute_stats(tracking)
+    s = tracking["stats"]
+    assert s["active"] == 2, s
+    assert s["wins"] == 1 and s["losses"] == 1 and s["total"] == 4, s
+    assert s["hit_rate"] == 0.5, s
+    print("ok: compute_stats menghitung status entry + active sebagai berjalan")
+
+
 def main() -> int:
     test_entry_signal()
+    test_partial_bar_dropped()
     test_blackout_blocks_entry()
     test_neutral_when_no_signal()
     test_feedback_loop()
     test_feedback_loop_resolves_entry_status()
+    test_stats_counts_entry_as_active()
     test_tracking_persistence()
     test_outcome_narrative_and_eod()
     test_safe_mode_levels_and_stats()
