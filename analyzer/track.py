@@ -212,7 +212,11 @@ def compute_stats(tracking: dict) -> dict:
     active = sum(1 for r in main if r.get("status") in ("active", "entry"))
     resolved = wins + losses + timeouts
     tracking["stats"] = {
-        "total": len(hist),
+        # total = entry NORMAL saja (eksperimen dihitung terpisah di
+        # stats["experiment"]) — keputusan user 2026-09-20: entry eksperimen
+        # dihilangkan dari UI Riwayat (eksperimen dihentikan), jadi total
+        # yang tampil harus sama dengan yang tampil di ledger
+        "total": len(main),
         "wins": wins,
         "losses": losses,
         "timeouts": timeouts,

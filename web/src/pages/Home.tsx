@@ -766,9 +766,7 @@ function AnalysisView({ data, now }: { data: DashboardData; now: number }) {
 
   const lead = status === "entry" && lv
     ? `Bias ${bias} di H1${patternName ? ` dari pola ${patternName}` : ""}, searah konteks H4 (${rec.h4_context?.trend ?? "—"}).`
-      + (rec.experiment
-        ? " Ini entry EKSPERIMEN: backtest arah ini negatif setelah biaya — entry diambil untuk mengumpulkan bukti live dan dinilai terpisah dari statistik utama."
-        : " Setup terbersih adalah menunggu harga ke zona entry, lalu konfirmasi respons bullish/bearish sebelum eksekusi.")
+      + " Setup terbersih adalah menunggu harga ke zona entry, lalu konfirmasi respons bullish/bearish sebelum eksekusi."
     : status === "tunggu"
       ? `Event bintang-3 (${rec.blackout?.title ?? "US data"}) sedang dalam jendela rilis. Sistem menahan semua rekomendasi entry sampai jeda berlalu — jangan mengejar pergerakan saat rilis.`
       : `Tidak ada pola H1 dalam 2 bar terakhir yang searah trend H4 — jadi memang tidak ada rekomendasi hari ini; ini keputusan sistem, bukan error atau data kosong. Flat adalah posisi yang valid, dan sistem mengecek ulang otomatis tiap 1 jam (terakhir ${rec.created_at_wib ?? "—"}).`;
@@ -794,7 +792,7 @@ function AnalysisView({ data, now }: { data: DashboardData; now: number }) {
         <div className="panel analysis-card">
           <div className="analysis-card-top">
             <div><div className="panel-kicker">Scenario 01 · Base case</div><h2>{scenarioTitle}</h2></div>
-            <div className="scenario-probability">{rec.experiment && <StatusPill tone="amber">EKSPERIMEN</StatusPill>}<strong>{confidence != null ? `${confidence}%` : "—"}</strong><span>scenario weight</span></div>
+            <div className="scenario-probability"><strong>{confidence != null ? `${confidence}%` : "—"}</strong><span>scenario weight</span></div>
           </div>
           <p className="analysis-lead">{lead}{rec.confidence_note ? ` ${rec.confidence_note}.` : ""}</p>
           <div className="level-grid">
@@ -1080,7 +1078,10 @@ const HIST_STATUS: Record<string, { label: string; tone: "green" | "amber" | "vi
 
 function RiwayatView({ data }: { data: DashboardData }) {
   const tracking = data.tracking;
-  const history = tracking?.history ?? [];
+  // entry EKSPERIMEN lama disembunyikan dari UI (eksperimen dihentikan
+  // 2026-09-20, keputusan user: tidak perlu ditampilkan lagi) — data tetap
+  // tersimpan utuh di tracking.json, statistiknya tetap dipisah backend
+  const history = (tracking?.history ?? []).filter((h) => !h.experiment);
   const [statusFilter, setStatusFilter] = useState("all");
   const [patternFilter, setPatternFilter] = useState("all");
 
@@ -1138,6 +1139,7 @@ function RiwayatView({ data }: { data: DashboardData }) {
   const selDay = daySel || todayWib; // default: hari saat diakses
   const selSlots = useMemo(
     () => [...(rDays.find((d) => d.date === selDay)?.slots ?? [])]
+      .filter((s) => !s.experiment) // slot eksperimen lama ikut disembunyikan
       .sort((a, b) => (a.t_wib ?? "").localeCompare(b.t_wib ?? "")),
     [rDays, selDay]);
   const dayOptions = useMemo(() => {
@@ -1149,7 +1151,7 @@ function RiwayatView({ data }: { data: DashboardData }) {
     st === "entry" ? "Entry" : st === "tunggu" ? "Tunggu" : "Skip";
   const slotNote = (st?: string) =>
     st === "entry" ? "Setup entry dicatat — hasil dinilai vs pergerakan aktual."
-    : st === "tunggu" ? "Ada pola tapi jatuh di jeda event 3★ (−2j..+1j) — tanpa level, entry tidak dikonfirmasi."
+    : st === "tunggu" ? "Ada pola tapi jatuh di jeda event 3★ (−2j..+3j) — tanpa level, entry tidak dikonfirmasi."
     : "Tidak ada setup — pola H1 di 2 bar terakhir tidak searah trend H4 EMA20/50 (atau tidak ada pola).";
 
   return (<>
@@ -1226,7 +1228,6 @@ function RiwayatView({ data }: { data: DashboardData }) {
                       {lvl0.entry != null && <span className="lvl">Entry {fmtUsd(lvl0.entry)}</span>}
                       {lvl0.sl != null && <span className="lvl bad">SL {fmtUsd(lvl0.sl)}</span>}
                       {lvl0.tp1 != null && <span className="lvl good">TP1 {fmtUsd(lvl0.tp1)}</span>}
-                      {s.experiment && <span style={{ color: "#e8b667", fontWeight: 600 }}>⚠ EKSPERIMEN</span>}
                     </div>
                   </div>
                   <StatusPill tone="slate">Rekomendasi saja</StatusPill>
@@ -1251,7 +1252,6 @@ function RiwayatView({ data }: { data: DashboardData }) {
                     {lvl.entry != null && <span className="lvl">Entry {fmtUsd(lvl.entry)}</span>}
                     {lvl.sl != null && <span className="lvl bad">SL {fmtUsd(lvl.sl)}</span>}
                     {lvl.tp1 != null && <span className="lvl good">TP1 {fmtUsd(lvl.tp1)}</span>}
-                    {s.experiment && <span style={{ color: "#e8b667", fontWeight: 600 }}>⚠ EKSPERIMEN — dinilai terpisah</span>}
                     {s.confidence != null && <span>Confidence {Math.round(s.confidence * 100)}%</span>}
                     {oc && <span>MFE +{(oc.mfe_usd ?? 0).toFixed(2)} / MAE −{(oc.mae_usd ?? 0).toFixed(2)} USD</span>}
                     {oc && <span>{oc.bars_held ?? "—"} jam</span>}
@@ -1277,9 +1277,6 @@ function RiwayatView({ data }: { data: DashboardData }) {
         <div><span>Hit-rate TP1</span><strong>{hitRate != null ? `${hitRate}%` : "—"}</strong><small>{stats?.wins ?? 0} win / {stats?.losses ?? 0} SL</small></div>
         <div><span>Timeout</span><strong>{stats?.timeouts ?? 0}</strong><small>24 bar H1 tanpa TP/SL</small></div>
         <div><span>Berjalan</span><strong>{stats?.active ?? 0}</strong><small>menunggu hasil</small></div>
-        {stats?.experiment && (
-          <div><span>Eksperimen</span><strong>{stats.experiment.hit_rate != null ? `${Math.round(stats.experiment.hit_rate * 100)}%` : "—"}</strong><small>{stats.experiment.total ?? 0} entry arah EV-negatif · dinilai terpisah</small></div>
-        )}
       </div>
       <div className="panel">
         <div className="panel-header">
@@ -1340,7 +1337,6 @@ function RiwayatView({ data }: { data: DashboardData }) {
                       <span className="lvl bad">SL {fmtUsd(lvl.sl)}</span>
                       <span className="lvl good">TP1 {fmtUsd(lvl.tp1)}</span>
                     </>}
-                    {h.experiment && <span style={{ color: "#e8b667", fontWeight: 600 }}>⚠ EKSPERIMEN — backtest arah ini negatif, dinilai terpisah</span>}
                     {h.confidence != null && <span>Confidence {Math.round(h.confidence * 100)}%</span>}
                     {oc && <span>MFE +{(oc.mfe_usd ?? 0).toFixed(2)} / MAE −{(oc.mae_usd ?? 0).toFixed(2)} USD</span>}
                     {oc && <span>{oc.bars_held ?? "—"} jam</span>}

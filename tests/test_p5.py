@@ -560,7 +560,8 @@ def test_stats_experiment_split():
     track.compute_stats(tracking)
     s = tracking["stats"]
     # statistik utama: entry eksperimen tidak dihitung di sini
-    assert s["total"] == 5, s
+    # (total = entry normal saja, 2026-09-20: UI menyembunyikan eksperimen)
+    assert s["total"] == 2, s
     assert s["wins"] == 1 and s["losses"] == 0, s
     assert s["active"] == 1 and s["resolved"] == 1, s
     assert s["hit_rate"] == 1.0, s
