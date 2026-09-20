@@ -10,6 +10,13 @@ export const SPOT_API = "https://xaus.com/api/v1/spot?compact=1";
 export const VAPID_PUBLIC_KEY =
   "BMW0eUFESMf4hkj1N3VwpbPJdTOW-8X5znsDsj3Pzh2EueTcGHABMKI4dI2cid2vZJtNwtQkPqV-ssFqaCiPGjo";
 
+// Versi aplikasi & tanggal rilis kode terakhir — WAJIB di-update TIAP BATCH
+// yang di-push (aturan user 2026-09-20): tampil di kartu versi sidebar bawah
+// supaya kelihatan versi & terakhir kali kode berubah (bukan jam sync data).
+export const APP_NAME = "GoldPulse";
+export const APP_VERSION = "2.3";
+export const APP_UPDATED_WIB = "20 Sep 2026";
+
 // base64url -> Uint8Array<ArrayBuffer> untuk applicationServerKey
 export function urlBase64ToUint8Array(b64: string): Uint8Array<ArrayBuffer> {
   const pad = "=".repeat((4 - (b64.length % 4)) % 4);
@@ -297,9 +304,11 @@ export function scoreScenario(input: {
   return Math.max(0, Math.min(100, score));
 }
 
-// jeda entry identik backend: 2 jam sebelum - 1 jam sesudah rilis
+// jeda entry identik backend: 2 jam sebelum - 3 jam sesudah rilis
+// (pasca-event 3 jam tervalidasi data event 2026-09-20: volatilitas baru
+// normal di +3h, EV sinyal +0..+3h pasca-event negatif)
 export const BLACKOUT_BEFORE_MS = 2 * 3_600_000;
-export const BLACKOUT_AFTER_MS = 1 * 3_600_000;
+export const BLACKOUT_AFTER_MS = 3 * 3_600_000;
 
 export function activeBlackout(events: CalEvent[], now: number): CalEvent | null {
   for (const e of events) {

@@ -112,7 +112,10 @@ def test_blackout():
     assert cal.active_blackout(events, now=t0 - timedelta(hours=1)) is not None      # -1h -> dalam jeda
     assert cal.active_blackout(events, now=t0 - timedelta(hours=2.5)) is None       # -2.5h -> aman
     assert cal.active_blackout(events, now=t0 + timedelta(minutes=30)) is not None   # +30m -> masih jeda
-    assert cal.active_blackout(events, now=t0 + timedelta(hours=2)) is None         # +2h -> selesai
+    assert cal.active_blackout(events, now=t0 + timedelta(hours=2)) is not None     # +2h -> masih jeda
+    # pasca-event diperpanjang 1h -> 3h (validasi event 2026-09-20: volatilitas
+    # baru normal & EV sinyal pulih di +3h; +2h masih negatif)
+    assert cal.active_blackout(events, now=t0 + timedelta(hours=3, minutes=1)) is None  # +3h1m -> selesai
     blk = cal.active_blackout(events, now=t0 - timedelta(hours=1))
     assert blk["minutes_to_event"] == 60
     # upcoming window

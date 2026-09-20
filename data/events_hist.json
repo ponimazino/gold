@@ -1,0 +1,3291 @@
+{
+ "updated_at": "2026-09-20T12:40:28Z",
+ "source": "tradingeconomics",
+ "note": "arsip event 3-star US untuk backtest kondisi event (seed 2026-09-20 via scripts/build_events_hist.py; dilanjutkan otomatis oleh job fundamental)",
+ "events": [
+  {
+   "t_utc": "2023-09-01T12:30:00Z",
+   "title": "Non Farm Payrolls"
+  },
+  {
+   "t_utc": "2023-09-01T12:30:00Z",
+   "title": "Unemployment Rate"
+  },
+  {
+   "t_utc": "2023-09-01T14:00:00Z",
+   "title": "Ism Manufacturing Pmi"
+  },
+  {
+   "t_utc": "2023-09-06T14:00:00Z",
+   "title": "Ism Services Pmi"
+  },
+  {
+   "t_utc": "2023-09-13T12:30:00Z",
+   "title": "Core Inflation Rate Mom"
+  },
+  {
+   "t_utc": "2023-09-13T12:30:00Z",
+   "title": "Core Inflation Rate Yoy"
+  },
+  {
+   "t_utc": "2023-09-13T12:30:00Z",
+   "title": "Inflation Rate Mom"
+  },
+  {
+   "t_utc": "2023-09-13T12:30:00Z",
+   "title": "Inflation Rate Yoy"
+  },
+  {
+   "t_utc": "2023-09-14T12:30:00Z",
+   "title": "Ppi Mom"
+  },
+  {
+   "t_utc": "2023-09-14T12:30:00Z",
+   "title": "Retail Sales Mom"
+  },
+  {
+   "t_utc": "2023-09-15T14:00:00Z",
+   "title": "Michigan Consumer Sentiment Prel"
+  },
+  {
+   "t_utc": "2023-09-19T12:30:00Z",
+   "title": "Building Permits Prel"
+  },
+  {
+   "t_utc": "2023-09-20T18:00:00Z",
+   "title": "Fed Interest Rate Decision"
+  },
+  {
+   "t_utc": "2023-09-20T18:30:00Z",
+   "title": "Fed Press Conference"
+  },
+  {
+   "t_utc": "2023-09-27T12:30:00Z",
+   "title": "Durable Goods Orders Mom"
+  },
+  {
+   "t_utc": "2023-09-28T12:30:00Z",
+   "title": "Gdp Growth Rate Qoq Final"
+  },
+  {
+   "t_utc": "2023-09-29T12:30:00Z",
+   "title": "Core Pce Price Index Mom"
+  },
+  {
+   "t_utc": "2023-09-29T12:30:00Z",
+   "title": "Personal Income Mom"
+  },
+  {
+   "t_utc": "2023-09-29T12:30:00Z",
+   "title": "Personal Spending Mom"
+  },
+  {
+   "t_utc": "2023-10-02T14:00:00Z",
+   "title": "Ism Manufacturing Pmi"
+  },
+  {
+   "t_utc": "2023-10-03T14:00:00Z",
+   "title": "Jolts Job Openings"
+  },
+  {
+   "t_utc": "2023-10-04T14:00:00Z",
+   "title": "Ism Services Pmi"
+  },
+  {
+   "t_utc": "2023-10-06T12:30:00Z",
+   "title": "Non Farm Payrolls"
+  },
+  {
+   "t_utc": "2023-10-06T12:30:00Z",
+   "title": "Unemployment Rate"
+  },
+  {
+   "t_utc": "2023-10-11T12:30:00Z",
+   "title": "Ppi Mom"
+  },
+  {
+   "t_utc": "2023-10-11T18:00:00Z",
+   "title": "Fomc Minutes"
+  },
+  {
+   "t_utc": "2023-10-12T12:30:00Z",
+   "title": "Core Inflation Rate Mom"
+  },
+  {
+   "t_utc": "2023-10-12T12:30:00Z",
+   "title": "Core Inflation Rate Yoy"
+  },
+  {
+   "t_utc": "2023-10-12T12:30:00Z",
+   "title": "Inflation Rate Mom"
+  },
+  {
+   "t_utc": "2023-10-12T12:30:00Z",
+   "title": "Inflation Rate Yoy"
+  },
+  {
+   "t_utc": "2023-10-13T14:00:00Z",
+   "title": "Michigan Consumer Sentiment Prel"
+  },
+  {
+   "t_utc": "2023-10-17T12:30:00Z",
+   "title": "Retail Sales Mom"
+  },
+  {
+   "t_utc": "2023-10-18T12:30:00Z",
+   "title": "Building Permits Prel"
+  },
+  {
+   "t_utc": "2023-10-19T16:00:00Z",
+   "title": "Fed Chair Powell Speech"
+  },
+  {
+   "t_utc": "2023-10-25T20:35:00Z",
+   "title": "Fed Chair Powell Speech"
+  },
+  {
+   "t_utc": "2023-10-26T12:30:00Z",
+   "title": "Durable Goods Orders Mom"
+  },
+  {
+   "t_utc": "2023-10-26T12:30:00Z",
+   "title": "Gdp Growth Rate Qoq Adv"
+  },
+  {
+   "t_utc": "2023-10-27T12:30:00Z",
+   "title": "Core Pce Price Index Mom"
+  },
+  {
+   "t_utc": "2023-10-27T12:30:00Z",
+   "title": "Personal Income Mom"
+  },
+  {
+   "t_utc": "2023-10-27T12:30:00Z",
+   "title": "Personal Spending Mom"
+  },
+  {
+   "t_utc": "2023-11-01T14:00:00Z",
+   "title": "Ism Manufacturing Pmi"
+  },
+  {
+   "t_utc": "2023-11-01T14:00:00Z",
+   "title": "Jolts Job Openings"
+  },
+  {
+   "t_utc": "2023-11-01T18:00:00Z",
+   "title": "Fed Interest Rate Decision"
+  },
+  {
+   "t_utc": "2023-11-01T18:30:00Z",
+   "title": "Fed Press Conference"
+  },
+  {
+   "t_utc": "2023-11-03T12:30:00Z",
+   "title": "Non Farm Payrolls"
+  },
+  {
+   "t_utc": "2023-11-03T12:30:00Z",
+   "title": "Unemployment Rate"
+  },
+  {
+   "t_utc": "2023-11-03T14:00:00Z",
+   "title": "Ism Services Pmi"
+  },
+  {
+   "t_utc": "2023-11-08T14:15:00Z",
+   "title": "Fed Chair Powell Speech"
+  },
+  {
+   "t_utc": "2023-11-09T19:00:00Z",
+   "title": "Fed Chair Powell Speech"
+  },
+  {
+   "t_utc": "2023-11-10T15:00:00Z",
+   "title": "Michigan Consumer Sentiment Prel"
+  },
+  {
+   "t_utc": "2023-11-14T13:30:00Z",
+   "title": "Core Inflation Rate Mom"
+  },
+  {
+   "t_utc": "2023-11-14T13:30:00Z",
+   "title": "Core Inflation Rate Yoy"
+  },
+  {
+   "t_utc": "2023-11-14T13:30:00Z",
+   "title": "Inflation Rate Mom"
+  },
+  {
+   "t_utc": "2023-11-14T13:30:00Z",
+   "title": "Inflation Rate Yoy"
+  },
+  {
+   "t_utc": "2023-11-15T13:30:00Z",
+   "title": "Ppi Mom"
+  },
+  {
+   "t_utc": "2023-11-15T13:30:00Z",
+   "title": "Retail Sales Mom"
+  },
+  {
+   "t_utc": "2023-11-17T13:30:00Z",
+   "title": "Building Permits Prel"
+  },
+  {
+   "t_utc": "2023-11-21T19:00:00Z",
+   "title": "Fomc Minutes"
+  },
+  {
+   "t_utc": "2023-11-22T13:30:00Z",
+   "title": "Durable Goods Orders Mom"
+  },
+  {
+   "t_utc": "2023-11-29T13:30:00Z",
+   "title": "Gdp Growth Rate Qoq 2Nd Est"
+  },
+  {
+   "t_utc": "2023-11-30T13:30:00Z",
+   "title": "Core Pce Price Index Mom"
+  },
+  {
+   "t_utc": "2023-11-30T13:30:00Z",
+   "title": "Personal Income Mom"
+  },
+  {
+   "t_utc": "2023-11-30T13:30:00Z",
+   "title": "Personal Spending Mom"
+  },
+  {
+   "t_utc": "2023-12-01T15:00:00Z",
+   "title": "Ism Manufacturing Pmi"
+  },
+  {
+   "t_utc": "2023-12-01T16:00:00Z",
+   "title": "Fed Chair Powell Speech"
+  },
+  {
+   "t_utc": "2023-12-05T15:00:00Z",
+   "title": "Ism Services Pmi"
+  },
+  {
+   "t_utc": "2023-12-05T15:00:00Z",
+   "title": "Jolts Job Openings"
+  },
+  {
+   "t_utc": "2023-12-08T13:30:00Z",
+   "title": "Non Farm Payrolls"
+  },
+  {
+   "t_utc": "2023-12-08T13:30:00Z",
+   "title": "Unemployment Rate"
+  },
+  {
+   "t_utc": "2023-12-08T15:00:00Z",
+   "title": "Michigan Consumer Sentiment Prel"
+  },
+  {
+   "t_utc": "2023-12-12T13:30:00Z",
+   "title": "Core Inflation Rate Mom"
+  },
+  {
+   "t_utc": "2023-12-12T13:30:00Z",
+   "title": "Core Inflation Rate Yoy"
+  },
+  {
+   "t_utc": "2023-12-12T13:30:00Z",
+   "title": "Inflation Rate Mom"
+  },
+  {
+   "t_utc": "2023-12-12T13:30:00Z",
+   "title": "Inflation Rate Yoy"
+  },
+  {
+   "t_utc": "2023-12-13T13:30:00Z",
+   "title": "Ppi Mom"
+  },
+  {
+   "t_utc": "2023-12-13T19:00:00Z",
+   "title": "Fed Interest Rate Decision"
+  },
+  {
+   "t_utc": "2023-12-13T19:00:00Z",
+   "title": "Fomc Economic Projections"
+  },
+  {
+   "t_utc": "2023-12-13T19:30:00Z",
+   "title": "Fed Press Conference"
+  },
+  {
+   "t_utc": "2023-12-14T13:30:00Z",
+   "title": "Retail Sales Mom"
+  },
+  {
+   "t_utc": "2023-12-19T13:30:00Z",
+   "title": "Building Permits Prel"
+  },
+  {
+   "t_utc": "2023-12-21T13:30:00Z",
+   "title": "Gdp Growth Rate Qoq Final"
+  },
+  {
+   "t_utc": "2023-12-22T13:30:00Z",
+   "title": "Core Pce Price Index Mom"
+  },
+  {
+   "t_utc": "2023-12-22T13:30:00Z",
+   "title": "Durable Goods Orders Mom"
+  },
+  {
+   "t_utc": "2023-12-22T13:30:00Z",
+   "title": "Personal Income Mom"
+  },
+  {
+   "t_utc": "2023-12-22T13:30:00Z",
+   "title": "Personal Spending Mom"
+  },
+  {
+   "t_utc": "2024-01-03T15:00:00Z",
+   "title": "Ism Manufacturing Pmi"
+  },
+  {
+   "t_utc": "2024-01-03T15:00:00Z",
+   "title": "Jolts Job Openings"
+  },
+  {
+   "t_utc": "2024-01-03T19:00:00Z",
+   "title": "Fomc Minutes"
+  },
+  {
+   "t_utc": "2024-01-05T13:30:00Z",
+   "title": "Non Farm Payrolls"
+  },
+  {
+   "t_utc": "2024-01-05T15:00:00Z",
+   "title": "Ism Services Pmi"
+  },
+  {
+   "t_utc": "2024-01-11T13:30:00Z",
+   "title": "Core Inflation Rate Mom"
+  },
+  {
+   "t_utc": "2024-01-11T13:30:00Z",
+   "title": "Core Inflation Rate Yoy"
+  },
+  {
+   "t_utc": "2024-01-11T13:30:00Z",
+   "title": "Inflation Rate Mom"
+  },
+  {
+   "t_utc": "2024-01-11T13:30:00Z",
+   "title": "Inflation Rate Yoy"
+  },
+  {
+   "t_utc": "2024-01-12T13:30:00Z",
+   "title": "Ppi Mom"
+  },
+  {
+   "t_utc": "2024-01-17T13:30:00Z",
+   "title": "Retail Sales Mom"
+  },
+  {
+   "t_utc": "2024-01-18T13:30:00Z",
+   "title": "Building Permits Prel"
+  },
+  {
+   "t_utc": "2024-01-19T15:00:00Z",
+   "title": "Michigan Consumer Sentiment Prel"
+  },
+  {
+   "t_utc": "2024-01-25T13:30:00Z",
+   "title": "Durable Goods Orders Mom"
+  },
+  {
+   "t_utc": "2024-01-25T13:30:00Z",
+   "title": "Gdp Growth Rate Qoq Adv"
+  },
+  {
+   "t_utc": "2024-01-26T13:30:00Z",
+   "title": "Core Pce Price Index Mom"
+  },
+  {
+   "t_utc": "2024-01-26T13:30:00Z",
+   "title": "Personal Income Mom"
+  },
+  {
+   "t_utc": "2024-01-26T13:30:00Z",
+   "title": "Personal Spending Mom"
+  },
+  {
+   "t_utc": "2024-01-30T15:00:00Z",
+   "title": "Jolts Job Openings"
+  },
+  {
+   "t_utc": "2024-01-31T19:00:00Z",
+   "title": "Fed Interest Rate Decision"
+  },
+  {
+   "t_utc": "2024-01-31T19:30:00Z",
+   "title": "Fed Press Conference"
+  },
+  {
+   "t_utc": "2024-02-01T15:00:00Z",
+   "title": "Ism Manufacturing Pmi"
+  },
+  {
+   "t_utc": "2024-02-02T13:30:00Z",
+   "title": "Non Farm Payrolls"
+  },
+  {
+   "t_utc": "2024-02-02T13:30:00Z",
+   "title": "Unemployment Rate"
+  },
+  {
+   "t_utc": "2024-02-05T15:00:00Z",
+   "title": "Ism Services Pmi"
+  },
+  {
+   "t_utc": "2024-02-13T13:30:00Z",
+   "title": "Core Inflation Rate Mom"
+  },
+  {
+   "t_utc": "2024-02-13T13:30:00Z",
+   "title": "Core Inflation Rate Yoy"
+  },
+  {
+   "t_utc": "2024-02-13T13:30:00Z",
+   "title": "Inflation Rate Mom"
+  },
+  {
+   "t_utc": "2024-02-13T13:30:00Z",
+   "title": "Inflation Rate Yoy"
+  },
+  {
+   "t_utc": "2024-02-15T13:30:00Z",
+   "title": "Retail Sales Mom"
+  },
+  {
+   "t_utc": "2024-02-16T13:30:00Z",
+   "title": "Building Permits Prel"
+  },
+  {
+   "t_utc": "2024-02-16T13:30:00Z",
+   "title": "Ppi Mom"
+  },
+  {
+   "t_utc": "2024-02-16T15:00:00Z",
+   "title": "Michigan Consumer Sentiment Prel"
+  },
+  {
+   "t_utc": "2024-02-21T19:00:00Z",
+   "title": "Fomc Minutes"
+  },
+  {
+   "t_utc": "2024-02-27T13:30:00Z",
+   "title": "Durable Goods Orders Mom"
+  },
+  {
+   "t_utc": "2024-02-28T13:30:00Z",
+   "title": "Gdp Growth Rate Qoq 2Nd Est"
+  },
+  {
+   "t_utc": "2024-02-29T13:30:00Z",
+   "title": "Core Pce Price Index Mom"
+  },
+  {
+   "t_utc": "2024-02-29T13:30:00Z",
+   "title": "Personal Income Mom"
+  },
+  {
+   "t_utc": "2024-02-29T13:30:00Z",
+   "title": "Personal Spending Mom"
+  },
+  {
+   "t_utc": "2024-03-01T15:00:00Z",
+   "title": "Ism Manufacturing Pmi"
+  },
+  {
+   "t_utc": "2024-03-05T15:00:00Z",
+   "title": "Ism Services Pmi"
+  },
+  {
+   "t_utc": "2024-03-06T15:00:00Z",
+   "title": "Fed Chair Powell Testimony"
+  },
+  {
+   "t_utc": "2024-03-06T15:00:00Z",
+   "title": "Jolts Job Openings"
+  },
+  {
+   "t_utc": "2024-03-07T15:00:00Z",
+   "title": "Fed Chair Powell Testimony"
+  },
+  {
+   "t_utc": "2024-03-08T13:30:00Z",
+   "title": "Non Farm Payrolls"
+  },
+  {
+   "t_utc": "2024-03-08T13:30:00Z",
+   "title": "Unemployment Rate"
+  },
+  {
+   "t_utc": "2024-03-12T12:30:00Z",
+   "title": "Core Inflation Rate Mom"
+  },
+  {
+   "t_utc": "2024-03-12T12:30:00Z",
+   "title": "Core Inflation Rate Yoy"
+  },
+  {
+   "t_utc": "2024-03-12T12:30:00Z",
+   "title": "Inflation Rate Mom"
+  },
+  {
+   "t_utc": "2024-03-12T12:30:00Z",
+   "title": "Inflation Rate Yoy"
+  },
+  {
+   "t_utc": "2024-03-14T12:30:00Z",
+   "title": "Ppi Mom"
+  },
+  {
+   "t_utc": "2024-03-14T12:30:00Z",
+   "title": "Retail Sales Mom"
+  },
+  {
+   "t_utc": "2024-03-15T14:00:00Z",
+   "title": "Michigan Consumer Sentiment Prel"
+  },
+  {
+   "t_utc": "2024-03-19T12:30:00Z",
+   "title": "Building Permits Prel"
+  },
+  {
+   "t_utc": "2024-03-20T18:00:00Z",
+   "title": "Fed Interest Rate Decision"
+  },
+  {
+   "t_utc": "2024-03-20T18:00:00Z",
+   "title": "Fomc Economic Projections"
+  },
+  {
+   "t_utc": "2024-03-20T18:30:00Z",
+   "title": "Fed Press Conference"
+  },
+  {
+   "t_utc": "2024-03-26T12:30:00Z",
+   "title": "Durable Goods Orders Mom"
+  },
+  {
+   "t_utc": "2024-03-28T12:30:00Z",
+   "title": "Gdp Growth Rate Qoq Final"
+  },
+  {
+   "t_utc": "2024-03-29T12:30:00Z",
+   "title": "Core Pce Price Index Mom"
+  },
+  {
+   "t_utc": "2024-03-29T12:30:00Z",
+   "title": "Personal Income Mom"
+  },
+  {
+   "t_utc": "2024-03-29T12:30:00Z",
+   "title": "Personal Spending Mom"
+  },
+  {
+   "t_utc": "2024-03-29T15:30:00Z",
+   "title": "Fed Chair Powell Speech"
+  },
+  {
+   "t_utc": "2024-04-01T14:00:00Z",
+   "title": "Ism Manufacturing Pmi"
+  },
+  {
+   "t_utc": "2024-04-02T14:00:00Z",
+   "title": "Jolts Job Openings"
+  },
+  {
+   "t_utc": "2024-04-03T14:00:00Z",
+   "title": "Ism Services Pmi"
+  },
+  {
+   "t_utc": "2024-04-03T16:10:00Z",
+   "title": "Fed Chair Powell Speech"
+  },
+  {
+   "t_utc": "2024-04-05T12:30:00Z",
+   "title": "Non Farm Payrolls"
+  },
+  {
+   "t_utc": "2024-04-05T12:30:00Z",
+   "title": "Unemployment Rate"
+  },
+  {
+   "t_utc": "2024-04-10T12:30:00Z",
+   "title": "Core Inflation Rate Mom"
+  },
+  {
+   "t_utc": "2024-04-10T12:30:00Z",
+   "title": "Core Inflation Rate Yoy"
+  },
+  {
+   "t_utc": "2024-04-10T12:30:00Z",
+   "title": "Inflation Rate Mom"
+  },
+  {
+   "t_utc": "2024-04-10T12:30:00Z",
+   "title": "Inflation Rate Yoy"
+  },
+  {
+   "t_utc": "2024-04-10T18:00:00Z",
+   "title": "Fomc Minutes"
+  },
+  {
+   "t_utc": "2024-04-11T12:30:00Z",
+   "title": "Ppi Mom"
+  },
+  {
+   "t_utc": "2024-04-12T14:00:00Z",
+   "title": "Michigan Consumer Sentiment Prel"
+  },
+  {
+   "t_utc": "2024-04-15T12:30:00Z",
+   "title": "Retail Sales Mom"
+  },
+  {
+   "t_utc": "2024-04-16T12:30:00Z",
+   "title": "Building Permits Prel"
+  },
+  {
+   "t_utc": "2024-04-16T17:15:00Z",
+   "title": "Fed Chair Powell Speech"
+  },
+  {
+   "t_utc": "2024-04-24T12:30:00Z",
+   "title": "Durable Goods Orders Mom"
+  },
+  {
+   "t_utc": "2024-04-25T12:30:00Z",
+   "title": "Gdp Growth Rate Qoq Adv"
+  },
+  {
+   "t_utc": "2024-04-26T12:30:00Z",
+   "title": "Core Pce Price Index Mom"
+  },
+  {
+   "t_utc": "2024-04-26T12:30:00Z",
+   "title": "Personal Income Mom"
+  },
+  {
+   "t_utc": "2024-04-26T12:30:00Z",
+   "title": "Personal Spending Mom"
+  },
+  {
+   "t_utc": "2024-05-01T14:00:00Z",
+   "title": "Ism Manufacturing Pmi"
+  },
+  {
+   "t_utc": "2024-05-01T14:00:00Z",
+   "title": "Jolts Job Openings"
+  },
+  {
+   "t_utc": "2024-05-01T18:00:00Z",
+   "title": "Fed Interest Rate Decision"
+  },
+  {
+   "t_utc": "2024-05-01T18:30:00Z",
+   "title": "Fed Press Conference"
+  },
+  {
+   "t_utc": "2024-05-03T12:30:00Z",
+   "title": "Non Farm Payrolls"
+  },
+  {
+   "t_utc": "2024-05-03T12:30:00Z",
+   "title": "Unemployment Rate"
+  },
+  {
+   "t_utc": "2024-05-03T14:00:00Z",
+   "title": "Ism Services Pmi"
+  },
+  {
+   "t_utc": "2024-05-10T14:00:00Z",
+   "title": "Michigan Consumer Sentiment Prel"
+  },
+  {
+   "t_utc": "2024-05-14T12:30:00Z",
+   "title": "Ppi Mom"
+  },
+  {
+   "t_utc": "2024-05-14T14:00:00Z",
+   "title": "Fed Chair Powell Speech"
+  },
+  {
+   "t_utc": "2024-05-15T12:30:00Z",
+   "title": "Core Inflation Rate Mom"
+  },
+  {
+   "t_utc": "2024-05-15T12:30:00Z",
+   "title": "Core Inflation Rate Yoy"
+  },
+  {
+   "t_utc": "2024-05-15T12:30:00Z",
+   "title": "Inflation Rate Mom"
+  },
+  {
+   "t_utc": "2024-05-15T12:30:00Z",
+   "title": "Inflation Rate Yoy"
+  },
+  {
+   "t_utc": "2024-05-15T12:30:00Z",
+   "title": "Retail Sales Mom"
+  },
+  {
+   "t_utc": "2024-05-16T12:30:00Z",
+   "title": "Building Permits Prel"
+  },
+  {
+   "t_utc": "2024-05-19T19:30:00Z",
+   "title": "Fed Chair Powell Speech"
+  },
+  {
+   "t_utc": "2024-05-22T18:00:00Z",
+   "title": "Fomc Minutes"
+  },
+  {
+   "t_utc": "2024-05-24T12:30:00Z",
+   "title": "Durable Goods Orders Mom"
+  },
+  {
+   "t_utc": "2024-05-30T12:30:00Z",
+   "title": "Gdp Growth Rate Qoq 2Nd Est"
+  },
+  {
+   "t_utc": "2024-05-31T12:30:00Z",
+   "title": "Core Pce Price Index Mom"
+  },
+  {
+   "t_utc": "2024-05-31T12:30:00Z",
+   "title": "Personal Income Mom"
+  },
+  {
+   "t_utc": "2024-05-31T12:30:00Z",
+   "title": "Personal Spending Mom"
+  },
+  {
+   "t_utc": "2024-06-03T14:00:00Z",
+   "title": "Ism Manufacturing Pmi"
+  },
+  {
+   "t_utc": "2024-06-04T14:00:00Z",
+   "title": "Jolts Job Openings"
+  },
+  {
+   "t_utc": "2024-06-05T14:00:00Z",
+   "title": "Ism Services Pmi"
+  },
+  {
+   "t_utc": "2024-06-07T12:30:00Z",
+   "title": "Non Farm Payrolls"
+  },
+  {
+   "t_utc": "2024-06-07T12:30:00Z",
+   "title": "Unemployment Rate"
+  },
+  {
+   "t_utc": "2024-06-12T12:30:00Z",
+   "title": "Core Inflation Rate Mom"
+  },
+  {
+   "t_utc": "2024-06-12T12:30:00Z",
+   "title": "Core Inflation Rate Yoy"
+  },
+  {
+   "t_utc": "2024-06-12T12:30:00Z",
+   "title": "Inflation Rate Mom"
+  },
+  {
+   "t_utc": "2024-06-12T12:30:00Z",
+   "title": "Inflation Rate Yoy"
+  },
+  {
+   "t_utc": "2024-06-12T18:00:00Z",
+   "title": "Fed Interest Rate Decision"
+  },
+  {
+   "t_utc": "2024-06-12T18:00:00Z",
+   "title": "Fomc Economic Projections"
+  },
+  {
+   "t_utc": "2024-06-12T18:30:00Z",
+   "title": "Fed Press Conference"
+  },
+  {
+   "t_utc": "2024-06-13T12:30:00Z",
+   "title": "Ppi Mom"
+  },
+  {
+   "t_utc": "2024-06-14T14:00:00Z",
+   "title": "Michigan Consumer Sentiment Prel"
+  },
+  {
+   "t_utc": "2024-06-18T12:30:00Z",
+   "title": "Retail Sales Mom"
+  },
+  {
+   "t_utc": "2024-06-20T12:30:00Z",
+   "title": "Building Permits Prel"
+  },
+  {
+   "t_utc": "2024-06-27T12:30:00Z",
+   "title": "Durable Goods Orders Mom"
+  },
+  {
+   "t_utc": "2024-06-27T12:30:00Z",
+   "title": "Gdp Growth Rate Qoq Final"
+  },
+  {
+   "t_utc": "2024-06-28T12:30:00Z",
+   "title": "Core Pce Price Index Mom"
+  },
+  {
+   "t_utc": "2024-06-28T12:30:00Z",
+   "title": "Personal Income Mom"
+  },
+  {
+   "t_utc": "2024-06-28T12:30:00Z",
+   "title": "Personal Spending Mom"
+  },
+  {
+   "t_utc": "2024-07-01T14:00:00Z",
+   "title": "Ism Manufacturing Pmi"
+  },
+  {
+   "t_utc": "2024-07-02T13:30:00Z",
+   "title": "Fed Chair Powell Speech"
+  },
+  {
+   "t_utc": "2024-07-02T14:00:00Z",
+   "title": "Jolts Job Openings"
+  },
+  {
+   "t_utc": "2024-07-03T14:00:00Z",
+   "title": "Ism Services Pmi"
+  },
+  {
+   "t_utc": "2024-07-03T18:00:00Z",
+   "title": "Fomc Minutes"
+  },
+  {
+   "t_utc": "2024-07-05T12:30:00Z",
+   "title": "Non Farm Payrolls"
+  },
+  {
+   "t_utc": "2024-07-05T12:30:00Z",
+   "title": "Unemployment Rate"
+  },
+  {
+   "t_utc": "2024-07-09T14:00:00Z",
+   "title": "Fed Chair Powell Testimony"
+  },
+  {
+   "t_utc": "2024-07-10T14:00:00Z",
+   "title": "Fed Chair Powell Testimony"
+  },
+  {
+   "t_utc": "2024-07-11T12:30:00Z",
+   "title": "Core Inflation Rate Mom"
+  },
+  {
+   "t_utc": "2024-07-11T12:30:00Z",
+   "title": "Core Inflation Rate Yoy"
+  },
+  {
+   "t_utc": "2024-07-11T12:30:00Z",
+   "title": "Inflation Rate Mom"
+  },
+  {
+   "t_utc": "2024-07-11T12:30:00Z",
+   "title": "Inflation Rate Yoy"
+  },
+  {
+   "t_utc": "2024-07-12T12:30:00Z",
+   "title": "Ppi Mom"
+  },
+  {
+   "t_utc": "2024-07-12T14:00:00Z",
+   "title": "Michigan Consumer Sentiment Prel"
+  },
+  {
+   "t_utc": "2024-07-15T16:30:00Z",
+   "title": "Fed Chair Powell Speech"
+  },
+  {
+   "t_utc": "2024-07-16T12:30:00Z",
+   "title": "Retail Sales Mom"
+  },
+  {
+   "t_utc": "2024-07-17T12:30:00Z",
+   "title": "Building Permits Prel"
+  },
+  {
+   "t_utc": "2024-07-25T12:30:00Z",
+   "title": "Durable Goods Orders Mom"
+  },
+  {
+   "t_utc": "2024-07-25T12:30:00Z",
+   "title": "Gdp Growth Rate Qoq Adv"
+  },
+  {
+   "t_utc": "2024-07-26T12:30:00Z",
+   "title": "Core Pce Price Index Mom"
+  },
+  {
+   "t_utc": "2024-07-26T12:30:00Z",
+   "title": "Personal Income Mom"
+  },
+  {
+   "t_utc": "2024-07-26T12:30:00Z",
+   "title": "Personal Spending Mom"
+  },
+  {
+   "t_utc": "2024-07-30T14:00:00Z",
+   "title": "Jolts Job Openings"
+  },
+  {
+   "t_utc": "2024-07-31T18:00:00Z",
+   "title": "Fed Interest Rate Decision"
+  },
+  {
+   "t_utc": "2024-07-31T18:30:00Z",
+   "title": "Fed Press Conference"
+  },
+  {
+   "t_utc": "2024-08-01T14:00:00Z",
+   "title": "Ism Manufacturing Pmi"
+  },
+  {
+   "t_utc": "2024-08-02T12:30:00Z",
+   "title": "Non Farm Payrolls"
+  },
+  {
+   "t_utc": "2024-08-02T12:30:00Z",
+   "title": "Unemployment Rate"
+  },
+  {
+   "t_utc": "2024-08-05T14:00:00Z",
+   "title": "Ism Services Pmi"
+  },
+  {
+   "t_utc": "2024-08-13T12:30:00Z",
+   "title": "Ppi Mom"
+  },
+  {
+   "t_utc": "2024-08-14T12:30:00Z",
+   "title": "Core Inflation Rate Mom"
+  },
+  {
+   "t_utc": "2024-08-14T12:30:00Z",
+   "title": "Core Inflation Rate Yoy"
+  },
+  {
+   "t_utc": "2024-08-14T12:30:00Z",
+   "title": "Inflation Rate Mom"
+  },
+  {
+   "t_utc": "2024-08-14T12:30:00Z",
+   "title": "Inflation Rate Yoy"
+  },
+  {
+   "t_utc": "2024-08-15T12:30:00Z",
+   "title": "Retail Sales Mom"
+  },
+  {
+   "t_utc": "2024-08-16T12:30:00Z",
+   "title": "Building Permits Prel"
+  },
+  {
+   "t_utc": "2024-08-16T14:00:00Z",
+   "title": "Michigan Consumer Sentiment Prel"
+  },
+  {
+   "t_utc": "2024-08-21T14:00:00Z",
+   "title": "Non Farm Payrolls Annual Revision"
+  },
+  {
+   "t_utc": "2024-08-21T18:00:00Z",
+   "title": "Fomc Minutes"
+  },
+  {
+   "t_utc": "2024-08-23T14:00:00Z",
+   "title": "Fed Chair Powell Speech"
+  },
+  {
+   "t_utc": "2024-08-26T12:30:00Z",
+   "title": "Durable Goods Orders Mom"
+  },
+  {
+   "t_utc": "2024-08-29T12:30:00Z",
+   "title": "Gdp Growth Rate Qoq 2Nd Est"
+  },
+  {
+   "t_utc": "2024-08-30T12:30:00Z",
+   "title": "Core Pce Price Index Mom"
+  },
+  {
+   "t_utc": "2024-08-30T12:30:00Z",
+   "title": "Personal Income Mom"
+  },
+  {
+   "t_utc": "2024-08-30T12:30:00Z",
+   "title": "Personal Spending Mom"
+  },
+  {
+   "t_utc": "2024-09-03T14:00:00Z",
+   "title": "Ism Manufacturing Pmi"
+  },
+  {
+   "t_utc": "2024-09-04T14:00:00Z",
+   "title": "Jolts Job Openings"
+  },
+  {
+   "t_utc": "2024-09-05T14:00:00Z",
+   "title": "Ism Services Pmi"
+  },
+  {
+   "t_utc": "2024-09-06T12:30:00Z",
+   "title": "Non Farm Payrolls"
+  },
+  {
+   "t_utc": "2024-09-06T12:30:00Z",
+   "title": "Unemployment Rate"
+  },
+  {
+   "t_utc": "2024-09-11T12:30:00Z",
+   "title": "Core Inflation Rate Mom"
+  },
+  {
+   "t_utc": "2024-09-11T12:30:00Z",
+   "title": "Core Inflation Rate Yoy"
+  },
+  {
+   "t_utc": "2024-09-11T12:30:00Z",
+   "title": "Inflation Rate Mom"
+  },
+  {
+   "t_utc": "2024-09-11T12:30:00Z",
+   "title": "Inflation Rate Yoy"
+  },
+  {
+   "t_utc": "2024-09-12T12:30:00Z",
+   "title": "Ppi Mom"
+  },
+  {
+   "t_utc": "2024-09-13T14:00:00Z",
+   "title": "Michigan Consumer Sentiment Prel"
+  },
+  {
+   "t_utc": "2024-09-17T12:30:00Z",
+   "title": "Retail Sales Mom"
+  },
+  {
+   "t_utc": "2024-09-18T12:30:00Z",
+   "title": "Building Permits Prel"
+  },
+  {
+   "t_utc": "2024-09-18T18:00:00Z",
+   "title": "Fed Interest Rate Decision"
+  },
+  {
+   "t_utc": "2024-09-18T18:00:00Z",
+   "title": "Fomc Economic Projections"
+  },
+  {
+   "t_utc": "2024-09-18T18:30:00Z",
+   "title": "Fed Press Conference"
+  },
+  {
+   "t_utc": "2024-09-26T12:30:00Z",
+   "title": "Durable Goods Orders Mom"
+  },
+  {
+   "t_utc": "2024-09-26T12:30:00Z",
+   "title": "Gdp Growth Rate Qoq Final"
+  },
+  {
+   "t_utc": "2024-09-26T13:20:00Z",
+   "title": "Fed Chair Powell Speech"
+  },
+  {
+   "t_utc": "2024-09-27T12:30:00Z",
+   "title": "Core Pce Price Index Mom"
+  },
+  {
+   "t_utc": "2024-09-27T12:30:00Z",
+   "title": "Personal Income Mom"
+  },
+  {
+   "t_utc": "2024-09-27T12:30:00Z",
+   "title": "Personal Spending Mom"
+  },
+  {
+   "t_utc": "2024-09-30T17:55:00Z",
+   "title": "Fed Chair Powell Speech"
+  },
+  {
+   "t_utc": "2024-10-01T14:00:00Z",
+   "title": "Ism Manufacturing Pmi"
+  },
+  {
+   "t_utc": "2024-10-01T14:00:00Z",
+   "title": "Jolts Job Openings"
+  },
+  {
+   "t_utc": "2024-10-03T14:00:00Z",
+   "title": "Ism Services Pmi"
+  },
+  {
+   "t_utc": "2024-10-04T12:30:00Z",
+   "title": "Non Farm Payrolls"
+  },
+  {
+   "t_utc": "2024-10-04T12:30:00Z",
+   "title": "Unemployment Rate"
+  },
+  {
+   "t_utc": "2024-10-09T18:00:00Z",
+   "title": "Fomc Minutes"
+  },
+  {
+   "t_utc": "2024-10-10T12:30:00Z",
+   "title": "Core Inflation Rate Mom"
+  },
+  {
+   "t_utc": "2024-10-10T12:30:00Z",
+   "title": "Core Inflation Rate Yoy"
+  },
+  {
+   "t_utc": "2024-10-10T12:30:00Z",
+   "title": "Inflation Rate Mom"
+  },
+  {
+   "t_utc": "2024-10-10T12:30:00Z",
+   "title": "Inflation Rate Yoy"
+  },
+  {
+   "t_utc": "2024-10-11T12:30:00Z",
+   "title": "Ppi Mom"
+  },
+  {
+   "t_utc": "2024-10-11T14:00:00Z",
+   "title": "Michigan Consumer Sentiment Prel"
+  },
+  {
+   "t_utc": "2024-10-17T12:30:00Z",
+   "title": "Retail Sales Mom"
+  },
+  {
+   "t_utc": "2024-10-18T12:30:00Z",
+   "title": "Building Permits Prel"
+  },
+  {
+   "t_utc": "2024-10-25T12:30:00Z",
+   "title": "Durable Goods Orders Mom"
+  },
+  {
+   "t_utc": "2024-10-29T14:00:00Z",
+   "title": "Jolts Job Openings"
+  },
+  {
+   "t_utc": "2024-10-30T12:30:00Z",
+   "title": "Gdp Growth Rate Qoq Adv"
+  },
+  {
+   "t_utc": "2024-10-31T12:30:00Z",
+   "title": "Core Pce Price Index Mom"
+  },
+  {
+   "t_utc": "2024-10-31T12:30:00Z",
+   "title": "Personal Income Mom"
+  },
+  {
+   "t_utc": "2024-10-31T12:30:00Z",
+   "title": "Personal Spending Mom"
+  },
+  {
+   "t_utc": "2024-11-01T12:30:00Z",
+   "title": "Non Farm Payrolls"
+  },
+  {
+   "t_utc": "2024-11-01T12:30:00Z",
+   "title": "Unemployment Rate"
+  },
+  {
+   "t_utc": "2024-11-01T14:00:00Z",
+   "title": "Ism Manufacturing Pmi"
+  },
+  {
+   "t_utc": "2024-11-05T00:00:00Z",
+   "title": "Presidential Election"
+  },
+  {
+   "t_utc": "2024-11-05T15:00:00Z",
+   "title": "Ism Services Pmi"
+  },
+  {
+   "t_utc": "2024-11-07T19:00:00Z",
+   "title": "Fed Interest Rate Decision"
+  },
+  {
+   "t_utc": "2024-11-07T19:30:00Z",
+   "title": "Fed Press Conference"
+  },
+  {
+   "t_utc": "2024-11-08T15:00:00Z",
+   "title": "Michigan Consumer Sentiment Prel"
+  },
+  {
+   "t_utc": "2024-11-13T13:30:00Z",
+   "title": "Core Inflation Rate Mom"
+  },
+  {
+   "t_utc": "2024-11-13T13:30:00Z",
+   "title": "Core Inflation Rate Yoy"
+  },
+  {
+   "t_utc": "2024-11-13T13:30:00Z",
+   "title": "Inflation Rate Mom"
+  },
+  {
+   "t_utc": "2024-11-13T13:30:00Z",
+   "title": "Inflation Rate Yoy"
+  },
+  {
+   "t_utc": "2024-11-14T13:30:00Z",
+   "title": "Ppi Mom"
+  },
+  {
+   "t_utc": "2024-11-14T20:00:00Z",
+   "title": "Fed Chair Powell Speech"
+  },
+  {
+   "t_utc": "2024-11-15T13:30:00Z",
+   "title": "Retail Sales Mom"
+  },
+  {
+   "t_utc": "2024-11-19T13:30:00Z",
+   "title": "Building Permits Prel"
+  },
+  {
+   "t_utc": "2024-11-26T19:00:00Z",
+   "title": "Fomc Minutes"
+  },
+  {
+   "t_utc": "2024-11-27T13:30:00Z",
+   "title": "Durable Goods Orders Mom"
+  },
+  {
+   "t_utc": "2024-11-27T13:30:00Z",
+   "title": "Gdp Growth Rate Qoq 2Nd Est"
+  },
+  {
+   "t_utc": "2024-11-27T15:00:00Z",
+   "title": "Core Pce Price Index Mom"
+  },
+  {
+   "t_utc": "2024-11-27T15:00:00Z",
+   "title": "Personal Income Mom"
+  },
+  {
+   "t_utc": "2024-11-27T15:00:00Z",
+   "title": "Personal Spending Mom"
+  },
+  {
+   "t_utc": "2024-12-02T15:00:00Z",
+   "title": "Ism Manufacturing Pmi"
+  },
+  {
+   "t_utc": "2024-12-03T15:00:00Z",
+   "title": "Jolts Job Openings"
+  },
+  {
+   "t_utc": "2024-12-04T15:00:00Z",
+   "title": "Ism Services Pmi"
+  },
+  {
+   "t_utc": "2024-12-04T18:40:00Z",
+   "title": "Fed Chair Powell Speech"
+  },
+  {
+   "t_utc": "2024-12-06T13:30:00Z",
+   "title": "Non Farm Payrolls"
+  },
+  {
+   "t_utc": "2024-12-06T13:30:00Z",
+   "title": "Unemployment Rate"
+  },
+  {
+   "t_utc": "2024-12-06T15:00:00Z",
+   "title": "Michigan Consumer Sentiment Prel"
+  },
+  {
+   "t_utc": "2024-12-11T13:30:00Z",
+   "title": "Core Inflation Rate Mom"
+  },
+  {
+   "t_utc": "2024-12-11T13:30:00Z",
+   "title": "Core Inflation Rate Yoy"
+  },
+  {
+   "t_utc": "2024-12-11T13:30:00Z",
+   "title": "Inflation Rate Mom"
+  },
+  {
+   "t_utc": "2024-12-11T13:30:00Z",
+   "title": "Inflation Rate Yoy"
+  },
+  {
+   "t_utc": "2024-12-12T13:30:00Z",
+   "title": "Ppi Mom"
+  },
+  {
+   "t_utc": "2024-12-17T13:30:00Z",
+   "title": "Retail Sales Mom"
+  },
+  {
+   "t_utc": "2024-12-18T13:30:00Z",
+   "title": "Building Permits Prel"
+  },
+  {
+   "t_utc": "2024-12-18T19:00:00Z",
+   "title": "Fed Interest Rate Decision"
+  },
+  {
+   "t_utc": "2024-12-18T19:00:00Z",
+   "title": "Fomc Economic Projections"
+  },
+  {
+   "t_utc": "2024-12-18T19:30:00Z",
+   "title": "Fed Press Conference"
+  },
+  {
+   "t_utc": "2024-12-19T13:30:00Z",
+   "title": "Gdp Growth Rate Qoq Final"
+  },
+  {
+   "t_utc": "2024-12-20T13:30:00Z",
+   "title": "Core Pce Price Index Mom"
+  },
+  {
+   "t_utc": "2024-12-20T13:30:00Z",
+   "title": "Personal Income Mom"
+  },
+  {
+   "t_utc": "2024-12-20T13:30:00Z",
+   "title": "Personal Spending Mom"
+  },
+  {
+   "t_utc": "2024-12-23T14:30:00Z",
+   "title": "Durable Goods Orders Mom"
+  },
+  {
+   "t_utc": "2025-01-03T15:00:00Z",
+   "title": "Ism Manufacturing Pmi"
+  },
+  {
+   "t_utc": "2025-01-07T15:00:00Z",
+   "title": "Ism Services Pmi"
+  },
+  {
+   "t_utc": "2025-01-07T15:00:00Z",
+   "title": "Jolts Job Openings"
+  },
+  {
+   "t_utc": "2025-01-08T19:00:00Z",
+   "title": "Fomc Minutes"
+  },
+  {
+   "t_utc": "2025-01-10T13:30:00Z",
+   "title": "Non Farm Payrolls"
+  },
+  {
+   "t_utc": "2025-01-10T13:30:00Z",
+   "title": "Unemployment Rate"
+  },
+  {
+   "t_utc": "2025-01-10T15:00:00Z",
+   "title": "Michigan Consumer Sentiment Prel"
+  },
+  {
+   "t_utc": "2025-01-14T13:30:00Z",
+   "title": "Ppi Mom"
+  },
+  {
+   "t_utc": "2025-01-15T13:30:00Z",
+   "title": "Core Inflation Rate Mom"
+  },
+  {
+   "t_utc": "2025-01-15T13:30:00Z",
+   "title": "Core Inflation Rate Yoy"
+  },
+  {
+   "t_utc": "2025-01-15T13:30:00Z",
+   "title": "Inflation Rate Mom"
+  },
+  {
+   "t_utc": "2025-01-15T13:30:00Z",
+   "title": "Inflation Rate Yoy"
+  },
+  {
+   "t_utc": "2025-01-16T13:30:00Z",
+   "title": "Retail Sales Mom"
+  },
+  {
+   "t_utc": "2025-01-17T13:30:00Z",
+   "title": "Building Permits Prel"
+  },
+  {
+   "t_utc": "2025-01-17T13:30:00Z",
+   "title": "Housing Starts"
+  },
+  {
+   "t_utc": "2025-01-20T00:00:00Z",
+   "title": "Inauguration Day"
+  },
+  {
+   "t_utc": "2025-01-24T15:00:00Z",
+   "title": "Existing Home Sales"
+  },
+  {
+   "t_utc": "2025-01-28T13:30:00Z",
+   "title": "Durable Goods Orders Mom"
+  },
+  {
+   "t_utc": "2025-01-29T19:00:00Z",
+   "title": "Fed Interest Rate Decision"
+  },
+  {
+   "t_utc": "2025-01-29T19:30:00Z",
+   "title": "Fed Press Conference"
+  },
+  {
+   "t_utc": "2025-01-30T13:30:00Z",
+   "title": "Gdp Growth Rate Qoq Adv"
+  },
+  {
+   "t_utc": "2025-01-31T13:30:00Z",
+   "title": "Core Pce Price Index Mom"
+  },
+  {
+   "t_utc": "2025-01-31T13:30:00Z",
+   "title": "Personal Income Mom"
+  },
+  {
+   "t_utc": "2025-01-31T13:30:00Z",
+   "title": "Personal Spending Mom"
+  },
+  {
+   "t_utc": "2025-02-03T15:00:00Z",
+   "title": "Ism Manufacturing Pmi"
+  },
+  {
+   "t_utc": "2025-02-04T15:00:00Z",
+   "title": "Jolts Job Openings"
+  },
+  {
+   "t_utc": "2025-02-05T15:00:00Z",
+   "title": "Ism Services Pmi"
+  },
+  {
+   "t_utc": "2025-02-07T13:30:00Z",
+   "title": "Non Farm Payrolls"
+  },
+  {
+   "t_utc": "2025-02-07T13:30:00Z",
+   "title": "Unemployment Rate"
+  },
+  {
+   "t_utc": "2025-02-07T15:00:00Z",
+   "title": "Michigan Consumer Sentiment Prel"
+  },
+  {
+   "t_utc": "2025-02-11T15:00:00Z",
+   "title": "Fed Chair Powell Testimony"
+  },
+  {
+   "t_utc": "2025-02-12T13:30:00Z",
+   "title": "Core Inflation Rate Mom"
+  },
+  {
+   "t_utc": "2025-02-12T13:30:00Z",
+   "title": "Core Inflation Rate Yoy"
+  },
+  {
+   "t_utc": "2025-02-12T13:30:00Z",
+   "title": "Inflation Rate Mom"
+  },
+  {
+   "t_utc": "2025-02-12T13:30:00Z",
+   "title": "Inflation Rate Yoy"
+  },
+  {
+   "t_utc": "2025-02-12T15:00:00Z",
+   "title": "Fed Chair Powell Testimony"
+  },
+  {
+   "t_utc": "2025-02-13T13:30:00Z",
+   "title": "Ppi Mom"
+  },
+  {
+   "t_utc": "2025-02-14T13:30:00Z",
+   "title": "Retail Sales Mom"
+  },
+  {
+   "t_utc": "2025-02-19T13:30:00Z",
+   "title": "Building Permits Prel"
+  },
+  {
+   "t_utc": "2025-02-19T13:30:00Z",
+   "title": "Housing Starts"
+  },
+  {
+   "t_utc": "2025-02-19T19:00:00Z",
+   "title": "Fomc Minutes"
+  },
+  {
+   "t_utc": "2025-02-21T15:00:00Z",
+   "title": "Existing Home Sales"
+  },
+  {
+   "t_utc": "2025-02-27T13:30:00Z",
+   "title": "Durable Goods Orders Mom"
+  },
+  {
+   "t_utc": "2025-02-27T13:30:00Z",
+   "title": "Gdp Growth Rate Qoq 2Nd Est"
+  },
+  {
+   "t_utc": "2025-02-28T13:30:00Z",
+   "title": "Core Pce Price Index Mom"
+  },
+  {
+   "t_utc": "2025-02-28T13:30:00Z",
+   "title": "Personal Income Mom"
+  },
+  {
+   "t_utc": "2025-02-28T13:30:00Z",
+   "title": "Personal Spending Mom"
+  },
+  {
+   "t_utc": "2025-03-03T15:00:00Z",
+   "title": "Ism Manufacturing Pmi"
+  },
+  {
+   "t_utc": "2025-03-05T15:00:00Z",
+   "title": "Ism Services Pmi"
+  },
+  {
+   "t_utc": "2025-03-07T13:30:00Z",
+   "title": "Non Farm Payrolls"
+  },
+  {
+   "t_utc": "2025-03-07T13:30:00Z",
+   "title": "Unemployment Rate"
+  },
+  {
+   "t_utc": "2025-03-07T17:30:00Z",
+   "title": "Fed Chair Powell Speech"
+  },
+  {
+   "t_utc": "2025-03-11T14:00:00Z",
+   "title": "Jolts Job Openings"
+  },
+  {
+   "t_utc": "2025-03-12T12:30:00Z",
+   "title": "Core Inflation Rate Mom"
+  },
+  {
+   "t_utc": "2025-03-12T12:30:00Z",
+   "title": "Core Inflation Rate Yoy"
+  },
+  {
+   "t_utc": "2025-03-12T12:30:00Z",
+   "title": "Inflation Rate Mom"
+  },
+  {
+   "t_utc": "2025-03-12T12:30:00Z",
+   "title": "Inflation Rate Yoy"
+  },
+  {
+   "t_utc": "2025-03-13T12:30:00Z",
+   "title": "Ppi Mom"
+  },
+  {
+   "t_utc": "2025-03-14T14:00:00Z",
+   "title": "Michigan Consumer Sentiment Prel"
+  },
+  {
+   "t_utc": "2025-03-17T12:30:00Z",
+   "title": "Retail Sales Mom"
+  },
+  {
+   "t_utc": "2025-03-18T12:30:00Z",
+   "title": "Building Permits Prel"
+  },
+  {
+   "t_utc": "2025-03-18T12:30:00Z",
+   "title": "Housing Starts"
+  },
+  {
+   "t_utc": "2025-03-19T18:00:00Z",
+   "title": "Fed Interest Rate Decision"
+  },
+  {
+   "t_utc": "2025-03-19T18:00:00Z",
+   "title": "Fomc Economic Projections"
+  },
+  {
+   "t_utc": "2025-03-19T18:30:00Z",
+   "title": "Fed Press Conference"
+  },
+  {
+   "t_utc": "2025-03-20T14:00:00Z",
+   "title": "Existing Home Sales"
+  },
+  {
+   "t_utc": "2025-03-26T12:30:00Z",
+   "title": "Durable Goods Orders Mom"
+  },
+  {
+   "t_utc": "2025-03-27T12:30:00Z",
+   "title": "Gdp Growth Rate Qoq Final"
+  },
+  {
+   "t_utc": "2025-03-28T12:30:00Z",
+   "title": "Core Pce Price Index Mom"
+  },
+  {
+   "t_utc": "2025-03-28T12:30:00Z",
+   "title": "Personal Income Mom"
+  },
+  {
+   "t_utc": "2025-03-28T12:30:00Z",
+   "title": "Personal Spending Mom"
+  },
+  {
+   "t_utc": "2025-04-01T14:00:00Z",
+   "title": "Ism Manufacturing Pmi"
+  },
+  {
+   "t_utc": "2025-04-01T14:00:00Z",
+   "title": "Jolts Job Openings"
+  },
+  {
+   "t_utc": "2025-04-02T00:00:00Z",
+   "title": "Reciprocal Tariff Plan Announcement"
+  },
+  {
+   "t_utc": "2025-04-03T14:00:00Z",
+   "title": "Ism Services Pmi"
+  },
+  {
+   "t_utc": "2025-04-04T12:30:00Z",
+   "title": "Non Farm Payrolls"
+  },
+  {
+   "t_utc": "2025-04-04T12:30:00Z",
+   "title": "Unemployment Rate"
+  },
+  {
+   "t_utc": "2025-04-04T15:25:00Z",
+   "title": "Fed Chair Powell Speech"
+  },
+  {
+   "t_utc": "2025-04-09T18:00:00Z",
+   "title": "Fomc Minutes"
+  },
+  {
+   "t_utc": "2025-04-10T12:30:00Z",
+   "title": "Core Inflation Rate Mom"
+  },
+  {
+   "t_utc": "2025-04-10T12:30:00Z",
+   "title": "Core Inflation Rate Yoy"
+  },
+  {
+   "t_utc": "2025-04-10T12:30:00Z",
+   "title": "Inflation Rate Mom"
+  },
+  {
+   "t_utc": "2025-04-10T12:30:00Z",
+   "title": "Inflation Rate Yoy"
+  },
+  {
+   "t_utc": "2025-04-11T12:30:00Z",
+   "title": "Ppi Mom"
+  },
+  {
+   "t_utc": "2025-04-11T14:00:00Z",
+   "title": "Michigan Consumer Sentiment Prel"
+  },
+  {
+   "t_utc": "2025-04-16T12:30:00Z",
+   "title": "Retail Sales Mom"
+  },
+  {
+   "t_utc": "2025-04-16T17:30:00Z",
+   "title": "Fed Chair Powell Speech"
+  },
+  {
+   "t_utc": "2025-04-17T12:30:00Z",
+   "title": "Building Permits Prel"
+  },
+  {
+   "t_utc": "2025-04-17T12:30:00Z",
+   "title": "Housing Starts"
+  },
+  {
+   "t_utc": "2025-04-24T12:30:00Z",
+   "title": "Durable Goods Orders Mom"
+  },
+  {
+   "t_utc": "2025-04-24T14:00:00Z",
+   "title": "Existing Home Sales"
+  },
+  {
+   "t_utc": "2025-04-29T14:00:00Z",
+   "title": "Jolts Job Openings"
+  },
+  {
+   "t_utc": "2025-04-30T12:30:00Z",
+   "title": "Gdp Growth Rate Qoq Adv"
+  },
+  {
+   "t_utc": "2025-04-30T14:00:00Z",
+   "title": "Core Pce Price Index Mom"
+  },
+  {
+   "t_utc": "2025-04-30T14:00:00Z",
+   "title": "Personal Income Mom"
+  },
+  {
+   "t_utc": "2025-04-30T14:00:00Z",
+   "title": "Personal Spending Mom"
+  },
+  {
+   "t_utc": "2025-05-01T14:00:00Z",
+   "title": "Ism Manufacturing Pmi"
+  },
+  {
+   "t_utc": "2025-05-02T12:30:00Z",
+   "title": "Non Farm Payrolls"
+  },
+  {
+   "t_utc": "2025-05-02T12:30:00Z",
+   "title": "Unemployment Rate"
+  },
+  {
+   "t_utc": "2025-05-05T14:00:00Z",
+   "title": "Ism Services Pmi"
+  },
+  {
+   "t_utc": "2025-05-07T18:00:00Z",
+   "title": "Fed Interest Rate Decision"
+  },
+  {
+   "t_utc": "2025-05-07T18:30:00Z",
+   "title": "Fed Press Conference"
+  },
+  {
+   "t_utc": "2025-05-13T12:30:00Z",
+   "title": "Core Inflation Rate Mom"
+  },
+  {
+   "t_utc": "2025-05-13T12:30:00Z",
+   "title": "Core Inflation Rate Yoy"
+  },
+  {
+   "t_utc": "2025-05-13T12:30:00Z",
+   "title": "Inflation Rate Mom"
+  },
+  {
+   "t_utc": "2025-05-13T12:30:00Z",
+   "title": "Inflation Rate Yoy"
+  },
+  {
+   "t_utc": "2025-05-15T12:30:00Z",
+   "title": "Ppi Mom"
+  },
+  {
+   "t_utc": "2025-05-15T12:30:00Z",
+   "title": "Retail Sales Mom"
+  },
+  {
+   "t_utc": "2025-05-16T12:30:00Z",
+   "title": "Building Permits Prel"
+  },
+  {
+   "t_utc": "2025-05-16T12:30:00Z",
+   "title": "Housing Starts"
+  },
+  {
+   "t_utc": "2025-05-16T14:00:00Z",
+   "title": "Michigan Consumer Sentiment Prel"
+  },
+  {
+   "t_utc": "2025-05-22T14:00:00Z",
+   "title": "Existing Home Sales"
+  },
+  {
+   "t_utc": "2025-05-27T12:30:00Z",
+   "title": "Durable Goods Orders Mom"
+  },
+  {
+   "t_utc": "2025-05-28T18:00:00Z",
+   "title": "Fomc Minutes"
+  },
+  {
+   "t_utc": "2025-05-29T12:30:00Z",
+   "title": "Gdp Growth Rate Qoq 2Nd Est"
+  },
+  {
+   "t_utc": "2025-05-30T12:30:00Z",
+   "title": "Core Pce Price Index Mom"
+  },
+  {
+   "t_utc": "2025-05-30T12:30:00Z",
+   "title": "Personal Income Mom"
+  },
+  {
+   "t_utc": "2025-05-30T12:30:00Z",
+   "title": "Personal Spending Mom"
+  },
+  {
+   "t_utc": "2025-06-02T14:00:00Z",
+   "title": "Ism Manufacturing Pmi"
+  },
+  {
+   "t_utc": "2025-06-02T17:00:00Z",
+   "title": "Fed Chair Powell Speech"
+  },
+  {
+   "t_utc": "2025-06-03T14:00:00Z",
+   "title": "Jolts Job Openings"
+  },
+  {
+   "t_utc": "2025-06-04T14:00:00Z",
+   "title": "Ism Services Pmi"
+  },
+  {
+   "t_utc": "2025-06-06T12:30:00Z",
+   "title": "Non Farm Payrolls"
+  },
+  {
+   "t_utc": "2025-06-06T12:30:00Z",
+   "title": "Unemployment Rate"
+  },
+  {
+   "t_utc": "2025-06-11T12:30:00Z",
+   "title": "Core Inflation Rate Mom"
+  },
+  {
+   "t_utc": "2025-06-11T12:30:00Z",
+   "title": "Core Inflation Rate Yoy"
+  },
+  {
+   "t_utc": "2025-06-11T12:30:00Z",
+   "title": "Inflation Rate Mom"
+  },
+  {
+   "t_utc": "2025-06-11T12:30:00Z",
+   "title": "Inflation Rate Yoy"
+  },
+  {
+   "t_utc": "2025-06-12T12:30:00Z",
+   "title": "Ppi Mom"
+  },
+  {
+   "t_utc": "2025-06-13T14:00:00Z",
+   "title": "Michigan Consumer Sentiment Prel"
+  },
+  {
+   "t_utc": "2025-06-17T12:30:00Z",
+   "title": "Retail Sales Mom"
+  },
+  {
+   "t_utc": "2025-06-18T12:30:00Z",
+   "title": "Building Permits Prel"
+  },
+  {
+   "t_utc": "2025-06-18T12:30:00Z",
+   "title": "Housing Starts"
+  },
+  {
+   "t_utc": "2025-06-18T18:00:00Z",
+   "title": "Fed Interest Rate Decision"
+  },
+  {
+   "t_utc": "2025-06-18T18:00:00Z",
+   "title": "Fomc Economic Projections"
+  },
+  {
+   "t_utc": "2025-06-18T18:30:00Z",
+   "title": "Fed Press Conference"
+  },
+  {
+   "t_utc": "2025-06-23T14:00:00Z",
+   "title": "Existing Home Sales"
+  },
+  {
+   "t_utc": "2025-06-24T14:00:00Z",
+   "title": "Fed Chair Powell Testimony"
+  },
+  {
+   "t_utc": "2025-06-25T14:00:00Z",
+   "title": "Fed Chair Powell Testimony"
+  },
+  {
+   "t_utc": "2025-06-26T12:30:00Z",
+   "title": "Durable Goods Orders Mom"
+  },
+  {
+   "t_utc": "2025-06-26T12:30:00Z",
+   "title": "Gdp Growth Rate Qoq Final"
+  },
+  {
+   "t_utc": "2025-06-27T12:30:00Z",
+   "title": "Core Pce Price Index Mom"
+  },
+  {
+   "t_utc": "2025-06-27T12:30:00Z",
+   "title": "Personal Income Mom"
+  },
+  {
+   "t_utc": "2025-06-27T12:30:00Z",
+   "title": "Personal Spending Mom"
+  },
+  {
+   "t_utc": "2025-07-01T14:00:00Z",
+   "title": "Ism Manufacturing Pmi"
+  },
+  {
+   "t_utc": "2025-07-01T14:00:00Z",
+   "title": "Jolts Job Openings"
+  },
+  {
+   "t_utc": "2025-07-03T12:30:00Z",
+   "title": "Non Farm Payrolls"
+  },
+  {
+   "t_utc": "2025-07-03T12:30:00Z",
+   "title": "Unemployment Rate"
+  },
+  {
+   "t_utc": "2025-07-03T14:00:00Z",
+   "title": "Ism Services Pmi"
+  },
+  {
+   "t_utc": "2025-07-09T18:00:00Z",
+   "title": "Fomc Minutes"
+  },
+  {
+   "t_utc": "2025-07-15T12:30:00Z",
+   "title": "Core Inflation Rate Mom"
+  },
+  {
+   "t_utc": "2025-07-15T12:30:00Z",
+   "title": "Core Inflation Rate Yoy"
+  },
+  {
+   "t_utc": "2025-07-15T12:30:00Z",
+   "title": "Inflation Rate Mom"
+  },
+  {
+   "t_utc": "2025-07-15T12:30:00Z",
+   "title": "Inflation Rate Yoy"
+  },
+  {
+   "t_utc": "2025-07-16T12:30:00Z",
+   "title": "Ppi Mom"
+  },
+  {
+   "t_utc": "2025-07-17T12:30:00Z",
+   "title": "Retail Sales Mom"
+  },
+  {
+   "t_utc": "2025-07-18T12:30:00Z",
+   "title": "Building Permits Prel"
+  },
+  {
+   "t_utc": "2025-07-18T12:30:00Z",
+   "title": "Housing Starts"
+  },
+  {
+   "t_utc": "2025-07-18T14:00:00Z",
+   "title": "Michigan Consumer Sentiment Prel"
+  },
+  {
+   "t_utc": "2025-07-22T12:30:00Z",
+   "title": "Fed Chair Powell Speech"
+  },
+  {
+   "t_utc": "2025-07-23T14:00:00Z",
+   "title": "Existing Home Sales"
+  },
+  {
+   "t_utc": "2025-07-25T12:30:00Z",
+   "title": "Durable Goods Orders Mom"
+  },
+  {
+   "t_utc": "2025-07-29T14:00:00Z",
+   "title": "Jolts Job Openings"
+  },
+  {
+   "t_utc": "2025-07-30T12:30:00Z",
+   "title": "Gdp Growth Rate Qoq Adv"
+  },
+  {
+   "t_utc": "2025-07-30T18:00:00Z",
+   "title": "Fed Interest Rate Decision"
+  },
+  {
+   "t_utc": "2025-07-30T18:30:00Z",
+   "title": "Fed Press Conference"
+  },
+  {
+   "t_utc": "2025-07-31T12:30:00Z",
+   "title": "Core Pce Price Index Mom"
+  },
+  {
+   "t_utc": "2025-07-31T12:30:00Z",
+   "title": "Personal Income Mom"
+  },
+  {
+   "t_utc": "2025-07-31T12:30:00Z",
+   "title": "Personal Spending Mom"
+  },
+  {
+   "t_utc": "2025-08-01T12:30:00Z",
+   "title": "Non Farm Payrolls"
+  },
+  {
+   "t_utc": "2025-08-01T12:30:00Z",
+   "title": "Unemployment Rate"
+  },
+  {
+   "t_utc": "2025-08-01T14:00:00Z",
+   "title": "Ism Manufacturing Pmi"
+  },
+  {
+   "t_utc": "2025-08-05T14:00:00Z",
+   "title": "Ism Services Pmi"
+  },
+  {
+   "t_utc": "2025-08-12T12:30:00Z",
+   "title": "Core Inflation Rate Mom"
+  },
+  {
+   "t_utc": "2025-08-12T12:30:00Z",
+   "title": "Core Inflation Rate Yoy"
+  },
+  {
+   "t_utc": "2025-08-12T12:30:00Z",
+   "title": "Inflation Rate Mom"
+  },
+  {
+   "t_utc": "2025-08-12T12:30:00Z",
+   "title": "Inflation Rate Yoy"
+  },
+  {
+   "t_utc": "2025-08-14T12:30:00Z",
+   "title": "Ppi Mom"
+  },
+  {
+   "t_utc": "2025-08-15T12:30:00Z",
+   "title": "Retail Sales Mom"
+  },
+  {
+   "t_utc": "2025-08-15T14:00:00Z",
+   "title": "Michigan Consumer Sentiment Prel"
+  },
+  {
+   "t_utc": "2025-08-19T12:30:00Z",
+   "title": "Building Permits Prel"
+  },
+  {
+   "t_utc": "2025-08-19T12:30:00Z",
+   "title": "Housing Starts"
+  },
+  {
+   "t_utc": "2025-08-20T18:00:00Z",
+   "title": "Fomc Minutes"
+  },
+  {
+   "t_utc": "2025-08-21T14:00:00Z",
+   "title": "Existing Home Sales"
+  },
+  {
+   "t_utc": "2025-08-22T14:00:00Z",
+   "title": "Fed Chair Powell Speech"
+  },
+  {
+   "t_utc": "2025-08-26T12:30:00Z",
+   "title": "Durable Goods Orders Mom"
+  },
+  {
+   "t_utc": "2025-08-28T12:30:00Z",
+   "title": "Gdp Growth Rate Qoq 2Nd Est"
+  },
+  {
+   "t_utc": "2025-08-29T12:30:00Z",
+   "title": "Core Pce Price Index Mom"
+  },
+  {
+   "t_utc": "2025-08-29T12:30:00Z",
+   "title": "Personal Income Mom"
+  },
+  {
+   "t_utc": "2025-08-29T12:30:00Z",
+   "title": "Personal Spending Mom"
+  },
+  {
+   "t_utc": "2025-09-02T14:00:00Z",
+   "title": "Ism Manufacturing Pmi"
+  },
+  {
+   "t_utc": "2025-09-03T14:00:00Z",
+   "title": "Jolts Job Openings"
+  },
+  {
+   "t_utc": "2025-09-04T14:00:00Z",
+   "title": "Ism Services Pmi"
+  },
+  {
+   "t_utc": "2025-09-05T12:30:00Z",
+   "title": "Non Farm Payrolls"
+  },
+  {
+   "t_utc": "2025-09-05T12:30:00Z",
+   "title": "Unemployment Rate"
+  },
+  {
+   "t_utc": "2025-09-09T14:00:00Z",
+   "title": "Non Farm Payrolls Annual Revision"
+  },
+  {
+   "t_utc": "2025-09-10T12:30:00Z",
+   "title": "Ppi Mom"
+  },
+  {
+   "t_utc": "2025-09-11T12:30:00Z",
+   "title": "Core Inflation Rate Mom"
+  },
+  {
+   "t_utc": "2025-09-11T12:30:00Z",
+   "title": "Core Inflation Rate Yoy"
+  },
+  {
+   "t_utc": "2025-09-11T12:30:00Z",
+   "title": "Inflation Rate Mom"
+  },
+  {
+   "t_utc": "2025-09-11T12:30:00Z",
+   "title": "Inflation Rate Yoy"
+  },
+  {
+   "t_utc": "2025-09-12T14:00:00Z",
+   "title": "Michigan Consumer Sentiment Prel"
+  },
+  {
+   "t_utc": "2025-09-16T12:30:00Z",
+   "title": "Retail Sales Mom"
+  },
+  {
+   "t_utc": "2025-09-17T12:30:00Z",
+   "title": "Building Permits Prel"
+  },
+  {
+   "t_utc": "2025-09-17T12:30:00Z",
+   "title": "Housing Starts"
+  },
+  {
+   "t_utc": "2025-09-17T18:00:00Z",
+   "title": "Fed Interest Rate Decision"
+  },
+  {
+   "t_utc": "2025-09-17T18:00:00Z",
+   "title": "Fomc Economic Projections"
+  },
+  {
+   "t_utc": "2025-09-17T18:30:00Z",
+   "title": "Fed Press Conference"
+  },
+  {
+   "t_utc": "2025-09-23T16:35:00Z",
+   "title": "Fed Chair Powell Speech"
+  },
+  {
+   "t_utc": "2025-09-25T12:30:00Z",
+   "title": "Durable Goods Orders Mom"
+  },
+  {
+   "t_utc": "2025-09-25T12:30:00Z",
+   "title": "Gdp Growth Rate Qoq Final"
+  },
+  {
+   "t_utc": "2025-09-25T13:45:00Z",
+   "title": "Existing Home Sales"
+  },
+  {
+   "t_utc": "2025-09-26T12:30:00Z",
+   "title": "Core Pce Price Index Mom"
+  },
+  {
+   "t_utc": "2025-09-26T12:30:00Z",
+   "title": "Personal Income Mom"
+  },
+  {
+   "t_utc": "2025-09-26T12:30:00Z",
+   "title": "Personal Spending Mom"
+  },
+  {
+   "t_utc": "2025-09-30T14:00:00Z",
+   "title": "Jolts Job Openings"
+  },
+  {
+   "t_utc": "2025-10-01T14:00:00Z",
+   "title": "Ism Manufacturing Pmi"
+  },
+  {
+   "t_utc": "2025-10-03T14:00:00Z",
+   "title": "Ism Services Pmi"
+  },
+  {
+   "t_utc": "2025-10-08T18:00:00Z",
+   "title": "Fomc Minutes"
+  },
+  {
+   "t_utc": "2025-10-10T14:00:00Z",
+   "title": "Michigan Consumer Sentiment Prel"
+  },
+  {
+   "t_utc": "2025-10-14T16:20:00Z",
+   "title": "Fed Chair Powell Speech"
+  },
+  {
+   "t_utc": "2025-10-23T14:00:00Z",
+   "title": "Existing Home Sales"
+  },
+  {
+   "t_utc": "2025-10-24T12:30:00Z",
+   "title": "Core Inflation Rate Mom"
+  },
+  {
+   "t_utc": "2025-10-24T12:30:00Z",
+   "title": "Core Inflation Rate Yoy"
+  },
+  {
+   "t_utc": "2025-10-24T12:30:00Z",
+   "title": "Inflation Rate Mom"
+  },
+  {
+   "t_utc": "2025-10-24T12:30:00Z",
+   "title": "Inflation Rate Yoy"
+  },
+  {
+   "t_utc": "2025-10-29T18:00:00Z",
+   "title": "Fed Interest Rate Decision"
+  },
+  {
+   "t_utc": "2025-10-29T18:30:00Z",
+   "title": "Fed Press Conference"
+  },
+  {
+   "t_utc": "2025-10-30T12:30:00Z",
+   "title": "Gdp Growth Rate Qoq Adv"
+  },
+  {
+   "t_utc": "2025-11-03T15:00:00Z",
+   "title": "Ism Manufacturing Pmi"
+  },
+  {
+   "t_utc": "2025-11-05T15:00:00Z",
+   "title": "Ism Services Pmi"
+  },
+  {
+   "t_utc": "2025-11-07T13:30:00Z",
+   "title": "Unemployment Rate"
+  },
+  {
+   "t_utc": "2025-11-07T15:00:00Z",
+   "title": "Michigan Consumer Sentiment Prel"
+  },
+  {
+   "t_utc": "2025-11-13T13:30:00Z",
+   "title": "Core Inflation Rate Mom"
+  },
+  {
+   "t_utc": "2025-11-13T13:30:00Z",
+   "title": "Core Inflation Rate Yoy"
+  },
+  {
+   "t_utc": "2025-11-13T13:30:00Z",
+   "title": "Inflation Rate Mom"
+  },
+  {
+   "t_utc": "2025-11-13T13:30:00Z",
+   "title": "Inflation Rate Yoy"
+  },
+  {
+   "t_utc": "2025-11-19T19:00:00Z",
+   "title": "Fomc Minutes"
+  },
+  {
+   "t_utc": "2025-11-20T13:30:00Z",
+   "title": "Non Farm Payrolls"
+  },
+  {
+   "t_utc": "2025-11-20T13:30:00Z",
+   "title": "Unemployment Rate"
+  },
+  {
+   "t_utc": "2025-11-20T15:00:00Z",
+   "title": "Existing Home Sales"
+  },
+  {
+   "t_utc": "2025-11-25T13:30:00Z",
+   "title": "Ppi Mom"
+  },
+  {
+   "t_utc": "2025-11-25T13:30:00Z",
+   "title": "Retail Sales Mom"
+  },
+  {
+   "t_utc": "2025-11-26T13:30:00Z",
+   "title": "Durable Goods Orders Mom"
+  },
+  {
+   "t_utc": "2025-12-01T15:00:00Z",
+   "title": "Ism Manufacturing Pmi"
+  },
+  {
+   "t_utc": "2025-12-03T15:00:00Z",
+   "title": "Ism Services Pmi"
+  },
+  {
+   "t_utc": "2025-12-05T15:00:00Z",
+   "title": "Core Pce Price Index Mom"
+  },
+  {
+   "t_utc": "2025-12-05T15:00:00Z",
+   "title": "Michigan Consumer Sentiment Prel"
+  },
+  {
+   "t_utc": "2025-12-05T15:00:00Z",
+   "title": "Personal Income Mom"
+  },
+  {
+   "t_utc": "2025-12-05T15:00:00Z",
+   "title": "Personal Spending Mom"
+  },
+  {
+   "t_utc": "2025-12-09T15:00:00Z",
+   "title": "Jolts Job Openings"
+  },
+  {
+   "t_utc": "2025-12-10T19:00:00Z",
+   "title": "Fed Interest Rate Decision"
+  },
+  {
+   "t_utc": "2025-12-10T19:00:00Z",
+   "title": "Fomc Economic Projections"
+  },
+  {
+   "t_utc": "2025-12-10T19:30:00Z",
+   "title": "Fed Press Conference"
+  },
+  {
+   "t_utc": "2025-12-16T13:30:00Z",
+   "title": "Non Farm Payrolls"
+  },
+  {
+   "t_utc": "2025-12-16T13:30:00Z",
+   "title": "Retail Sales Mom"
+  },
+  {
+   "t_utc": "2025-12-16T13:30:00Z",
+   "title": "Unemployment Rate"
+  },
+  {
+   "t_utc": "2025-12-18T00:00:00Z",
+   "title": "Inflation Rate Mom"
+  },
+  {
+   "t_utc": "2025-12-18T13:30:00Z",
+   "title": "Core Inflation Rate Mom"
+  },
+  {
+   "t_utc": "2025-12-18T13:30:00Z",
+   "title": "Core Inflation Rate Yoy"
+  },
+  {
+   "t_utc": "2025-12-18T13:30:00Z",
+   "title": "Inflation Rate Yoy"
+  },
+  {
+   "t_utc": "2025-12-19T15:00:00Z",
+   "title": "Existing Home Sales"
+  },
+  {
+   "t_utc": "2025-12-20T02:00:00Z",
+   "title": "Us President Trump Speech"
+  },
+  {
+   "t_utc": "2025-12-23T13:30:00Z",
+   "title": "Durable Goods Orders Mom"
+  },
+  {
+   "t_utc": "2025-12-23T13:30:00Z",
+   "title": "Gdp Growth Rate Qoq"
+  },
+  {
+   "t_utc": "2025-12-30T19:00:00Z",
+   "title": "Fomc Minutes"
+  },
+  {
+   "t_utc": "2026-01-05T15:00:00Z",
+   "title": "Ism Manufacturing Pmi"
+  },
+  {
+   "t_utc": "2026-01-07T15:00:00Z",
+   "title": "Ism Services Pmi"
+  },
+  {
+   "t_utc": "2026-01-07T15:00:00Z",
+   "title": "Jolts Job Openings"
+  },
+  {
+   "t_utc": "2026-01-09T13:30:00Z",
+   "title": "Building Permits Prel"
+  },
+  {
+   "t_utc": "2026-01-09T13:30:00Z",
+   "title": "Housing Starts"
+  },
+  {
+   "t_utc": "2026-01-09T13:30:00Z",
+   "title": "Non Farm Payrolls"
+  },
+  {
+   "t_utc": "2026-01-09T13:30:00Z",
+   "title": "Unemployment Rate"
+  },
+  {
+   "t_utc": "2026-01-09T15:00:00Z",
+   "title": "Michigan Consumer Sentiment Prel"
+  },
+  {
+   "t_utc": "2026-01-13T13:30:00Z",
+   "title": "Core Inflation Rate Mom"
+  },
+  {
+   "t_utc": "2026-01-13T13:30:00Z",
+   "title": "Core Inflation Rate Yoy"
+  },
+  {
+   "t_utc": "2026-01-13T13:30:00Z",
+   "title": "Inflation Rate Mom"
+  },
+  {
+   "t_utc": "2026-01-13T13:30:00Z",
+   "title": "Inflation Rate Yoy"
+  },
+  {
+   "t_utc": "2026-01-14T13:30:00Z",
+   "title": "Ppi Mom"
+  },
+  {
+   "t_utc": "2026-01-14T13:30:00Z",
+   "title": "Retail Sales Mom"
+  },
+  {
+   "t_utc": "2026-01-14T15:00:00Z",
+   "title": "Existing Home Sales"
+  },
+  {
+   "t_utc": "2026-01-22T13:30:00Z",
+   "title": "Gdp Growth Rate Qoq Final"
+  },
+  {
+   "t_utc": "2026-01-22T15:00:00Z",
+   "title": "Core Pce Price Index Mom"
+  },
+  {
+   "t_utc": "2026-01-22T15:00:00Z",
+   "title": "Personal Income Mom"
+  },
+  {
+   "t_utc": "2026-01-22T15:00:00Z",
+   "title": "Personal Spending Mom"
+  },
+  {
+   "t_utc": "2026-01-26T13:30:00Z",
+   "title": "Durable Goods Orders Mom"
+  },
+  {
+   "t_utc": "2026-01-28T19:00:00Z",
+   "title": "Fed Interest Rate Decision"
+  },
+  {
+   "t_utc": "2026-01-28T19:30:00Z",
+   "title": "Fed Press Conference"
+  },
+  {
+   "t_utc": "2026-01-30T13:30:00Z",
+   "title": "Ppi Mom"
+  },
+  {
+   "t_utc": "2026-02-02T15:00:00Z",
+   "title": "Ism Manufacturing Pmi"
+  },
+  {
+   "t_utc": "2026-02-04T15:00:00Z",
+   "title": "Ism Services Pmi"
+  },
+  {
+   "t_utc": "2026-02-05T15:00:00Z",
+   "title": "Jolts Job Openings"
+  },
+  {
+   "t_utc": "2026-02-06T15:00:00Z",
+   "title": "Michigan Consumer Sentiment Prel"
+  },
+  {
+   "t_utc": "2026-02-10T13:30:00Z",
+   "title": "Retail Sales Mom"
+  },
+  {
+   "t_utc": "2026-02-11T13:30:00Z",
+   "title": "Non Farm Payrolls"
+  },
+  {
+   "t_utc": "2026-02-11T13:30:00Z",
+   "title": "Unemployment Rate"
+  },
+  {
+   "t_utc": "2026-02-12T15:00:00Z",
+   "title": "Existing Home Sales"
+  },
+  {
+   "t_utc": "2026-02-13T13:30:00Z",
+   "title": "Core Inflation Rate Mom"
+  },
+  {
+   "t_utc": "2026-02-13T13:30:00Z",
+   "title": "Core Inflation Rate Yoy"
+  },
+  {
+   "t_utc": "2026-02-13T13:30:00Z",
+   "title": "Inflation Rate Mom"
+  },
+  {
+   "t_utc": "2026-02-13T13:30:00Z",
+   "title": "Inflation Rate Yoy"
+  },
+  {
+   "t_utc": "2026-02-18T13:30:00Z",
+   "title": "Building Permits Prel"
+  },
+  {
+   "t_utc": "2026-02-18T13:30:00Z",
+   "title": "Durable Goods Orders Mom"
+  },
+  {
+   "t_utc": "2026-02-18T13:30:00Z",
+   "title": "Housing Starts"
+  },
+  {
+   "t_utc": "2026-02-18T19:00:00Z",
+   "title": "Fomc Minutes"
+  },
+  {
+   "t_utc": "2026-02-20T13:30:00Z",
+   "title": "Core Pce Price Index Mom"
+  },
+  {
+   "t_utc": "2026-02-20T13:30:00Z",
+   "title": "Gdp Growth Rate Qoq Adv"
+  },
+  {
+   "t_utc": "2026-02-20T13:30:00Z",
+   "title": "Personal Income Mom"
+  },
+  {
+   "t_utc": "2026-02-20T13:30:00Z",
+   "title": "Personal Spending Mom"
+  },
+  {
+   "t_utc": "2026-02-25T02:00:00Z",
+   "title": "President Trump State Of The Union Speech"
+  },
+  {
+   "t_utc": "2026-02-27T13:30:00Z",
+   "title": "Ppi Mom"
+  },
+  {
+   "t_utc": "2026-03-02T15:00:00Z",
+   "title": "Ism Manufacturing Pmi"
+  },
+  {
+   "t_utc": "2026-03-04T15:00:00Z",
+   "title": "Ism Services Pmi"
+  },
+  {
+   "t_utc": "2026-03-06T13:30:00Z",
+   "title": "Non Farm Payrolls"
+  },
+  {
+   "t_utc": "2026-03-06T13:30:00Z",
+   "title": "Retail Sales Mom"
+  },
+  {
+   "t_utc": "2026-03-06T13:30:00Z",
+   "title": "Unemployment Rate"
+  },
+  {
+   "t_utc": "2026-03-10T14:00:00Z",
+   "title": "Existing Home Sales"
+  },
+  {
+   "t_utc": "2026-03-11T12:30:00Z",
+   "title": "Core Inflation Rate Mom"
+  },
+  {
+   "t_utc": "2026-03-11T12:30:00Z",
+   "title": "Core Inflation Rate Yoy"
+  },
+  {
+   "t_utc": "2026-03-11T12:30:00Z",
+   "title": "Inflation Rate Mom"
+  },
+  {
+   "t_utc": "2026-03-11T12:30:00Z",
+   "title": "Inflation Rate Yoy"
+  },
+  {
+   "t_utc": "2026-03-12T12:30:00Z",
+   "title": "Building Permits Prel"
+  },
+  {
+   "t_utc": "2026-03-12T12:30:00Z",
+   "title": "Housing Starts"
+  },
+  {
+   "t_utc": "2026-03-13T12:30:00Z",
+   "title": "Core Pce Price Index Mom"
+  },
+  {
+   "t_utc": "2026-03-13T12:30:00Z",
+   "title": "Durable Goods Orders Mom"
+  },
+  {
+   "t_utc": "2026-03-13T12:30:00Z",
+   "title": "Gdp Growth Rate Qoq 2Nd Est"
+  },
+  {
+   "t_utc": "2026-03-13T12:30:00Z",
+   "title": "Personal Income Mom"
+  },
+  {
+   "t_utc": "2026-03-13T12:30:00Z",
+   "title": "Personal Spending Mom"
+  },
+  {
+   "t_utc": "2026-03-13T14:00:00Z",
+   "title": "Jolts Job Openings"
+  },
+  {
+   "t_utc": "2026-03-13T14:00:00Z",
+   "title": "Michigan Consumer Sentiment Prel"
+  },
+  {
+   "t_utc": "2026-03-18T12:30:00Z",
+   "title": "Ppi Mom"
+  },
+  {
+   "t_utc": "2026-03-18T18:00:00Z",
+   "title": "Fed Interest Rate Decision"
+  },
+  {
+   "t_utc": "2026-03-18T18:00:00Z",
+   "title": "Fomc Economic Projections"
+  },
+  {
+   "t_utc": "2026-03-18T18:30:00Z",
+   "title": "Fed Press Conference"
+  },
+  {
+   "t_utc": "2026-03-31T14:00:00Z",
+   "title": "Jolts Job Openings"
+  },
+  {
+   "t_utc": "2026-04-01T12:30:00Z",
+   "title": "Retail Sales Mom"
+  },
+  {
+   "t_utc": "2026-04-01T14:00:00Z",
+   "title": "Ism Manufacturing Pmi"
+  },
+  {
+   "t_utc": "2026-04-02T01:00:00Z",
+   "title": "Us President Trump Speech"
+  },
+  {
+   "t_utc": "2026-04-03T12:30:00Z",
+   "title": "Non Farm Payrolls"
+  },
+  {
+   "t_utc": "2026-04-03T12:30:00Z",
+   "title": "Unemployment Rate"
+  },
+  {
+   "t_utc": "2026-04-06T14:00:00Z",
+   "title": "Ism Services Pmi"
+  },
+  {
+   "t_utc": "2026-04-07T12:30:00Z",
+   "title": "Durable Goods Orders Mom"
+  },
+  {
+   "t_utc": "2026-04-08T18:00:00Z",
+   "title": "Fomc Minutes"
+  },
+  {
+   "t_utc": "2026-04-09T12:30:00Z",
+   "title": "Core Pce Price Index Mom"
+  },
+  {
+   "t_utc": "2026-04-09T12:30:00Z",
+   "title": "Gdp Growth Rate Qoq Final"
+  },
+  {
+   "t_utc": "2026-04-09T12:30:00Z",
+   "title": "Personal Income Mom"
+  },
+  {
+   "t_utc": "2026-04-09T12:30:00Z",
+   "title": "Personal Spending Mom"
+  },
+  {
+   "t_utc": "2026-04-10T12:30:00Z",
+   "title": "Core Inflation Rate Mom"
+  },
+  {
+   "t_utc": "2026-04-10T12:30:00Z",
+   "title": "Core Inflation Rate Yoy"
+  },
+  {
+   "t_utc": "2026-04-10T12:30:00Z",
+   "title": "Inflation Rate Mom"
+  },
+  {
+   "t_utc": "2026-04-10T12:30:00Z",
+   "title": "Inflation Rate Yoy"
+  },
+  {
+   "t_utc": "2026-04-10T14:00:00Z",
+   "title": "Michigan Consumer Sentiment Prel"
+  },
+  {
+   "t_utc": "2026-04-13T14:00:00Z",
+   "title": "Existing Home Sales"
+  },
+  {
+   "t_utc": "2026-04-14T12:30:00Z",
+   "title": "Ppi Mom"
+  },
+  {
+   "t_utc": "2026-04-21T12:30:00Z",
+   "title": "Retail Sales Mom"
+  },
+  {
+   "t_utc": "2026-04-29T12:30:00Z",
+   "title": "Building Permits Prel"
+  },
+  {
+   "t_utc": "2026-04-29T12:30:00Z",
+   "title": "Durable Goods Orders Mom"
+  },
+  {
+   "t_utc": "2026-04-29T12:30:00Z",
+   "title": "Housing Starts"
+  },
+  {
+   "t_utc": "2026-04-29T18:00:00Z",
+   "title": "Fed Interest Rate Decision"
+  },
+  {
+   "t_utc": "2026-04-29T18:30:00Z",
+   "title": "Fed Press Conference"
+  },
+  {
+   "t_utc": "2026-04-30T12:30:00Z",
+   "title": "Core Pce Price Index Mom"
+  },
+  {
+   "t_utc": "2026-04-30T12:30:00Z",
+   "title": "Gdp Growth Rate Qoq Adv"
+  },
+  {
+   "t_utc": "2026-04-30T12:30:00Z",
+   "title": "Personal Income Mom"
+  },
+  {
+   "t_utc": "2026-04-30T12:30:00Z",
+   "title": "Personal Spending Mom"
+  },
+  {
+   "t_utc": "2026-05-01T14:00:00Z",
+   "title": "Ism Manufacturing Pmi"
+  },
+  {
+   "t_utc": "2026-05-05T14:00:00Z",
+   "title": "Ism Services Pmi"
+  },
+  {
+   "t_utc": "2026-05-05T14:00:00Z",
+   "title": "Jolts Job Openings"
+  },
+  {
+   "t_utc": "2026-05-08T12:30:00Z",
+   "title": "Non Farm Payrolls"
+  },
+  {
+   "t_utc": "2026-05-08T12:30:00Z",
+   "title": "Unemployment Rate"
+  },
+  {
+   "t_utc": "2026-05-08T14:00:00Z",
+   "title": "Michigan Consumer Sentiment Prel"
+  },
+  {
+   "t_utc": "2026-05-11T14:00:00Z",
+   "title": "Existing Home Sales"
+  },
+  {
+   "t_utc": "2026-05-12T12:30:00Z",
+   "title": "Core Inflation Rate Mom"
+  },
+  {
+   "t_utc": "2026-05-12T12:30:00Z",
+   "title": "Core Inflation Rate Yoy"
+  },
+  {
+   "t_utc": "2026-05-12T12:30:00Z",
+   "title": "Inflation Rate Mom"
+  },
+  {
+   "t_utc": "2026-05-12T12:30:00Z",
+   "title": "Inflation Rate Yoy"
+  },
+  {
+   "t_utc": "2026-05-13T12:30:00Z",
+   "title": "Ppi Mom"
+  },
+  {
+   "t_utc": "2026-05-14T12:30:00Z",
+   "title": "Retail Sales Mom"
+  },
+  {
+   "t_utc": "2026-05-20T18:00:00Z",
+   "title": "Fomc Minutes"
+  },
+  {
+   "t_utc": "2026-05-21T12:30:00Z",
+   "title": "Building Permits Prel"
+  },
+  {
+   "t_utc": "2026-05-21T12:30:00Z",
+   "title": "Housing Starts"
+  },
+  {
+   "t_utc": "2026-05-28T12:30:00Z",
+   "title": "Core Pce Price Index Mom"
+  },
+  {
+   "t_utc": "2026-05-28T12:30:00Z",
+   "title": "Durable Goods Orders Mom"
+  },
+  {
+   "t_utc": "2026-05-28T12:30:00Z",
+   "title": "Gdp Growth Rate Qoq 2Nd Est"
+  },
+  {
+   "t_utc": "2026-05-28T12:30:00Z",
+   "title": "Personal Income Mom"
+  },
+  {
+   "t_utc": "2026-05-28T12:30:00Z",
+   "title": "Personal Spending Mom"
+  },
+  {
+   "t_utc": "2026-06-01T14:00:00Z",
+   "title": "Ism Manufacturing Pmi"
+  },
+  {
+   "t_utc": "2026-06-02T14:00:00Z",
+   "title": "Jolts Job Openings"
+  },
+  {
+   "t_utc": "2026-06-03T14:00:00Z",
+   "title": "Ism Services Pmi"
+  },
+  {
+   "t_utc": "2026-06-05T12:30:00Z",
+   "title": "Non Farm Payrolls"
+  },
+  {
+   "t_utc": "2026-06-05T12:30:00Z",
+   "title": "Unemployment Rate"
+  },
+  {
+   "t_utc": "2026-06-09T14:00:00Z",
+   "title": "Existing Home Sales"
+  },
+  {
+   "t_utc": "2026-06-10T12:30:00Z",
+   "title": "Core Inflation Rate Mom"
+  },
+  {
+   "t_utc": "2026-06-10T12:30:00Z",
+   "title": "Core Inflation Rate Yoy"
+  },
+  {
+   "t_utc": "2026-06-10T12:30:00Z",
+   "title": "Inflation Rate Mom"
+  },
+  {
+   "t_utc": "2026-06-10T12:30:00Z",
+   "title": "Inflation Rate Yoy"
+  },
+  {
+   "t_utc": "2026-06-11T12:30:00Z",
+   "title": "Ppi Mom"
+  },
+  {
+   "t_utc": "2026-06-12T14:00:00Z",
+   "title": "Michigan Consumer Sentiment Prel"
+  },
+  {
+   "t_utc": "2026-06-16T12:30:00Z",
+   "title": "Building Permits Prel"
+  },
+  {
+   "t_utc": "2026-06-16T12:30:00Z",
+   "title": "Housing Starts"
+  },
+  {
+   "t_utc": "2026-06-17T12:30:00Z",
+   "title": "Retail Sales Mom"
+  },
+  {
+   "t_utc": "2026-06-17T18:00:00Z",
+   "title": "Fed Interest Rate Decision"
+  },
+  {
+   "t_utc": "2026-06-17T18:00:00Z",
+   "title": "Fomc Economic Projections"
+  },
+  {
+   "t_utc": "2026-06-17T18:30:00Z",
+   "title": "Fed Press Conference"
+  },
+  {
+   "t_utc": "2026-06-25T12:30:00Z",
+   "title": "Core Pce Price Index Mom"
+  },
+  {
+   "t_utc": "2026-06-25T12:30:00Z",
+   "title": "Durable Goods Orders Mom"
+  },
+  {
+   "t_utc": "2026-06-25T12:30:00Z",
+   "title": "Gdp Growth Rate Qoq Final"
+  },
+  {
+   "t_utc": "2026-06-25T12:30:00Z",
+   "title": "Personal Income Mom"
+  },
+  {
+   "t_utc": "2026-06-25T12:30:00Z",
+   "title": "Personal Spending Mom"
+  },
+  {
+   "t_utc": "2026-06-30T14:00:00Z",
+   "title": "Jolts Job Openings"
+  },
+  {
+   "t_utc": "2026-07-01T13:00:00Z",
+   "title": "Fed Chair Warsh Speech"
+  },
+  {
+   "t_utc": "2026-07-01T14:00:00Z",
+   "title": "Ism Manufacturing Pmi"
+  },
+  {
+   "t_utc": "2026-07-02T12:30:00Z",
+   "title": "Non Farm Payrolls"
+  },
+  {
+   "t_utc": "2026-07-02T12:30:00Z",
+   "title": "Unemployment Rate"
+  },
+  {
+   "t_utc": "2026-07-06T14:00:00Z",
+   "title": "Ism Services Pmi"
+  },
+  {
+   "t_utc": "2026-07-08T18:00:00Z",
+   "title": "Fomc Minutes"
+  },
+  {
+   "t_utc": "2026-07-09T14:00:00Z",
+   "title": "Existing Home Sales"
+  },
+  {
+   "t_utc": "2026-07-14T12:30:00Z",
+   "title": "Core Inflation Rate Mom"
+  },
+  {
+   "t_utc": "2026-07-14T12:30:00Z",
+   "title": "Core Inflation Rate Yoy"
+  },
+  {
+   "t_utc": "2026-07-14T12:30:00Z",
+   "title": "Inflation Rate Mom"
+  },
+  {
+   "t_utc": "2026-07-14T12:30:00Z",
+   "title": "Inflation Rate Yoy"
+  },
+  {
+   "t_utc": "2026-07-14T14:00:00Z",
+   "title": "Fed Chair Warsh Testimony"
+  },
+  {
+   "t_utc": "2026-07-15T12:30:00Z",
+   "title": "Ppi Mom"
+  },
+  {
+   "t_utc": "2026-07-15T14:00:00Z",
+   "title": "Fed Chair Warsh Testimony"
+  },
+  {
+   "t_utc": "2026-07-16T12:30:00Z",
+   "title": "Retail Sales Mom"
+  },
+  {
+   "t_utc": "2026-07-17T12:30:00Z",
+   "title": "Building Permits Prel"
+  },
+  {
+   "t_utc": "2026-07-17T12:30:00Z",
+   "title": "Housing Starts"
+  },
+  {
+   "t_utc": "2026-07-17T14:00:00Z",
+   "title": "Michigan Consumer Sentiment Prel"
+  },
+  {
+   "t_utc": "2026-07-27T12:30:00Z",
+   "title": "Durable Goods Orders Mom"
+  },
+  {
+   "t_utc": "2026-07-29T18:00:00Z",
+   "title": "Fed Interest Rate Decision"
+  },
+  {
+   "t_utc": "2026-07-29T18:30:00Z",
+   "title": "Fed Press Conference"
+  },
+  {
+   "t_utc": "2026-07-30T12:30:00Z",
+   "title": "Core Pce Price Index Mom"
+  },
+  {
+   "t_utc": "2026-07-30T12:30:00Z",
+   "title": "Gdp Growth Rate Qoq Adv"
+  },
+  {
+   "t_utc": "2026-07-30T12:30:00Z",
+   "title": "Personal Income Mom"
+  },
+  {
+   "t_utc": "2026-07-30T12:30:00Z",
+   "title": "Personal Spending Mom"
+  },
+  {
+   "t_utc": "2026-08-03T14:00:00Z",
+   "title": "Ism Manufacturing Pmi"
+  },
+  {
+   "t_utc": "2026-08-04T14:00:00Z",
+   "title": "Jolts Job Openings"
+  },
+  {
+   "t_utc": "2026-08-05T14:00:00Z",
+   "title": "Ism Services Pmi"
+  },
+  {
+   "t_utc": "2026-08-07T12:30:00Z",
+   "title": "Non Farm Payrolls"
+  },
+  {
+   "t_utc": "2026-08-07T12:30:00Z",
+   "title": "Unemployment Rate"
+  },
+  {
+   "t_utc": "2026-08-11T14:00:00Z",
+   "title": "Existing Home Sales"
+  },
+  {
+   "t_utc": "2026-08-12T12:30:00Z",
+   "title": "Core Inflation Rate Mom"
+  },
+  {
+   "t_utc": "2026-08-12T12:30:00Z",
+   "title": "Core Inflation Rate Yoy"
+  },
+  {
+   "t_utc": "2026-08-12T12:30:00Z",
+   "title": "Inflation Rate Mom"
+  },
+  {
+   "t_utc": "2026-08-12T12:30:00Z",
+   "title": "Inflation Rate Yoy"
+  },
+  {
+   "t_utc": "2026-08-13T12:30:00Z",
+   "title": "Ppi Mom"
+  },
+  {
+   "t_utc": "2026-08-14T12:30:00Z",
+   "title": "Retail Sales Mom"
+  },
+  {
+   "t_utc": "2026-08-14T14:00:00Z",
+   "title": "Michigan Consumer Sentiment Prel"
+  },
+  {
+   "t_utc": "2026-08-18T12:30:00Z",
+   "title": "Building Permits Prel"
+  },
+  {
+   "t_utc": "2026-08-18T12:30:00Z",
+   "title": "Housing Starts"
+  },
+  {
+   "t_utc": "2026-08-19T18:00:00Z",
+   "title": "Fomc Minutes"
+  },
+  {
+   "t_utc": "2026-08-26T12:30:00Z",
+   "title": "Core Pce Price Index Mom"
+  },
+  {
+   "t_utc": "2026-08-26T12:30:00Z",
+   "title": "Durable Goods Orders Mom"
+  },
+  {
+   "t_utc": "2026-08-26T12:30:00Z",
+   "title": "Gdp Growth Rate Qoq 2Nd Est"
+  },
+  {
+   "t_utc": "2026-08-26T12:30:00Z",
+   "title": "Personal Income Mom"
+  },
+  {
+   "t_utc": "2026-08-26T12:30:00Z",
+   "title": "Personal Spending Mom"
+  },
+  {
+   "t_utc": "2026-08-28T14:00:00Z",
+   "title": "Fed Chair Warsh Speech"
+  },
+  {
+   "t_utc": "2026-08-28T14:00:00Z",
+   "title": "Non Farm Payrolls Annual Revision Prel"
+  },
+  {
+   "t_utc": "2026-09-01T14:00:00Z",
+   "title": "Ism Manufacturing Pmi"
+  },
+  {
+   "t_utc": "2026-09-01T14:00:00Z",
+   "title": "Jolts Job Openings"
+  },
+  {
+   "t_utc": "2026-09-03T14:00:00Z",
+   "title": "Ism Services Pmi"
+  },
+  {
+   "t_utc": "2026-09-04T12:30:00Z",
+   "title": "Non Farm Payrolls"
+  },
+  {
+   "t_utc": "2026-09-04T12:30:00Z",
+   "title": "Unemployment Rate"
+  },
+  {
+   "t_utc": "2026-09-10T12:30:00Z",
+   "title": "Ppi Mom"
+  },
+  {
+   "t_utc": "2026-09-10T14:00:00Z",
+   "title": "Existing Home Sales"
+  },
+  {
+   "t_utc": "2026-09-11T12:30:00Z",
+   "title": "Core Inflation Rate Mom"
+  },
+  {
+   "t_utc": "2026-09-11T12:30:00Z",
+   "title": "Core Inflation Rate Yoy"
+  },
+  {
+   "t_utc": "2026-09-11T12:30:00Z",
+   "title": "Inflation Rate Mom"
+  },
+  {
+   "t_utc": "2026-09-11T12:30:00Z",
+   "title": "Inflation Rate Yoy"
+  },
+  {
+   "t_utc": "2026-09-11T14:00:00Z",
+   "title": "Michigan Consumer Sentiment Prel"
+  },
+  {
+   "t_utc": "2026-09-16T12:30:00Z",
+   "title": "Retail Sales Mom"
+  },
+  {
+   "t_utc": "2026-09-16T18:00:00Z",
+   "title": "Fed Interest Rate Decision"
+  },
+  {
+   "t_utc": "2026-09-16T18:00:00Z",
+   "title": "Fomc Economic Projections"
+  },
+  {
+   "t_utc": "2026-09-16T18:30:00Z",
+   "title": "Fed Press Conference"
+  },
+  {
+   "t_utc": "2026-09-17T12:30:00Z",
+   "title": "Building Permits Prel"
+  },
+  {
+   "t_utc": "2026-09-17T12:30:00Z",
+   "title": "Housing Starts"
+  }
+ ]
+}

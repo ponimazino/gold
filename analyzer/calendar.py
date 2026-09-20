@@ -12,11 +12,15 @@ Fakta yang sudah diverifikasi (Sep 2026):
 
 from __future__ import annotations
 
+import json
 import re
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from zoneinfo import ZoneInfo
 
 import requests
+
+from . import store
 
 WIB = ZoneInfo("Asia/Jakarta")
 UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
@@ -29,9 +33,18 @@ FF_FEEDS = [
 ]
 
 # Aturan jeda entry (dipakai mesin rekomendasi P5 & banner UI):
-# jangan buka posisi baru dari 2 jam sebelum hingga 1 jam sesudah rilis.
+# jangan buka posisi baru dari 2 jam sebelum hingga 3 jam sesudah rilis.
 BLACKOUT_BEFORE_H = 2.0
-BLACKOUT_AFTER_H = 1.0
+BLACKOUT_AFTER_H = 3.0
+# Pasca-event 3 jam (bukan 1) — divalidasi data 2026-09-20 (arsip 835 event
+# 3-star US x bar H1 3 tahun, scripts/audit_events.py LOKAL): volatilitas
+# |close-to-close|/ATR14 bar rilis 2,24x baseline, +1h 1,72x, +2h 1,38x,
+# normal kembali di +3h; EV sinyal kolam produksi (net) di jendela
+# +0..+3h pasca-event −0,25R (n=118) — sekarang sinyal di +1..+3h yang
+# tadinya boleh entry jadi "tunggu". Pra-event dipertahankan 2 jam demi
+# risiko ekor (slippage/gap menembus SL saat rilis — backtest R menganggap
+# fill SL persis, optimis saat spike), walau EV backtest pra-event
+# justru positif (+0,15R n=66).
 
 ROW_RE = re.compile(
     r'<tr data-url="[^"]*"\s*data-id="\d+"\s*data-country="([^"]+)"[^>]*?data-event="([^"]*)"',
@@ -158,6 +171,73 @@ def collect_calendar() -> tuple[list[dict], str, str]:
 
 def parse_utc(ts: str) -> datetime:
     return datetime.fromisoformat(ts.replace("Z", "+00:00"))
+
+
+# ---- arsip event 3-star historis (batch 2026-09-20) ----
+# data/events_hist.json = semua event 3-star US yang SUDAH LEWAT (seed
+# 3 tahun via TE paginasi; dilanjutkan otomatis oleh job fundamental tiap
+# run — feed memuat ±7 hari ke belakang, job jalan tiap 3 jam, jadi tidak
+# ada yang lolos). Dipakai backtest kondisi event: validasi jendela
+# blackout + EV pola di sekitar rilis. Tanpa arsip ini, analisa korelasi
+# event tidak mungkin (feed cuma punya event ke depan).
+
+HIST_FILE = "events_hist.json"
+
+
+def load_hist() -> list[dict]:
+    """Event 3-star US historis dari arsip (urut waktu). Kosong kalau
+    arsip belum ada — pemanggil harus tangani pool kosong dengan jujur."""
+    path = store.DATA_DIR / HIST_FILE
+    if not path.exists():
+        return []
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return []
+    events = data.get("events")
+    if not isinstance(events, list):
+        return []
+    return sorted(
+        (e for e in events if isinstance(e, dict) and e.get("t_utc")
+         and e.get("title")),
+        key=lambda e: e["t_utc"])
+
+
+def archive_past(events: list[dict], now: datetime | None = None) -> int:
+    """Merge event yang SUDAH LEWAT dari feed ke arsip. Idempotent per
+    (t_utc, title). Return jumlah baris baru yang ditambahkan. Event ke
+    depan TIDAK diarsip (masih bisa bergeser jadwalnya)."""
+    now = now or datetime.now(timezone.utc)
+    path = store.DATA_DIR / HIST_FILE
+    hist = load_hist()
+    have = {(e["t_utc"], e["title"]) for e in hist}
+    added = 0
+    for e in sorted(events, key=lambda e: e.get("t_utc", "")):
+        when = e.get("t_utc")
+        title = e.get("title")
+        if not when or not title:
+            continue
+        try:
+            if parse_utc(when) > now:
+                continue  # masih ke depan — jangan arsip
+        except ValueError:
+            continue
+        if (when, title) in have:
+            continue
+        have.add((when, title))
+        hist.append({"t_utc": when, "title": title})
+        added += 1
+    if added:
+        hist.sort(key=lambda e: e["t_utc"])
+        store.write_json(HIST_FILE, {
+            "updated_at": now.strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "source": "tradingeconomics",
+            "note": ("arsip event 3-star US untuk backtest kondisi event "
+                     "(seed 2023-09 -> 2026-09 via TE; auto-append oleh "
+                     "job fundamental)"),
+            "events": hist,
+        })
+    return added
 
 
 def active_blackout(events: list[dict], now: datetime | None = None) -> dict | None:

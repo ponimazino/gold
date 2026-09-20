@@ -22,7 +22,6 @@ import {
   BookOpen,
   CalendarDays,
   Check,
-  ChevronDown,
   CircleHelp,
   CircleSlash,
   Clock3,
@@ -49,6 +48,9 @@ import {
 } from "lucide-react";
 import {
   activeBlackout,
+  APP_NAME,
+  APP_UPDATED_WIB,
+  APP_VERSION,
   countdown,
   DashboardData,
   fetchSpot,
@@ -827,7 +829,7 @@ function AnalysisView({ data, now }: { data: DashboardData; now: number }) {
           <div className="panel-header"><div><div className="panel-kicker">What changes the view</div><h2>Invalidation map</h2></div><AlertTriangle size={18} className="amber-icon" /></div>
           <div className="invalidation-list">
             <div><span className="number-badge">01</span><p><b>{lv ? `H1 close ${bias === "bearish" ? "di atas" : "di bawah"} ${fmtUsd(lv.sl)}` : "Setup batal bila struktur berbalik"}</b><br /><small>Menghapus dasar pola dan menurunkan bobot skenario.</small></p></div>
-            <div><span className="number-badge">02</span><p><b>{rec.next_event ? `Kejutan data: ${rec.next_event.title}` : "Kejutan data high-impact"}</b><br /><small>Re-score asumsi volatilitas di sekitar rilis; jeda entry −2h..+1h otomatis.</small></p></div>
+            <div><span className="number-badge">02</span><p><b>{rec.next_event ? `Kejutan data: ${rec.next_event.title}` : "Kejutan data high-impact"}</b><br /><small>Re-score asumsi volatilitas di sekitar rilis; jeda entry −2h..+3h otomatis.</small></p></div>
             <div><span className="number-badge">03</span><p><b>Wick tanpa konfirmasi close</b><br /><small>Jangan perlakukan wick sebagai konfirmasi; butuh close dan follow-through.</small></p></div>
           </div>
         </div>
@@ -1741,8 +1743,7 @@ export default function Home() {
           </div>
           <div className="profile">
             <div className="avatar">GP</div>
-            <div><b>Growth desk</b><span>Research workspace</span></div>
-            <ChevronDown size={14} />
+            <div><b>{APP_NAME} v{APP_VERSION}</b><span>Update kode terakhir: {APP_UPDATED_WIB}</span></div>
           </div>
         </div>
       </aside>

@@ -41,6 +41,12 @@ def main() -> int:
         print(f"[fundamental] [!] sedang dalam jeda entry: {blk['event']['title']} "
               f"({blk['minutes_to_event']:+d} menit dari rilis)")
 
+    # arsip event yang sudah lewat -> data/events_hist.json (idempotent;
+    # dipakai backtest kondisi event — batch 2026-09-20)
+    added = cal.archive_past(events, now=now)
+    total = len(cal.load_hist())
+    print(f"[fundamental] arsip event: +{added} baru (total {total} historis)")
+
     items = news.collect_news(now)
     store.write_json("news.json", {
         "updated_at": stamp,

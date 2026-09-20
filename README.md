@@ -89,11 +89,9 @@ analyzer/
     research.py        statistik pola historis -> data/patterns.json
     fundamental.py     kalender + berita -> data/calendar.json + data/news.json
     daily.py           05:37 WIB: research + rekomendasi + nilai tracking (P5)
-index.html             PWA shell (mobile-first, dark)
-app.js                 chart lightweight-charts + toggle H1/H4 + harga live XAUS.com
-style.css              tema dark mobile
-sw.js                  service worker: app shell offline, data network-first
-manifest.webmanifest   PWA manifest (installable di HP)
+web/                    frontend produksi GoldPulse (React 19 + Vite + recharts;
+                        PWA sendiri di web/public — manifest + sw.js; deploy Vercel Root Directory = web;
+                        PWA vanilla lama di root SUDAH DIHAPUS 2026-09-20)
 data/
   xauusd_1h.json       candle H1 (UTC)
   xauusd_4h.json       candle H4 (UTC)
@@ -103,6 +101,7 @@ data/
   news.json            berita kredibel 24 jam terakhir
   recommendation.json  rekomendasi hari ini (job daily) — dibaca kartu di UI
   tracking.json        riwayat + hasil (win/loss/timeout) semua rekomendasi + hit-rate
+  events_hist.json     arsip event 3-star US yang sudah lewat (backtest kondisi event)
 tools/make_synth_data.py  data sintetis untuk dev UI (jangan pernah commit)
 .github/workflows/
   sync.yml             cron tiap jam + commit data
