@@ -1,0 +1,72 @@
+name: WA Preview
+
+# Dispatch ONLY — kirim 2 pesan CONTOH ke nomor WA terdaftar lewat copywriting
+# asli analyzer/wa.py (entry_message + agenda_message), untuk review teks.
+# Tidak menulis wa_state.json (dedup produksi tidak tersenggol): pesan dikirim
+# via wa._send langsung, bukan wa.dispatch. Jalankan: tab Actions > WA Preview
+# > Run workflow. Aman dihapus kapan pun tanpa efek ke produksi.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install requests
+        run: pip install requests
+
+      - name: Kirim 2 pesan preview (agenda + entry)
+        env:
+          FONNTE_TOKEN: ${{ secrets.FONNTE_TOKEN }}
+          FONNTE_TARGET: ${{ secrets.FONNTE_TARGET }}
+        run: |
+          python - <<'EOF'
+          import sys
+          from datetime import datetime, timezone
+          sys.path.insert(0, ".")
+          from analyzer import wa
+
+          now = datetime.now(timezone.utc)
+
+          # pesan 1: AGENDA — event 3-star hari ini (WIB) kalau ada,
+          # kalau kosong pakai contoh realistis supaya copywriting tetap kelihatan
+          evs = wa._events_today(now)
+          if evs:
+              print(f"agenda: {len(evs)} event 3-star hari ini")
+          else:
+              print("agenda: tidak ada event 3-star hari ini — pakai contoh")
+              evs = [{"title": "CPI y/y", "t_wib": "19:30"},
+                     {"title": "Fed Chair Speaks", "t_wib": "21:00"}]
+          msg_agenda = wa.agenda_message(evs)
+
+          # pesan 2: ENTRY — contoh level realistis (level live 20 Sep: ~4348)
+          rec = {
+              "status": "entry", "bias": "bearish", "pattern": "inside_bar",
+              "confidence": 0.52,
+              "created_at": now.strftime("%Y-%m-%dT%H:%M:%SZ"),
+              "levels": {"entry": 4348.40, "sl": 4363.40, "tp1": 4325.90,
+                         "atr14": 15.0},
+          }
+          msg_entry = wa.entry_message(rec)
+
+          print("--- pesan agenda ---")
+          print(msg_agenda)
+          print("--- pesan entry ---")
+          print(msg_entry)
+          print("--- kirim ---")
+          s1 = wa._send(msg_agenda)
+          s2 = wa._send(msg_entry)
+          print(f"agenda -> {s1}, entry -> {s2}")
+          if s1 != "ok" or s2 != "ok":
+              raise SystemExit(1)
+          EOF
