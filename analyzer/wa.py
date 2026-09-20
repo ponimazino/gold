@@ -72,30 +72,45 @@ def save_state(state: dict, now: datetime) -> None:
 
 # ---- pembangun pesan (dipisah supaya bisa dites tanpa jaringan) ----
 
+# Nama hari/bulan Indonesia (hardcoded — locale runner tidak dijamin).
+_HARI = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"]
+_BULAN = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli",
+          "Agustus", "September", "Oktober", "November", "Desember"]
+
+
 def entry_message(rec: dict) -> str:
-    """Pesan WA untuk rekomendasi status 'entry'."""
+    """Pesan WA untuk rekomendasi status 'entry' (format review user
+    2026-09-21: judul 'Daily Recommendation Setup', bias dulu baru pola,
+    tiap level baris sendiri, peluang historis = confidence)."""
     lv = rec.get("levels") or {}
     pola = PATTERN_LABELS.get(rec.get("pattern") or "", rec.get("pattern") or "pola H1")
     arah = ARAH.get(rec.get("bias") or "", rec.get("bias") or "netral")
-    out = (f"GoldPulse — setup entry hari ini\n\n"
-           f"{pola} searah trend H4 — bias {arah}.\n"
-           f"Entry {lv.get('entry', 0):,.2f} · SL {lv.get('sl', 0):,.2f} · "
-           f"TP1 {lv.get('tp1', 0):,.2f} (USD/oz).")
+    out = (f"GoldPulse — Daily Recommendation Setup\n\n"
+           f"Bias: {arah}\n"
+           f"Pola: {pola} searah trend H4\n"
+           f"Entry: {lv.get('entry', 0):,.2f} USD/oz\n"
+           f"SL: {lv.get('sl', 0):,.2f}\n"
+           f"TP1: {lv.get('tp1', 0):,.2f}")
     conf = rec.get("confidence")
     if conf is not None:
-        out += f"\nPeluang historis {round(conf * 100)}%."
+        out += f"\nPeluang historis: {round(conf * 100)}%."
     return out
 
 
-def agenda_message(events: list[dict]) -> str:
-    """Pesan WA agenda: daftar event 3★ hari itu (t_wib sudah diisi)."""
+def agenda_message(events: list[dict], now: datetime | None = None) -> str:
+    """Pesan WA agenda: daftar event 3★ hari itu (t_wib sudah diisi).
+    Judul menyebut tanggal hari itu (WIB) — event 3★ itu langka, tanggal
+    memudahkan mencari pesan lama di riwayat WA."""
+    now = now or datetime.now(timezone.utc)
+    d = now.astimezone(WIB)
+    tanggal = f"{_HARI[d.weekday()]}, {d.day} {_BULAN[d.month - 1]} {d.year}"
     lines = []
     for e in events[:MAX_AGENDA_EVENTS]:
         lines.append(f"• {e['title']} — {e['t_wib']}")
     extra = len(events) - len(lines)
     if extra > 0:
         lines.append(f"• (+{extra} event lagi)")
-    return ("GoldPulse — agenda event hari ini\n\n"
+    return (f"GoldPulse — Event ({tanggal})\n\n"
             "Event bintang-3 AS hari ini (WIB):\n" + "\n".join(lines) +
             "\nJeda entry otomatis −2j..+3j tiap event.")
 
@@ -162,7 +177,7 @@ def dispatch(rec: dict, now: datetime | None = None,
     if events_today and state.get("agenda_date") != today:
         first_utc = events_today[0]["t_utc_dt"]
         if now >= first_utc - timedelta(hours=AGENDA_LEAD_H):
-            st = _send(agenda_message(events_today))
+            st = _send(agenda_message(events_today, now=now))
             status = st or status
             if st == "ok":
                 state["agenda_date"] = today

@@ -51,19 +51,25 @@ def _write_calendar(events: list[dict]) -> None:
 
 def test_entry_message() -> None:
     m = wa.entry_message(_rec())
-    assert "GoldPulse" in m and "Inside Bar" in m, m
-    assert "2,300.00" in m and "TP1 2,315.00" in m, m
-    assert "TURUN (sell)" in m, m
-    assert "45%" in m, m
-    print("ok: pesan entry (judul + pola + level + peluang)")
+    assert "GoldPulse — Daily Recommendation Setup" in m, m
+    # bias dulu, baru keterangan pola; tiap level baris sendiri
+    assert m.index("Bias:") < m.index("Pola:"), m
+    assert "Bias: TURUN (sell)" in m, m
+    assert "Pola: Inside Bar searah trend H4" in m, m
+    assert "Entry: 2,300.00 USD/oz" in m, m
+    assert "\nSL: 2,290.00" in m and "\nTP1: 2,315.00" in m, m
+    assert "Peluang historis: 45%" in m, m
+    print("ok: pesan entry (judul baru + bias dulu + level per baris + peluang)")
 
 
 def test_agenda_message() -> None:
     evs = [{"title": "CPI", "t_wib": "19:30"}, {"title": "Fed Chair", "t_wib": "21:00"}]
-    m = wa.agenda_message(evs)
+    now = datetime(2026, 9, 9, 10, 0, tzinfo=timezone.utc)  # Rabu WIB
+    m = wa.agenda_message(evs, now=now)
+    assert "GoldPulse — Event (Rabu, 9 September 2026)" in m, m
     assert "CPI" in m and "19:30" in m and "Fed Chair" in m, m
     assert "2j..+3j" in m, m  # "−2j..+3j" (minus unicode)
-    print("ok: pesan agenda (daftar event WIB + catatan jeda)")
+    print("ok: pesan agenda (judul bertanggal WIB + daftar event + catatan jeda)")
 
 
 def test_dispatch_skips_without_secrets() -> None:
