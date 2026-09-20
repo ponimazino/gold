@@ -127,7 +127,7 @@ def agenda_payload(events: list[dict]) -> dict:
     if extra > 0:
         lines.append(f"• (+{extra} event lagi)")
     body = ("Event bintang-3 AS hari ini (WIB):\n" + "\n".join(lines) +
-            "\nJeda entry otomatis −2j..+1j tiap event.")
+            "\nJeda entry otomatis −2j..+3j tiap event.")
     return {
         "title": "GoldPulse — agenda event hari ini",
         "body": body,

@@ -63,6 +63,10 @@ jobs:
           PUSH_VAPID_PRIVATE_KEY: ${{ secrets.PUSH_VAPID_PRIVATE_KEY }}
           PUSH_CONTACT_EMAIL: ${{ secrets.PUSH_CONTACT_EMAIL }}
           PUSH_SUBSCRIPTIONS: ${{ secrets.PUSH_SUBSCRIPTIONS }}
+          # WhatsApp via Fonnte (2026-09-20): token device + nomor WA tujuan
+          # (format 62xxxxxxxxxx). Kosong = pesan WA dilewati tanpa error.
+          FONNTE_TOKEN: ${{ secrets.FONNTE_TOKEN }}
+          FONNTE_TARGET: ${{ secrets.FONNTE_TARGET }}
         run: |
           git config user.name "analyzer-bot"
           git config user.email "actions@users.noreply.github.com"

@@ -14,9 +14,13 @@ Urutan langkah (penting):
      harian per 1 jam lengkap, jam tanpa setup kelihatan 'skip')
   6. web push (PWA, Web Push VAPID): notif entry + agenda event 3★ (H-3, 1x/hari).
      Butuh secrets PUSH_* di workflow — kalau kosong, dilewati tanpa error.
+  7. WhatsApp via Fonnte (2026-09-20, kanal tambahan): pesan yang sama persis
+     (entry + agenda, dedup terpisah di data/wa_state.json). Butuh secrets
+     FONNTE_TOKEN + FONNTE_TARGET — kalau kosong, dilewati tanpa error.
 
-Notifikasi hanya Web Push ke PWA milik sendiri (2026-09-09, permintaan user);
-Telegram tetap terlarang. Output utama tetap di web, dibuka user kapan pun.
+Notifikasi = Web Push PWA + WhatsApp Fonnte (permintaan user 2026-09-09 +
+2026-09-20); Telegram tetap terlarang. Output utama tetap di web, dibuka user
+kapan pun.
 """
 
 from __future__ import annotations
@@ -24,7 +28,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 
-from .. import push, recommend, reclog, store, track
+from .. import push, recommend, reclog, store, track, wa
 from ..backtest import DEFAULT_HORIZON
 from ..config import INTERVALS
 from . import research
@@ -161,6 +165,13 @@ def main() -> int:
         push.dispatch(rec, now=now, entry_recorded=entry_recorded)
     except Exception as exc:  # notif = bonus, jangan gagalkan analisa
         print(f"[daily] push error (tidak fatal): {exc}")
+
+    # 6b. WhatsApp Fonnte: pesan entry + agenda yang sama (dedup terpisah
+    #     di wa_state.json — gagal satu kanal tidak membatalkan kanal lain).
+    try:
+        wa.dispatch(rec, now=now, entry_recorded=entry_recorded)
+    except Exception as exc:  # notif = bonus, jangan gagalkan analisa
+        print(f"[daily] wa error (tidak fatal): {exc}")
 
     s = tracking["stats"]
     print(f"[daily] bias: {rec['bias']}  status: {rec['status']}  "

@@ -62,7 +62,7 @@ def test_agenda_payload() -> None:
     evs = [{"title": "CPI", "t_wib": "19:30"}, {"title": "Fed Chair", "t_wib": "21:00"}]
     p = push.agenda_payload(evs)
     assert "CPI" in p["body"] and "19:30" in p["body"], p
-    assert "2j..+1j" in p["body"], p  # "−2j..+1j" (minus unicode)
+    assert "2j..+3j" in p["body"], p  # "−2j..+3j" (minus unicode)
     assert p["tag"] == "agenda" and p["url"] == "#/calendar", p
     print("ok: payload agenda (daftar event WIB + catatan jeda)")
 
