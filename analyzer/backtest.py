@@ -21,8 +21,9 @@ DEFAULT_HORIZON = {"1h": 24, "4h": 12}  # bar
 SAFE_TP_ATR = 1.0
 SAFE_SL_ATR = 0.75
 
-# TP kedua rekomendasi (runner): 3x ATR.
-TP2_ATR = 3.0
+# TP2 (runner 3xATR) DIHAPUS (keputusan user 2026-09-20): sistem kini
+# TP1-only — feedback loop memang selalu resolve di TP1, TP2 tidak pernah
+# memengaruhi statistik; level yang tampil = level yang dinilai.
 
 # Biaya transaksi (spread) flat per round-trip, USD/oz. Spread akun standar
 # XAUUSD ~30-50 cent/oz (ECN 10-25); 0.35 = titik tengah yang konservatif.
@@ -88,74 +89,6 @@ def evaluate(
             outcome = "timeout"
             r = pnl / sl_dist
         results.append({**s, "entry": entry, "outcome": outcome, "r": round(r, 3), "bars": bars})
-    return results
-
-
-def evaluate_tp2(
-    df: pd.DataFrame,
-    signals: list[dict],
-    horizon: int,
-    tp1_atr: float = DEFAULT_TP_ATR,
-    tp2_atr: float = TP2_ATR,
-    sl_atr: float = DEFAULT_SL_ATR,
-) -> list[dict]:
-    """Skenario manajemen posisi "runner" untuk TP2 rekomendasi:
-
-    entry & SL standar (SL 1xATR); begitu TP1 (1.5xATR) tercapai, SL dipindah
-    ke breakeven (level entry) dan posisi sisa mengejar TP2 (3xATR).
-
-    Outcome per sinyal:
-      "stopped" — SL kena sebelum TP1
-      "no_tp1"  — horizon habis tanpa TP1
-      "tp2"     — TP2 tercapai setelah TP1 (SL sudah di breakeven)
-      "be"      — setelah TP1, harga kembali ke entry (exit breakeven)
-      "timeout" — setelah TP1, horizon habis sebelum TP2/BE
-    """
-    results = []
-    for s in signals:
-        i = s["index"]
-        if i + 1 >= len(df):
-            continue
-        entry_idx = i + 1
-        entry = float(df["o"].iloc[entry_idx])
-        atr = float(df["atr14"].iloc[i])
-        if atr <= 0:
-            continue
-        d = s["dir"]
-        tp1 = entry + d * tp1_atr * atr
-        tp2 = entry + d * tp2_atr * atr
-        sl = entry - d * sl_atr * atr
-
-        outcome, bars = None, 0
-        seeking_tp1 = True
-        end = min(entry_idx + horizon, len(df))
-        for j in range(entry_idx, end):
-            bar = df.iloc[j]
-            bars = j - entry_idx + 1
-            hit_sl = bar["l"] <= sl if d == 1 else bar["h"] >= sl
-            hit_tp1 = bar["h"] >= tp1 if d == 1 else bar["l"] <= tp1
-            hit_tp2 = bar["h"] >= tp2 if d == 1 else bar["l"] <= tp2
-            hit_be = bar["l"] <= entry if d == 1 else bar["h"] >= entry
-            if seeking_tp1:
-                if hit_sl:  # konservatif: SL dicek dulu
-                    outcome = "stopped"
-                    break
-                if hit_tp1:
-                    seeking_tp1 = False
-                    sl = entry  # SL naik ke breakeven
-                    if hit_tp2:  # bar besar: TP1 & TP2 di bar yang sama
-                        outcome = "tp2"
-                        break
-            else:
-                if hit_be:  # konservatif: BE dicek dulu
-                    outcome = "be"
-                    break
-                if hit_tp2:
-                    outcome = "tp2"
-                    break
-        if outcome is None:
-            outcome = "no_tp1" if seeking_tp1 else "timeout"
-        results.append({**s, "entry": entry, "outcome": outcome, "bars": bars})
     return results
 
 

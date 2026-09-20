@@ -487,51 +487,37 @@ def build(now: datetime | None = None) -> dict:
         story.append(Paragraph(
             "Belum cukup sampel pola (n>=50) untuk pembacaan yang berarti.", S_BODY))
 
-    # 5b. TP2 (runner) + statistik risiko per pola — dihitung dari data H1
-    #     saat laporan dibuat (harian, jadi biaya hitung tidak masalah).
+    # 5b. Statistik risiko per pola (TP1-only — TP2 runner dihapus 2026-09-20)
+    #     — dihitung dari data H1 saat laporan dibuat (harian, biaya aman).
     if bars1h:
         df1 = research.bars_to_df(bars1h)
         sigs1 = research.dedup_signals(pat.detect_signals(df1, "1h"))
         ind1 = pat.add_indicators(df1)
         hz = backtest.DEFAULT_HORIZON["1h"]
         std1 = backtest.evaluate(ind1, sigs1, hz)
-        tp2_1 = backtest.evaluate_tp2(ind1, sigs1, hz)
         risk1 = backtest.risk_stats(std1)
-        tp2_by: dict[str, dict] = {}
-        for r in tp2_1:
-            m = tp2_by.setdefault(r["pattern"], {"n": 0, "tp1": 0, "tp2": 0, "be": 0})
-            m["n"] += 1
-            if r["outcome"] in ("tp2", "be", "timeout"):  # posisi yang mencapai TP1
-                m["tp1"] += 1
-                if r["outcome"] == "tp2":
-                    m["tp2"] += 1
-                elif r["outcome"] == "be":
-                    m["be"] += 1
-        if tp2_by:
-            rows = [["Pola H1", "Sinyal", "Capai TP1", "Capai TP2",
-                     "Peluang TP2*", "Exit BE", "Max DD (R)", "Loss runtun"]]
-            for pname in sorted(tp2_by, key=lambda p: -tp2_by[p]["n"]):
-                m = tp2_by[pname]
-                rk = risk1.get(("1h", pname), {})
-                rate = (f"{round(m['tp2'] / m['tp1'] * 100, 1)}%"
-                        if m["tp1"] else "-")
+        if risk1:
+            rows = [["Pola H1", "Sinyal", "Max DD (R)", "Loss runtun"]]
+            for (tf, pname), rk in sorted(risk1.items(),
+                                          key=lambda kv: -abs(kv[1]["max_dd_r"])):
+                n = sum(1 for r in std1
+                        if r.get("pattern") == pname and r.get("tf") == tf)
+                if not n:
+                    continue
                 rows.append([
-                    pname, m["n"], m["tp1"], m["tp2"], rate, m["be"],
+                    pname, n,
                     f"{rk.get('max_dd_r', 0):.1f}",
                     rk.get("max_loss_streak", 0),
                 ])
-            story.append(Spacer(1, 6))
-            story.append(Paragraph("TP2 (runner) & statistik risiko per pola:", S_H2))
-            story.append(Spacer(1, 3))
-            story.append(_table(rows, [40 * mm, 16 * mm, 18 * mm, 18 * mm, 20 * mm,
-                                       16 * mm, 20 * mm, 20 * mm]))
-            story.append(Paragraph(
-                "*Skenario runner: saat TP1 (1.5xATR) tercapai, SL dipindah ke "
-                "breakeven lalu sisa posisi mengejar TP2 (3xATR). Peluang TP2 = "
-                "capai TP2 di antara posisi yang berhasil mencapai TP1. Exit BE = "
-                "kembali ke entry setelah TP1 (tidak untung tidak rugi). Max DD dan "
-                "loss runtun dihitung dari ekuitas kumulatif R (sinyal dedup, urut "
-                "waktu).", S_SMALL))
+            if len(rows) > 1:
+                story.append(Spacer(1, 6))
+                story.append(Paragraph("Statistik risiko per pola:", S_H2))
+                story.append(Spacer(1, 3))
+                story.append(_table(rows, [40 * mm, 20 * mm, 24 * mm, 24 * mm]))
+                story.append(Paragraph(
+                    "Max DD dan loss runtun dihitung dari ekuitas kumulatif R "
+                    "(sinyal dedup, urut waktu, rule standar SL 1xATR / TP1 1.5xATR). "
+                    "Sistem TP1-only: posisi selesai di TP1 (2026-09-20).", S_SMALL))
 
     # 6. Feedback loop
     story.append(Spacer(1, 4))

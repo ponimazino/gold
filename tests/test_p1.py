@@ -25,7 +25,10 @@ def iso(dt: datetime) -> str:
 
 
 def bar(dt: datetime, close: float) -> dict:
-    return {"t": iso(dt), "o": close, "h": close, "l": close, "c": close, "v": None}
+    # range $2 — bar fixture harus lolos filter bar datar (is_trading_bar,
+    # audit 2026-09-20: bar range ~0 saat pasar tutup dibuang dari dataset)
+    return {"t": iso(dt), "o": close, "h": close + 1, "l": close - 1,
+            "c": close, "v": None}
 
 
 def main() -> int:

@@ -22,6 +22,21 @@ from .config import DATA_DIR, DISPLAY_TZ, INTERVALS, SYMBOL
 
 WEEKEND_SKIP = timedelta(hours=48)
 
+# Feed Twelve Data mengembalikan bar "pin" datar (range ~$0.27) untuk jam-jam
+# pasar tutup (weekend/holiday). Audit 2026-09-20: 1.896 bar seperti itu di
+# file H1 produksi merusak ATR14 (SL/TP nyaris nol di pembuka Senin -> 3 loss
+# eksperimen beruntun 14 Sep), memicu pola inside_bar palsu saat pasar tutup
+# (entry phantom 6 Sep), dan menodai kolam statistik research. Bar range <
+# ini dianggap BUKAN bar trading dan dibuang di load/save (3 tahun data:
+# yang kena hanya bar holiday-closure; bar trading nyata tidak pernah serumit
+# ini — terendah 0.42).
+MIN_RANGE_USD = 0.35
+
+
+def is_trading_bar(bar: dict) -> bool:
+    """True kalau bar ini pergerakan pasar nyata, bukan pin feed saat tutup."""
+    return (bar.get("h") or 0.0) - (bar.get("l") or 0.0) >= MIN_RANGE_USD
+
 
 def parse(ts: str) -> datetime:
     return datetime.fromisoformat(ts.replace("Z", "+00:00"))
@@ -36,14 +51,18 @@ def load(interval: str) -> list[dict]:
     if not path.exists():
         return []
     payload = json.loads(path.read_text(encoding="utf-8"))
-    return payload.get("bars", [])
+    # bar datar (pasar tutup) dibuang — lihat MIN_RANGE_USD. load() juga
+    # dipakai save() untuk merge, jadi flat bar lama ikut terpurge saat
+    # file ditulis ulang.
+    return [b for b in payload.get("bars", []) if is_trading_bar(b)]
 
 
 def save(interval: str, bars: list[dict]) -> dict:
     """Merge with what's already stored (a commit is never lost history),
-    then write atomically so a killed job can't leave a truncated file."""
+    then write atomically so a killed job can't leave a truncated file.
+    Bar datar (pasar tutup) tidak pernah ditulis — lihat MIN_RANGE_USD."""
     merged = {b["t"]: b for b in load(interval)}
-    merged.update({b["t"]: b for b in bars})
+    merged.update({b["t"]: b for b in bars if is_trading_bar(b)})
     ordered = sorted(merged.values(), key=lambda b: b["t"])
     payload = {
         "symbol": SYMBOL,
@@ -75,6 +94,11 @@ def gap_report(bars: list[dict], interval: str) -> list[str]:
             continue
         # Monday reopen after the weekend is normal (Fri/Sat/Sun -> Mon)
         if t1.weekday() == 0 and t0.weekday() in (4, 5, 6):
+            continue
+        # Weekend tanpa bar datar juga normal (bar closure dibuang —
+        # lihat MIN_RANGE_USD): Jumat close -> Minggu Sydney open (~49h)
+        if (t0.weekday() in (4, 5, 6) and t1.weekday() in (6, 0)
+                and delta <= timedelta(hours=54)):
             continue
         gaps.append(f"{prev['t']} -> {curr['t']} ({delta})")
     return gaps[-5:]  # keep meta.json small: last few gaps only

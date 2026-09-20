@@ -30,6 +30,12 @@ from ..config import INTERVALS
 from . import research
 
 WIB = ZoneInfo("Asia/Jakarta")
+# Cooldown re-entry searah = COOLDOWN_BARS research (4 bar H1). Statistik
+# gate (n, EV, win-rate) dihitung dari kolam sinyal yang SUDAH didedup
+# 4 bar — live tanpa cooldown jauh lebih agresif dari basis statistiknya
+# sendiri (audit 2026-09-20: 3 loss eksperimen berturut-turut dalam 3 jam
+# dari pola yang sama arah, tiap jam langsung re-entry setelah SL).
+COOLDOWN_HOURS = 4
 
 
 def _today_wib(now: datetime) -> str:
@@ -55,6 +61,30 @@ def record_entry(rec: dict, tracking: dict) -> bool:
             "setelah posisi aktif selesai (TP1 / SL / timeout).")
         return False
     tracking.setdefault("history", []).append(rec)
+    return True
+
+
+def apply_cooldown(rec: dict, tracking: dict, now: datetime) -> bool:
+    """Tunda sinyal entry searah yang muncul < COOLDOWN_HOURS dari sinyal
+    searah sebelumnya (dicatat di tracking['last_signal'], dicatat JUGA untuk
+    sinyal yang tidak jadi posisi — persis dedup research yang menghitung
+    sinyal, bukan posisi). Sinyal yang tertunda cooldown TIDAK memperbarui
+    last_signal: dedup research menghitung jarak dari sinyal yang DIPAKAI.
+    Return True kalau entry ini tertunda."""
+    if rec.get("status") != "entry":
+        return False
+    last = tracking.get("last_signal") or {}
+    if last.get("d") != rec.get("direction") or not last.get("t"):
+        return False
+    age_h = (now - store.parse(last["t"])).total_seconds() / 3600
+    if age_h >= COOLDOWN_HOURS:
+        return False
+    rec["status"] = "tunggu"
+    rec["cooldown"] = True
+    rec.setdefault("rationale", []).append(
+        f"COOLDOWN {COOLDOWN_HOURS} bar H1: sinyal searah terakhir baru "
+        f"{age_h:.1f} jam lalu — entry ditunda (konsisten dedup 4 bar yang "
+        f"jadi dasar statistik gate, cegah re-entry beruntun setelah SL)")
     return True
 
 
@@ -91,6 +121,14 @@ def main() -> int:
 
     # 3. rekomendasi hari ini (pembacaan pasar terkini — dioverwrite tiap run)
     rec = recommend.build_recommendation(now=now)
+
+    # 3b. cooldown re-entry searah (konsisten dedup research 4 bar). Sinyal
+    # yang lolos cooldown dicatat waktunya di last_signal — WALAU nanti
+    # tidak jadi posisi (posisi lain aktif), supaya cooldown menghitung
+    # sinyal, bukan posisi (persis asumsi statistik gate).
+    apply_cooldown(rec, tracking, now)
+    if rec.get("status") == "entry":
+        tracking["last_signal"] = {"d": rec["direction"], "t": rec["created_at"]}
 
     # 4. catat entry baru ke history (aturan: posisi terakhir harus selesai).
     #    rec ditulis SETELAH ini supaya catatan rationale "masih ada posisi

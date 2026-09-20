@@ -105,7 +105,14 @@ def _resolve_one(rec: dict, bars: list[dict], horizon: int = HORIZON_1H) -> bool
     d = rec["direction"]
     entry_t = rec["created_at"]
     entry, sl, tp1 = rec["levels"]["entry"], rec["levels"]["sl"], rec["levels"]["tp1"]
-    after = [b for b in bars if b["t"] > entry_t]
+    # Basis window = bar SETELAH bar sinyal (level entry = close bar sinyal),
+    # persis backtest. Audit 2026-09-20: filter created_at (waktu run, mis.
+    # 23:26Z) membuat bar yang sedang berjalan saat run — padahal itu bar
+    # PERTAMA posisi — terlewati dari pengecekan TP/SL; MFE/MAE/bars_held
+    # meleset dan outcome bisa salah catat win<->loss. Rec lama tanpa
+    # signal_bar_t pakai fallback created_at (perilaku lama).
+    sig_t = rec.get("signal_bar_t")
+    after = [b for b in bars if b["t"] > (sig_t or entry_t)]
     window = after[:horizon]
     for i, b in enumerate(window):
         hit_sl = b["l"] <= sl if d == 1 else b["h"] >= sl
@@ -114,7 +121,9 @@ def _resolve_one(rec: dict, bars: list[dict], horizon: int = HORIZON_1H) -> bool
             rec.update({"status": "loss" if hit_sl else "win", "resolved_at": b["t"]})
             _attach_outcome(rec, window[: i + 1])
             return True
-    if len(after) >= horizon:
+    # '> horizon' (bukan '>='): bar ke-24 baru dianggap selesai kalau bar
+    # ke-25 sudah mulai — bar terakhir di file bisa saja masih berjalan.
+    if len(after) > horizon:
         rec.update({"status": "timeout", "resolved_at": window[-1]["t"]})
         _attach_outcome(rec, window)
         return True

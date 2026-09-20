@@ -53,7 +53,10 @@ export interface CalEvent {
   forecast?: string | null; previous?: string | null; actual?: string | null;
 }
 export interface NewsItem { title?: string; url?: string; source?: string; published_utc?: string }
-export interface Levels { entry: number; sl: number; tp1: number; tp2: number; atr14: number }
+// TP1-only (2026-09-20): TP2/runner 3xATR dihapus — feedback loop memang
+// selalu resolve di TP1. Data lama di repo masih memuat field tp2 di
+// levels; field ekstra di JSON diabaikan runtime, tidak merusak tipe.
+export interface Levels { entry: number; sl: number; tp1: number; atr14: number }
 export interface LevelsSafe { entry: number; sl: number; tp1: number; atr14: number }
 export interface Recommendation {
   id?: string; created_at_wib?: string;
@@ -121,6 +124,10 @@ export interface RecLogSlot {
   // "bearish_engulfing: EV net -0.131R — backtest negatif setelah biaya")
   note?: string | null;
   experiment?: boolean;
+  // false = sinyal entry hanya "rekomendasi saja" — tidak jadi posisi
+  // (aturan 1 posisi aktif); slot lama tanpa field ini disimpulkan dari
+  // ada-tidaknya note
+  recorded?: boolean;
 }
 export interface RecLogDay { date?: string; slots?: RecLogSlot[] }
 export interface RecLog { updated_at_wib?: string; days?: RecLogDay[] }

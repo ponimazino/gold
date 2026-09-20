@@ -1190,18 +1190,44 @@ function RiwayatView({ data }: { data: DashboardData }) {
             const st = s.status ?? "netral";
             if (st !== "entry") {
               const isTunggu = st === "tunggu";
+              const blocked = s.note?.startsWith("cooldown")
+                ? "cooldown re-entry"
+                : s.note?.startsWith("data belum segar")
+                  ? "data basi"
+                  : s.note ? "disaring" : isTunggu ? "jeda event 3★" : "tanpa setup";
               return (
                 <div className="ledger-row" key={i}>
                   {isTunggu
                     ? <Clock3 size={15} className="muted-icon" />
                     : <CircleSlash size={15} className="muted-icon" />}
                   <div>
-                    <b>{s.t_wib ?? "—"} WIB · {isTunggu
-                      ? "jeda event 3★"
-                      : s.note ? "disaring gate kualitas" : "tanpa setup"}</b>
+                    <b>{s.t_wib ?? "—"} WIB · {blocked}</b>
                     <span>{s.note ?? slotNote(st)}</span>
                   </div>
                   <StatusPill tone={isTunggu ? "amber" : "slate"}>{slotLabel(st)}</StatusPill>
+                </div>
+              );
+            }
+            // slot entry: apakah benar-benar jadi posisi (feedback loop)
+            // atau cuma "rekomendasi saja"? Slot lama tanpa field
+            // 'recorded' disimpulkan dari ada-tidaknya note.
+            const recorded = s.recorded ?? !s.note;
+            if (!recorded) {
+              const lvl0 = s.levels ?? {};
+              return (
+                <div className="ledger-row" key={i}>
+                  <Crosshair size={15} className="muted-icon" />
+                  <div>
+                    <b>{s.t_wib ?? "—"} WIB · {PATTERN_NAMES[s.pattern ?? ""] ?? s.pattern ?? "pola"} · {s.bias ?? "netral"}</b>
+                    <span>{s.note ?? "Sinyal tidak jadi posisi — tidak dinilai feedback loop."}</span>
+                    <div className="hist-detail">
+                      {lvl0.entry != null && <span className="lvl">Entry {fmtUsd(lvl0.entry)}</span>}
+                      {lvl0.sl != null && <span className="lvl bad">SL {fmtUsd(lvl0.sl)}</span>}
+                      {lvl0.tp1 != null && <span className="lvl good">TP1 {fmtUsd(lvl0.tp1)}</span>}
+                      {s.experiment && <span style={{ color: "#e8b667", fontWeight: 600 }}>⚠ EKSPERIMEN</span>}
+                    </div>
+                  </div>
+                  <StatusPill tone="slate">Rekomendasi saja</StatusPill>
                 </div>
               );
             }
@@ -1223,20 +1249,19 @@ function RiwayatView({ data }: { data: DashboardData }) {
                     {lvl.entry != null && <span className="lvl">Entry {fmtUsd(lvl.entry)}</span>}
                     {lvl.sl != null && <span className="lvl bad">SL {fmtUsd(lvl.sl)}</span>}
                     {lvl.tp1 != null && <span className="lvl good">TP1 {fmtUsd(lvl.tp1)}</span>}
-                    {lvl.tp2 != null && <span className="lvl good">TP2 {fmtUsd(lvl.tp2)}</span>}
                     {s.experiment && <span style={{ color: "#e8b667", fontWeight: 600 }}>⚠ EKSPERIMEN — dinilai terpisah</span>}
                     {s.confidence != null && <span>Confidence {Math.round(s.confidence * 100)}%</span>}
                     {oc && <span>MFE +{(oc.mfe_usd ?? 0).toFixed(2)} / MAE −{(oc.mae_usd ?? 0).toFixed(2)} USD</span>}
                     {oc && <span>{oc.bars_held ?? "—"} jam</span>}
                   </div>
                 </div>
-                <StatusPill tone={meta?.tone ?? "violet"}>{meta?.label ?? "Entry"}</StatusPill>
+                <StatusPill tone={meta?.tone ?? "violet"}>{meta?.label ?? "Posisi dibuka"}</StatusPill>
               </div>
             );
           })}
         </div>
       )}
-      <div className="disclaimer-row"><Clock3 size={14} /> Log run analisa otomatis (job harian) · slot "skip" = memang tanpa setup, bukan data kosong · arsip 30 hari</div>
+      <div className="disclaimer-row"><Clock3 size={14} /> Log run analisa otomatis (job harian) · slot "skip" = memang tanpa setup, bukan data kosong · "Rekomendasi saja" = sinyal tidak jadi posisi (aturan 1 posisi aktif) · arsip 30 hari</div>
     </div>
     {history.length === 0 ? (
       <div className="panel"><div className="empty-feed">
@@ -1312,7 +1337,6 @@ function RiwayatView({ data }: { data: DashboardData }) {
                       <span className="lvl">Entry {fmtUsd(lvl.entry)}</span>
                       <span className="lvl bad">SL {fmtUsd(lvl.sl)}</span>
                       <span className="lvl good">TP1 {fmtUsd(lvl.tp1)}</span>
-                      <span className="lvl good">TP2 {fmtUsd(lvl.tp2)}</span>
                     </>}
                     {h.experiment && <span style={{ color: "#e8b667", fontWeight: 600 }}>⚠ EKSPERIMEN — backtest arah ini negatif, dinilai terpisah</span>}
                     {h.confidence != null && <span>Confidence {Math.round(h.confidence * 100)}%</span>}

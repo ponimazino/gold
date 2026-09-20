@@ -160,28 +160,9 @@ def test_dedup_signals():
     print("ok: dedup sinyal overlap (kluster searah, keep first)")
 
 
-def test_tp2_and_risk_stats():
-    rows = [(100, 110, 90, 100)] * 40  # atr ~20
-    df = patterns.add_indicators(df_of(rows))
-    sig = {"t": df.index[10], "tf": "1h", "pattern": "x", "dir": 1, "index": 10}
-
-    # TP1 (+30) kena, lalu bar besar menusuk TP2 (+60) -> "tp2"
-    rows[11] = (100, 165, 95, 160)
-    res = backtest.evaluate_tp2(patterns.add_indicators(df_of(rows)), [sig], 5)
-    assert res[0]["outcome"] == "tp2", res
-
-    # TP1 kena lalu harga kembali ke entry -> "be"
-    rows[11] = (100, 135, 99, 101)
-    rows[12] = (101, 110, 99, 105)
-    res = backtest.evaluate_tp2(patterns.add_indicators(df_of(rows)), [sig], 5)
-    assert res[0]["outcome"] == "be", res
-
-    # SL duluan sebelum TP1 -> "stopped"
-    rows[11] = (100, 105, 60, 95)
-    res = backtest.evaluate_tp2(patterns.add_indicators(df_of(rows)), [sig], 5)
-    assert res[0]["outcome"] == "stopped", res
-
-    # risk_stats: drawdown & streak dari seri R
+def test_risk_stats():
+    # risk_stats: drawdown & streak dari seri R (TP1-only — evaluate_tp2
+    # dihapus 2026-09-20, sistem tidak punya TP2 lagi)
     results = [
         {"tf": "1h", "pattern": "x", "r": 1.5},
         {"tf": "1h", "pattern": "x", "r": -1.0},
@@ -192,7 +173,9 @@ def test_tp2_and_risk_stats():
     rk = backtest.risk_stats(results)[("1h", "x")]
     assert rk["max_loss_streak"] == 3, rk
     assert rk["max_dd_r"] == -3.0, rk  # ekuitas: +1.5 -> -1.5 (puncak 1.5, DD -3)
-    print("ok: TP2 runner (tp2/be/stopped) + risk stats (DD, loss streak)")
+    # pastikan TP2 benar-benar hilang dari modul
+    assert not hasattr(backtest, "evaluate_tp2") and not hasattr(backtest, "TP2_ATR")
+    print("ok: risk stats (DD, loss streak) — TP2 sudah dihapus dari modul")
 
 
 def main() -> int:
@@ -203,7 +186,7 @@ def main() -> int:
     test_cost_evaluation()
     test_wilson_ci()
     test_dedup_signals()
-    test_tp2_and_risk_stats()
+    test_risk_stats()
     print("\nALL P3 TESTS PASSED")
     return 0
 

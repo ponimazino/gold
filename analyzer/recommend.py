@@ -23,7 +23,9 @@ from .backtest import (COST_USD, DEFAULT_SL_ATR, DEFAULT_TP_ATR,
 
 WIB = ZoneInfo("Asia/Jakarta")
 RECENT_BARS = 2          # sinyal H1 dihitung valid jika muncul di N bar terakhir
-TP2_ATR = 3.0            # target kedua: 3x ATR (di luar TP1 1,5x ATR)
+STALE_HOURS = 3.0        # bar closed terakhir lebih tua dari ini = data basi
+# TP2 (runner 3xATR) DIHAPUS (keputusan user 2026-09-20): sistem TP1-only —
+# level yang tampil = level yang dinilai feedback loop.
 
 # Gate kualitas (2026-09-10, tahap 1 "moderat"): pola yang searah trend pun
 # TIDAK otomatis layak entry — backtest-nya harus membuktikan EV positif
@@ -98,19 +100,13 @@ def _gate_n(stats: dict, direction: int | None = None) -> int:
 
 
 def _experiment_eligible(stats: dict | None, direction: int | None) -> bool:
-    """Kandidat EKSPERIMEN (keputusan user 2026-09-12, opsi 2+3): arah ini
-    PUNYA bukti per-arah bermakna (n_{long/short} >= ambang) tapi EV
-    arahnya negatif. Boleh entry untuk mengumpulkan bukti live — dinilai
-    terpisah, direview saat n live eksperimen >= 30. Wajib bukti PER ARAH
-    (bukan fallback statistik keseluruhan): tanpa *_long/*_short = tanpa
-    bukti arah ini = fail-closed netral, bukan eksperimen."""
-    if not stats or direction is None:
-        return False
-    nm = "long" if direction == 1 else "short"
-    n = stats.get(f"n_{nm}")
-    if n is None:
-        return False
-    return int(n) >= GATE_MIN_N and _gate_ev(stats, direction) is not None
+    """Eksperimen short DIHENTIKAN (keputusan user 2026-09-20 setelah audit
+    live 19 entry: 13 eksperimen → hit-rate ~23%, dan sisa kolam eksperimen
+    pasca-fix pun tetap negatif). Fungsi ini dipertahankan sebagai dokumentasi
+    keputusan — SELALU False: arah EV-negatif kini fail-closed netral,
+    hanya entry lolos gate yang dieksekusi. Histori entry eksperimen lama
+    tetap terpisah di tracking.stats['experiment']."""
+    return False
 
 
 def _closed_only(bars: list[dict], step_h: int, now: datetime) -> list[dict]:
@@ -124,6 +120,25 @@ def _closed_only(bars: list[dict], step_h: int, now: datetime) -> list[dict]:
         if (now - last).total_seconds() < step_h * 3600:
             return bars[:-1]
     return bars
+
+
+def _counter_momentum(df: pd.DataFrame, i: int, d: int) -> bool:
+    """True kalau momentum H1 3 bar terakhir LAWAN arah sinyal di bar i
+    (dalam satuan ATR14). Guard khusus SHORT (audit 2026-09-20, data 3 tahun
+    net of cost, dedup, searah H4): short saat momentum naik (bounce) adalah
+    subset TERBURUK — inside_bar short EV -0.167R vs -0.045R momentum
+    searah; bearish_engulfing short -0.500R (win-rate 20%) vs -0.057R.
+    9 dari 13 entry eksperimen live 14-17 Sep (termasuk 3 loss beruntun
+    after-Fed 17 Sep) muncul dalam kondisi ini. LONG sengaja TIDAK diguard:
+    cermin data-nya terbalik — inside_bar long saat momentum turun (beli
+    dip) justru subset TERBAIK (+0.188R)."""
+    if d != -1 or i < 3:
+        return False
+    atr = float(df["atr14"].iloc[i])
+    if not atr or atr != atr:  # 0 / NaN (data terlalu awal)
+        return False
+    mom3 = (float(df["c"].iloc[i]) - float(df["c"].iloc[i - 3])) / atr
+    return mom3 > 0
 
 
 def _gate_check(stats: dict | None,
@@ -166,7 +181,7 @@ def build_recommendation(now: datetime | None = None) -> dict:
         "blackout": None,
         "next_event": None,
         "rationale": [],
-        "params": {"tp1_atr": DEFAULT_TP_ATR, "sl_atr": DEFAULT_SL_ATR, "tp2_atr": TP2_ATR,
+        "params": {"tp1_atr": DEFAULT_TP_ATR, "sl_atr": DEFAULT_SL_ATR,
                    "safe_tp1_atr": SAFE_TP_ATR, "safe_sl_atr": SAFE_SL_ATR,
                    "cost_usd": COST_USD},
     }
@@ -175,6 +190,18 @@ def build_recommendation(now: datetime | None = None) -> dict:
     h4_bars = _closed_only(store.load("4h"), 4, now)
     if not h1_bars or not h4_bars:
         rec["rationale"] = ["data H1/H4 belum tersedia — jalankan backfill/sync dulu"]
+        return rec
+
+    # --- guard data basi (audit 2026-09-20): sync gagal / pasar memang tutup
+    # -> bar closed terakhir jauh di belakang jam dinding. Analisa di harga
+    # basi pernah mencatat entry phantom (8 Sep: entry di harga 3 hari lalu,
+    # "menang" instan saat data segar datang). Lebih baik netral jujur.
+    age_h = (now - store.parse(h1_bars[-1]["t"])).total_seconds() / 3600 - 1.0
+    if age_h > STALE_HOURS:
+        rec["stale"] = True
+        rec["rationale"].append(
+            f"data belum segar — candle H1 closed terakhir {age_h:.0f} jam lalu "
+            f"(sync tertunda atau pasar tutup) — analisa ditunda, tidak ada entry")
         return rec
 
     df1 = patterns.add_indicators(pd.DataFrame(h1_bars).set_index("t")[["o", "h", "l", "c"]])
@@ -217,29 +244,52 @@ def build_recommendation(now: datetime | None = None) -> dict:
 
     # --- lapisan teknikal (P3) ---
     matched = [s for s in sigs1 if s["dir"] == t4] if t4 != 0 else []
+    # --- guard momentum-lawan, khusus SHORT (bukti 3 tahun, lihat
+    # _counter_momentum): short saat bounce H1 = subset EV terburuk.
+    momentum_blocked: list[dict] = []
+    if t4 == -1:
+        kept = []
+        for s in matched:
+            if _counter_momentum(df1, s["index"], s["dir"]):
+                momentum_blocked.append(s)
+            else:
+                kept.append(s)
+        matched = kept
+        if momentum_blocked:
+            names = ", ".join(sorted({s["pattern"] for s in momentum_blocked}))
+            rec["rationale"].append(
+                f"pola {names} searah trend TAPI disaring guard momentum-lawan: "
+                f"harga H1 3 bar terakhir justru naik (bounce) — short saat "
+                f"bounce terbukti EV terburuk di data 3 tahun")
     if not matched:
         if t4 == 0:
             rec["rationale"].append("H4 sideways — tanpa arah, tidak ada dasar entry")
+        elif momentum_blocked:
+            last = momentum_blocked[-1]
+            rec["gate"] = {"pattern": last["pattern"], "passed": False,
+                           "momentum_block": True,
+                           "reason": "guard momentum-lawan: momentum H1 3-bar "
+                                     "naik (bounce) — short saat bounce terbukti "
+                                     "EV terburuk di data 3 tahun"}
         elif sigs1:
             rec["rationale"].append("pola H1 terakhir tidak searah trend H4 — dilewati")
         return rec  # netral
 
-    # --- gate kualitas sadar-arah: EV dinilai per arah sinyal (long/short) ---
+    # --- gate kualitas sadar-arah: EV dinilai per arah sinyal (long/short).
+    # EKSPERIMEN DIHENTIKAN (keputusan user 2026-09-20): arah dengan bukti
+    # bermakna tapi EV negatif kini fail-closed netral — TIDAK lagi jadi
+    # entry eksperimen. Hanya arah dengan EV net positif yang dieksekusi.
     qualified: list[tuple[dict, dict, str, dict]] = []
-    experiments: list[tuple[dict, dict, str, dict]] = []
     for s in matched:
         st = _pattern_stats("1h", s["pattern"])
         ok, why, meta = _gate_check(st, s["dir"])
         if ok:
             qualified.append((s, st, why, meta))
-        elif _experiment_eligible(st, s["dir"]):
-            experiments.append((s, st, why, meta))
-            rec["rationale"].append(
-                f"pola '{s['pattern']}' arah ini disaring gate kualitas: {why}")
         else:
             rec["rationale"].append(
-                f"pola '{s['pattern']}' searah trend TAPI disaring gate kualitas: {why}")
-    if not qualified and not experiments:
+                f"pola '{s['pattern']}' searah trend TAPI disaring gate "
+                f"kualitas: {why} — tidak jadi entry (eksperimen dihentikan)")
+    if not qualified:
         last = matched[-1]
         _, last_why, last_meta = _gate_check(
             _pattern_stats("1h", last["pattern"]), last["dir"])
@@ -247,25 +297,10 @@ def build_recommendation(now: datetime | None = None) -> dict:
                        "reason": last_why, **last_meta}
         return rec  # netral — ada pola searah, tapi tidak ada yang lolos gate
 
-    if qualified:
-        sig, stats, why_ok, meta_ok = qualified[-1]
-        rec["gate"] = {"pattern": sig["pattern"], "passed": True,
-                       "reason": why_ok, **meta_ok}
-        rec["rationale"].append(why_ok)
-    else:
-        # EKSPERIMEN (keputusan user 2026-09-12, opsi 2+3): arah ini PUNYA
-        # bukti bermakna tapi EV-nya negatif — entry tetap diambil dengan
-        # level STANDAR (mode aman terbukti TIDAK menolong short: -0.18R vs
-        # -0.13R, diukur di data 3 tahun) supaya bukti live terkumpul.
-        # Dinilai TERPISAH di feedback loop, direview saat n live >= ambang.
-        sig, stats, why_bad, meta_bad = experiments[-1]
-        rec["experiment"] = True
-        rec["gate"] = {"pattern": sig["pattern"], "passed": False,
-                       "experiment": True, "reason": why_bad, **meta_bad}
-        rec["rationale"].append(
-            f"EKSPERIMEN: {why_bad} — entry tetap diambil (level standar) "
-            f"untuk mengumpulkan bukti live, dinilai TERPISAH dari statistik "
-            f"utama, review saat n live eksperimen >= {GATE_MIN_N}")
+    sig, stats, why_ok, meta_ok = qualified[-1]
+    rec["gate"] = {"pattern": sig["pattern"], "passed": True,
+                   "reason": why_ok, **meta_ok}
+    rec["rationale"].append(why_ok)
     atr = float(df1["atr14"].iloc[-1])
     entry = float(df1["c"].iloc[-1])
     d = sig["dir"]
@@ -273,7 +308,6 @@ def build_recommendation(now: datetime | None = None) -> dict:
         "entry": round(entry, 2),
         "sl": round(entry - d * DEFAULT_SL_ATR * atr, 2),
         "tp1": round(entry + d * DEFAULT_TP_ATR * atr, 2),
-        "tp2": round(entry + d * TP2_ATR * atr, 2),
         "atr14": round(atr, 2),
     }
     # mode aman: target 1xATR (lebih dekat), SL 0.75xATR (lebih ketat) —
@@ -292,6 +326,11 @@ def build_recommendation(now: datetime | None = None) -> dict:
         "direction": d,
         "levels": levels,
         "levels_safe": levels_safe,
+        # bar closed terakhir = basis level entry (close bar ini). Feedback
+        # loop memakai ini supaya penilaian TP/SL mulai dari bar SETELAH bar
+        # sinyal, persis backtest (audit 2026-09-20: filter created_at
+        # membuat bar pertama posisi terlewati dari pengecekan).
+        "signal_bar_t": h1_bars[-1]["t"],
     })
 
     # stats sudah diambil saat cek gate (qualified/eksperimen) — pasti ada
@@ -333,6 +372,6 @@ def build_recommendation(now: datetime | None = None) -> dict:
     else:
         rec["confidence_note"] = "statistik pola belum tersedia (jalankan research)"
     rec["rationale"].append(
-        f"SL {DEFAULT_SL_ATR}xATR, TP1 {DEFAULT_TP_ATR}xATR, TP2 {TP2_ATR}xATR "
+        f"SL {DEFAULT_SL_ATR}xATR, TP1 {DEFAULT_TP_ATR}xATR "
         f"(ATR14 H1 = {levels['atr14']})")
     return rec

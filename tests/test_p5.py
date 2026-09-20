@@ -104,10 +104,10 @@ def test_entry_signal():
     assert rec["h4_context"]["trend"] == "up", rec
     assert rec["gate"]["passed"] is True, rec
     lv = rec["levels"]
-    assert lv["sl"] < lv["entry"] < lv["tp1"] < lv["tp2"], lv
-    # TP1 = 1.5x (entry - SL), TP2 = 3x (ATR rounding: toleransi 0.05)
+    assert lv["sl"] < lv["entry"] < lv["tp1"], lv
+    # TP1 = 1.5x (entry - SL); TP1-only — tp2 tidak lagi ada (dihapus 2026-09-20)
     assert abs((lv["tp1"] - lv["entry"]) - 1.5 * (lv["entry"] - lv["sl"])) < 0.05, lv
-    assert abs((lv["tp2"] - lv["entry"]) - 3.0 * (lv["entry"] - lv["sl"])) < 0.05, lv
+    assert "tp2" not in lv, lv
     assert rec["blackout"] is None
     assert any("engulfing" in r for r in rec["rationale"]), rec["rationale"]
     print("ok: rekomendasi entry (pola searah trend, level ATR benar)")
@@ -487,11 +487,11 @@ def test_stats_counts_entry_as_active():
 
 
 def test_direction_gate_and_experiment():
-    """Gate sadar-arah (keputusan user 2026-09-12, opsi 2+3): EV dinilai per
-    arah sinyal (*_long/*_short). (a) long lolos lewat EV per-arah meski EV
-    keseluruhan negatif; (b) short EV per-arah negatif + bukti cukup -> entry
-    EKSPERIMEN (level STANDAR, flag + dinilai terpisah); (c) tanpa statistik
-    per-arah -> fail-closed netral, BUKAN eksperimen."""
+    """Gate sadar-arah: EV dinilai per arah sinyal (*_long/*_short).
+    (a) long lolos lewat EV per-arah meski EV keseluruhan negatif;
+    (b) short EV per-arah negatif + bukti cukup -> NETRAL fail-closed
+    (EKSPERIMEN DIHENTIKAN, keputusan user 2026-09-20 setelah audit live
+    19 entry); (c) tanpa statistik per-arah -> fail-closed netral."""
     _isolate_data_dir()
     now = datetime(2026, 9, 4, 15, 0, tzinfo=timezone.utc)
 
@@ -513,7 +513,8 @@ def test_direction_gate_and_experiment():
     print("ok: gate sadar-arah — long lolos via EV per-arah (EV total diabaikan)")
 
     # (b) short: EV keseluruhan positif tapi EV short negatif, bukti cukup
-    # -> EKSPERIMEN: entry level standar + flag + dinilai terpisah
+    # -> eksperimen DIHENTIKAN (user 2026-09-20): fail-closed netral,
+    # tidak pernah jadi posisi
     _isolate_data_dir()
     _seed_short(now)
     store.write_json("patterns.json", {"results": [
@@ -525,27 +526,16 @@ def test_direction_gate_and_experiment():
          "cost_avg_r_short": -0.133, "cost_oos_avg_r_short": -0.05},
     ]})
     rec2 = recommend.build_recommendation(now=now)
-    assert rec2["status"] == "entry", rec2
-    assert rec2["bias"] == "bearish", rec2
-    assert rec2["experiment"] is True, rec2
-    assert rec2["gate"]["passed"] is False and rec2["gate"]["experiment"] is True, rec2["gate"]
-    lv = rec2["levels"]
-    assert lv["tp1"] < lv["entry"] < lv["sl"], lv      # level short standar
-    # level standar: SL = 1xATR (bukan 0.75xATR mode aman)
-    assert abs((lv["sl"] - lv["entry"]) - (lv["entry"] - lv["tp1"]) / 1.5) < 0.05, lv
-    assert rec2["confidence"] == 0.38, rec2
-    assert any("EKSPERIMEN" in r for r in rec2["rationale"]), rec2["rationale"]
-    # notif push diberi label eksperimen
-    from analyzer import push
-    pl = push.entry_payload(rec2)
-    assert "EKSPERIMEN" in pl["title"] and "EKSPERIMEN" in pl["body"], pl
-    # slot rec_log entry eksperimen juga ditandai
-    from analyzer import reclog
-    log = reclog.log_run(rec2, now=now)
-    assert log["days"][0]["slots"][-1]["experiment"] is True
-    print("ok: short EV-negatif + bukti cukup -> entry EKSPERIMEN level standar")
+    assert rec2["status"] == "netral", rec2
+    assert rec2.get("experiment") is None, rec2
+    assert rec2["levels"] is None and rec2["bias"] == "netral", rec2
+    assert rec2["gate"]["passed"] is False, rec2["gate"]
+    assert "EV net short -0.050R" in rec2["gate"]["reason"], rec2["gate"]
+    assert any("eksperimen dihentikan" in r for r in rec2["rationale"]), \
+        rec2["rationale"]
+    print("ok: short EV-negatif + bukti cukup -> netral (eksperimen dihentikan)")
 
-    # (c) tanpa statistik per-arah: fail-closed netral, bukan eksperimen
+    # (c) tanpa statistik per-arah: fail-closed netral
     store.write_json("patterns.json", {"results": [
         {"tf": "1h", "pattern": "bearish_engulfing", "n": 1065,
          "win_rate": 0.5, "cost_avg_r": -0.131},
