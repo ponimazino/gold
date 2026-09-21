@@ -24,7 +24,12 @@ from ..config import INTERVALS
 # menghitung pergerakan yang sama berkali-kali (overlap). Untuk statistik
 # research, sinyal tumpang tindih dibuang (purging sederhana) supaya n dan
 # win-rate jujur. Deteksi pola untuk rekomendasi LIVE tidak didedup.
-COOLDOWN_BARS = 4
+# 4 -> 2 bar (2026-09-21, audit frekuensi): diuji di data 3 tahun — dedup
+# 2 bar menaikkan jumlah sinyal +27% dengan EV net OOS justru stabil/naik
+# (inside_bar long +0.150R -> +0.182R, short +0.230R -> +0.186R); 1 bar
+# sudah terlalu bocor (short merosot, DD -44R). Cooldown live daily.py
+# mengikuti nilai ini (2 jam) supaya statistik gate = aturan live.
+COOLDOWN_BARS = 2
 
 
 def _tag_h4_alignment(signals: list[dict], df1: pd.DataFrame) -> list[dict]:

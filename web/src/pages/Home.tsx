@@ -976,7 +976,7 @@ function BacktestView({ data }: { data: DashboardData }) {
         <label>Parameter tersimpan<div className="range-row"><input type="range" min={10} max={35} value={((params?.sl_atr ?? 1) * 10).toFixed(0)} readOnly /><b>SL {(params?.sl_atr ?? 1).toFixed(1)}× · TP {(params?.tp_atr ?? 1.5).toFixed(1)}× ATR</b></div></label>
         <div className="assumption-box">
           <div><CircleHelp size={14} /><b>Definisi aturan</b></div>
-          <p>Entry saat pola muncul di bar H1/H4 searah trend EMA. SL {params?.sl_atr ?? 1}×ATR, TP {params?.tp_atr ?? 1.5}×ATR dalam horizon {params?.horizon?.[tf] ?? "—"} bar. TP+SL di bar sama dihitung LOSS (konservatif). Kolom "net biaya" memotong spread ${params?.cost_usd != null ? params.cost_usd.toFixed(2) : "0.35"}/oz; sinyal searah yang tumpang tindih dalam {params?.cooldown_bars ?? 4} bar didedup supaya n jujur. Statistik di-refresh tiap 1 jam oleh GitHub Actions.</p>
+          <p>Entry saat pola muncul di bar H1/H4 searah trend EMA. SL {params?.sl_atr ?? 1}×ATR, TP {params?.tp_atr ?? 1.5}×ATR dalam horizon {params?.horizon?.[tf] ?? "—"} bar. TP+SL di bar sama dihitung LOSS (konservatif). Kolom "net biaya" memotong spread ${params?.cost_usd != null ? params.cost_usd.toFixed(2) : "0.35"}/oz; sinyal searah yang tumpang tindih dalam {params?.cooldown_bars ?? 2} bar didedup supaya n jujur. Statistik di-refresh tiap 1 jam oleh GitHub Actions.</p>
         </div>
         <div style={{ fontSize: 9, color: "#666674", lineHeight: 1.5 }}>Engine berjalan serverless (schedule harian) — panel ini menampilkan hasil tersimpan terbaru, bukan simulasi lokal.</div>
       </div>

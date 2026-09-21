@@ -34,12 +34,16 @@ from ..config import INTERVALS
 from . import research
 
 WIB = ZoneInfo("Asia/Jakarta")
-# Cooldown re-entry searah = COOLDOWN_BARS research (4 bar H1). Statistik
+# Cooldown re-entry searah = COOLDOWN_BARS research (2 bar H1). Statistik
 # gate (n, EV, win-rate) dihitung dari kolam sinyal yang SUDAH didedup
-# 4 bar — live tanpa cooldown jauh lebih agresif dari basis statistiknya
+# 2 bar — live tanpa cooldown jauh lebih agresif dari basis statistiknya
 # sendiri (audit 2026-09-20: 3 loss eksperimen berturut-turut dalam 3 jam
 # dari pola yang sama arah, tiap jam langsung re-entry setelah SL).
-COOLDOWN_HOURS = 4
+# 4 -> 2 jam (2026-09-21, audit frekuensi): dedup 2 bar diuji di data
+# 3 tahun — sinyal +27%, EV net OOS stabil/naik (inside_bar long +0.150R
+# -> +0.182R); biayanya DD 11R -> 16R & streak 9 -> 14 (diterima user
+# sebagai naik risiko yang masih aman demi frekuensi entry).
+COOLDOWN_HOURS = 2
 
 
 def _today_wib(now: datetime) -> str:
@@ -87,7 +91,7 @@ def apply_cooldown(rec: dict, tracking: dict, now: datetime) -> bool:
     rec["cooldown"] = True
     rec.setdefault("rationale", []).append(
         f"COOLDOWN {COOLDOWN_HOURS} bar H1: sinyal searah terakhir baru "
-        f"{age_h:.1f} jam lalu — entry ditunda (konsisten dedup 4 bar yang "
+        f"{age_h:.1f} jam lalu — entry ditunda (konsisten dedup {COOLDOWN_HOURS} bar yang "
         f"jadi dasar statistik gate, cegah re-entry beruntun setelah SL)")
     return True
 

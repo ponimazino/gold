@@ -225,12 +225,19 @@ def test_cooldown_blocks_and_updates():
     # sinyal tertunda TIDAK memperbarui last_signal
     assert tracking["last_signal"]["t"] == iso(now - timedelta(hours=1))
 
-    # > 4 jam: lolos, last_signal diperbarui
+    # > 2 jam (threshold baru 2026-09-21): lolos, last_signal diperbarui
     rec2 = {"status": "entry", "direction": -1,
             "created_at": iso(now), "rationale": []}
-    tracking2 = {"history": [], "last_signal": {"d": -1, "t": iso(now - timedelta(hours=4, minutes=30))}}
+    tracking2 = {"history": [], "last_signal": {"d": -1, "t": iso(now - timedelta(hours=2, minutes=30))}}
     assert daily.apply_cooldown(rec2, tracking2, now) is False
     assert rec2["status"] == "entry", rec2
+
+    # tepat di bawah 2 jam: masih diblok
+    rec2b = {"status": "entry", "direction": -1,
+             "created_at": iso(now), "rationale": []}
+    tracking2b = {"history": [], "last_signal": {"d": -1, "t": iso(now - timedelta(hours=1, minutes=59))}}
+    assert daily.apply_cooldown(rec2b, tracking2b, now) is True
+    assert rec2b["status"] == "tunggu", rec2b
 
     # arah beda: tidak diblokir
     rec3 = {"status": "entry", "direction": 1,
@@ -240,7 +247,7 @@ def test_cooldown_blocks_and_updates():
 
     # non-entry: tidak diproses
     assert daily.apply_cooldown({"status": "netral"}, tracking, now) is False
-    print("ok: cooldown 4 jam searah — blok, update last_signal, arah bebas")
+    print("ok: cooldown 2 jam searah — blok, update last_signal, arah bebas")
 
 
 # ------------------------------------------- 5. window resolusi track.py
