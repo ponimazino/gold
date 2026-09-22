@@ -35,7 +35,13 @@ def atr(df: pd.DataFrame, period: int = 14) -> pd.Series:
 
 
 def add_indicators(df: pd.DataFrame) -> pd.DataFrame:
-    """Return df baru dengan kolom indikator: ema20, ema50, rsi14, atr14, trend.
+    """Return df baru dengan kolom indikator: ema20, ema50, rsi14, atr14,
+    atr_med100, trend.
+
+    atr_med100: median ATR14 dari 100 bar SEBELUM bar saat ini (shift 1) —
+    basis "lantai SL" (batch 5, audit 2026-09-22): SL tidak boleh ikut
+    menyusut di bawah 0.75x median itu saat ATR14 collapse (squeeze) —
+    konsisten membaik 4 tahun dua arah (lihat backtest.SL_FLOOR_MED_MULT).
 
     trend:  +1 uptight  (ema20 > ema50 dan ema50 naik >= 3 bar terakhir)
             -1 downtrend (cermin dari itu)
@@ -46,6 +52,7 @@ def add_indicators(df: pd.DataFrame) -> pd.DataFrame:
     out["ema50"] = ema(out["c"], 50)
     out["rsi14"] = rsi(out["c"], 14)
     out["atr14"] = atr(out, 14)
+    out["atr_med100"] = out["atr14"].shift(1).rolling(100, min_periods=1).median()
 
     rising = out["ema50"] > out["ema50"].shift(3)
     falling = out["ema50"] < out["ema50"].shift(3)

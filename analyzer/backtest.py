@@ -21,6 +21,15 @@ DEFAULT_HORIZON = {"1h": 24, "4h": 12}  # bar
 SAFE_TP_ATR = 1.0
 SAFE_SL_ATR = 0.75
 
+# Lantai SL (batch 5, audit 2026-09-22 "SL FLOOR"): SL = max(sl_atr*ATR14,
+# SL_FLOOR_MED_MULT * median ATR14 100 bar sebelumnya). ATR14 collapse saat
+# pasar sepi (konsolidasi Asia pasca-dump, e.g. 22 Sep 2026: ATR $20 -> $13,
+# bar sinyal range $1.57) membuat SL 1xATR terlalu sempit relatif ekspansi
+# sesudahnya — squeeze-release menyapu SL sebelum TP. Bukti 3 tahun (kolam
+# produksi): inside_bar long EV per-tahun naik semua tahun (+0.08/+0.13/
+# +0.16/+0.13 -> +0.17/+0.20/+0.21/+0.16), short membaik semua tahun juga.
+SL_FLOOR_MED_MULT = 0.75
+
 # TP2 (runner 3xATR) DIHAPUS (keputusan user 2026-09-20): sistem kini
 # TP1-only — feedback loop memang selalu resolve di TP1, TP2 tidak pernah
 # memengaruhi statistik; level yang tampil = level yang dinilai.
@@ -44,13 +53,21 @@ def evaluate(
     sl_atr: float = DEFAULT_SL_ATR,
     cost_usd: float = 0.0,
 ) -> list[dict]:
-    """df harus sudah punya kolom atr14 (add_indicators).
+    """df harus sudah punya kolom atr14 (add_indicators); atr_med100 opsional
+    (dihitung dari atr14 bila absen).
 
     cost_usd > 0 -> evaluasi "net of cost": dalam harga mid, barrier TP
     bergeser lebih JAUH (+cost) dan barrier SL lebih DEKAT (−cost) —
     win-rate turun jujur, R nominal per trade tetap (biaya masuk ke
-    probabilitas, bukan ukuran); R timeout dihitung setelah biaya."""
+    probabilitas, bukan ukuran); R timeout dihitung setelah biaya.
+
+    Lantai SL: bila ATR14 menyusut di bawah SL_FLOOR_MED_MULT x median ATR
+    100 bar sebelumnya (squeeze), jarak SL digenjangkan ke lantai itu —
+    R nominal per win mengecil jujur (TP tetap tp_atr*ATR14)."""
     results = []
+    if "atr_med100" not in df.columns:
+        df = df.copy()
+        df["atr_med100"] = df["atr14"].shift(1).rolling(100, min_periods=1).median()
     for s in signals:
         i = s["index"]
         if i + 1 >= len(df):
@@ -63,7 +80,12 @@ def evaluate(
         d = s["dir"]
         tp_dist = tp_atr * atr
         sl_dist = sl_atr * atr
-        r_win = tp_atr / sl_atr  # R nominal (biaya tidak mengubah ukuran R)
+        med = df["atr_med100"].iloc[i]
+        med = float(med) if med == med else 0.0  # NaN awal series -> tanpa floor
+        if med > 0:
+            sl_dist = max(sl_dist, SL_FLOOR_MED_MULT * med)
+        r_win = tp_dist / sl_dist  # R nominal (biaya tidak mengubah ukuran R;
+        # lantai SL melebarkan SL -> R per win mengecil jujur)
         if cost_usd:
             tp_dist += cost_usd
             sl_dist = max(sl_dist - cost_usd, 0.05 * atr)

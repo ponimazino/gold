@@ -19,7 +19,7 @@ import pandas as pd
 from . import calendar as cal
 from . import patterns, store
 from .backtest import (COST_USD, DEFAULT_SL_ATR, DEFAULT_TP_ATR,
-                       SAFE_SL_ATR, SAFE_TP_ATR)
+                       SAFE_SL_ATR, SAFE_TP_ATR, SL_FLOOR_MED_MULT)
 
 WIB = ZoneInfo("Asia/Jakarta")
 RECENT_BARS = 2          # sinyal H1 dihitung valid jika muncul di N bar terakhir
@@ -182,6 +182,7 @@ def build_recommendation(now: datetime | None = None) -> dict:
         "next_event": None,
         "rationale": [],
         "params": {"tp1_atr": DEFAULT_TP_ATR, "sl_atr": DEFAULT_SL_ATR,
+                   "sl_floor_med": SL_FLOOR_MED_MULT,
                    "safe_tp1_atr": SAFE_TP_ATR, "safe_sl_atr": SAFE_SL_ATR,
                    "cost_usd": COST_USD},
     }
@@ -304,21 +305,34 @@ def build_recommendation(now: datetime | None = None) -> dict:
     atr = float(df1["atr14"].iloc[-1])
     entry = float(df1["c"].iloc[-1])
     d = sig["dir"]
+    # Lantai SL (batch 5, audit 2026-09-22): SL tidak ikut menyusut saat ATR14
+    # collapse (squeeze) — genjangkan ke 0.75x median ATR 100 bar sebelumnya.
+    # PERSIS rumus backtest.evaluate supaya statistik gate = aturan live.
+    med = df1["atr_med100"].iloc[-1]
+    atr_med = float(med) if med == med else 0.0
+    sl_dist = max(DEFAULT_SL_ATR * atr, SL_FLOOR_MED_MULT * atr_med) if atr_med else DEFAULT_SL_ATR * atr
+    sl_dist_safe = max(SAFE_SL_ATR * atr, SL_FLOOR_MED_MULT * atr_med) if atr_med else SAFE_SL_ATR * atr
     levels = {
         "entry": round(entry, 2),
-        "sl": round(entry - d * DEFAULT_SL_ATR * atr, 2),
+        "sl": round(entry - d * sl_dist, 2),
         "tp1": round(entry + d * DEFAULT_TP_ATR * atr, 2),
         "atr14": round(atr, 2),
     }
     # mode aman: target 1xATR (lebih dekat), SL 0.75xATR (lebih ketat) —
     # entry sama, hanya jarak yang berbeda; win-rate-nya dinilai terpisah
     # oleh research (safe_win_rate di patterns.json), bukan dari rule standar.
+    # Lantai SL berlaku sama (konsisten kolam safe di research).
     levels_safe = {
         "entry": levels["entry"],
-        "sl": round(entry - d * SAFE_SL_ATR * atr, 2),
+        "sl": round(entry - d * sl_dist_safe, 2),
         "tp1": round(entry + d * SAFE_TP_ATR * atr, 2),
         "atr14": round(atr, 2),
     }
+    if atr_med and sl_dist > DEFAULT_SL_ATR * atr:
+        rec["rationale"].append(
+            f"SL digenjangkan ke lantai ${sl_dist:.2f} (0.75x median ATR 100 bar "
+            f"= ${SL_FLOOR_MED_MULT * atr_med:.2f}) — ATR14 ${atr:.2f} menyusut saat "
+            f"pasar sepi, proteksi squeeze (audit 2026-09-22)")
     rec.update({
         "status": "entry",
         "bias": "bullish" if d == 1 else "bearish",
@@ -372,6 +386,6 @@ def build_recommendation(now: datetime | None = None) -> dict:
     else:
         rec["confidence_note"] = "statistik pola belum tersedia (jalankan research)"
     rec["rationale"].append(
-        f"SL {DEFAULT_SL_ATR}xATR, TP1 {DEFAULT_TP_ATR}xATR "
-        f"(ATR14 H1 = {levels['atr14']})")
+        f"SL {DEFAULT_SL_ATR}xATR (lantai 0.75x median ATR-100 saat ATR collapse), "
+        f"TP1 {DEFAULT_TP_ATR}xATR (ATR14 H1 = {levels['atr14']})")
     return rec
