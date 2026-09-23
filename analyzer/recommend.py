@@ -33,6 +33,11 @@ STALE_HOURS = 3.0        # bar closed terakhir lebih tua dari ini = data basi
 GATE_MIN_N = 30      # pola dengan n dedup < ini belum punya bukti bermakna
 GATE_MIN_EV_R = 0.0  # EV per sinyal (R, termasuk timeout) harus di atas ini
 
+# Guard squeeze, khusus SHORT (audit 2026-09-24): bar sinyal dengan range <
+# SQUEEZE_RATIO_MAX x ATR14 = pasar terjepit (kompresi ekstrem). Lihat
+# _squeeze_blocked untuk buktinya.
+SQUEEZE_RATIO_MAX = 0.15
+
 
 def _recent_signals(df: pd.DataFrame, tf: str, n: int = RECENT_BARS) -> list[dict]:
     sigs = patterns.detect_signals(df, tf)
@@ -141,6 +146,25 @@ def _counter_momentum(df: pd.DataFrame, i: int, d: int) -> bool:
     return mom3 > 0
 
 
+def _squeeze_blocked(df: pd.DataFrame, i: int, d: int) -> bool:
+    """True kalau bar sinyal terlalu sempit relatif volatilitas (range <
+    SQUEEZE_RATIO_MAX x ATR14). Guard khusus SHORT (audit 2026-09-24, kolam
+    produksi net of cost, dedup sadar-hasil, searah H4, + guard mom3): short
+    saat kompresi ekstrem = subset terburuk — EV full -0.135R / OOS -0.688R
+    (n=26); 3 dari 3 loss live terakhir (15/16/22 Sep 2026) bar sinyalnya
+    range 0.06-0.12 x ATR — squeeze-release menyapu SL sebelum TP1 (kasus
+    22 Sep: SL 1 jam kemudian, TP1 justru tersentuh 7 jam kemudian).
+    LONG sengaja TIDAK diguard: kompresi long justru sehat (n=45,
+    EV +0.124 / OOS +0.413) — asimetri sama seperti guard momentum."""
+    if d != -1 or i < 1:
+        return False
+    atr = float(df["atr14"].iloc[i])
+    if not atr or atr != atr:  # 0 / NaN (data terlalu awal)
+        return False
+    rng = float(df["h"].iloc[i] - df["l"].iloc[i])
+    return rng / atr < SQUEEZE_RATIO_MAX
+
+
 def _gate_check(stats: dict | None,
                 direction: int | None = None) -> tuple[bool, str, dict]:
     """Kembalikan (lolos, alasan, meta) untuk satu pola + arahnya. Meta dipakai
@@ -245,14 +269,18 @@ def build_recommendation(now: datetime | None = None) -> dict:
 
     # --- lapisan teknikal (P3) ---
     matched = [s for s in sigs1 if s["dir"] == t4] if t4 != 0 else []
-    # --- guard momentum-lawan, khusus SHORT (bukti 3 tahun, lihat
-    # _counter_momentum): short saat bounce H1 = subset EV terburuk.
+    # --- guard momentum-lawan + guard squeeze, khusus SHORT (bukti 3 tahun,
+    # lihat _counter_momentum / _squeeze_blocked): short saat bounce H1 dan
+    # short saat pasar terjepit = dua subset EV terburuk.
     momentum_blocked: list[dict] = []
+    squeeze_blocked: list[dict] = []
     if t4 == -1:
         kept = []
         for s in matched:
             if _counter_momentum(df1, s["index"], s["dir"]):
                 momentum_blocked.append(s)
+            elif _squeeze_blocked(df1, s["index"], s["dir"]):
+                squeeze_blocked.append(s)
             else:
                 kept.append(s)
         matched = kept
@@ -262,6 +290,13 @@ def build_recommendation(now: datetime | None = None) -> dict:
                 f"pola {names} searah trend TAPI disaring guard momentum-lawan: "
                 f"harga H1 3 bar terakhir justru naik (bounce) — short saat "
                 f"bounce terbukti EV terburuk di data 3 tahun")
+        if squeeze_blocked:
+            names = ", ".join(sorted({s["pattern"] for s in squeeze_blocked}))
+            rec["rationale"].append(
+                f"pola {names} searah trend TAPI disaring guard squeeze: bar "
+                f"sinyal terlalu sempit (< {SQUEEZE_RATIO_MAX:.0%} x ATR14) — "
+                f"short saat pasar terjepit terbukti subset terburuk di data "
+                f"3 tahun (squeeze-release menyapu SL sebelum TP1)")
     if not matched:
         if t4 == 0:
             rec["rationale"].append("H4 sideways — tanpa arah, tidak ada dasar entry")
@@ -272,6 +307,13 @@ def build_recommendation(now: datetime | None = None) -> dict:
                            "reason": "guard momentum-lawan: momentum H1 3-bar "
                                      "naik (bounce) — short saat bounce terbukti "
                                      "EV terburuk di data 3 tahun"}
+        elif squeeze_blocked:
+            last = squeeze_blocked[-1]
+            rec["gate"] = {"pattern": last["pattern"], "passed": False,
+                           "squeeze_block": True,
+                           "reason": "guard squeeze: bar sinyal < 15% x ATR14 "
+                                     "(pasar terjepit) — short saat squeeze "
+                                     "terbukti EV terburuk di data 3 tahun"}
         elif sigs1:
             rec["rationale"].append("pola H1 terakhir tidak searah trend H4 — dilewati")
         return rec  # netral

@@ -14,8 +14,8 @@ export const VAPID_PUBLIC_KEY =
 // yang di-push (aturan user 2026-09-20): tampil di kartu versi sidebar bawah
 // supaya kelihatan versi & terakhir kali kode berubah (bukan jam sync data).
 export const APP_NAME = "GoldPulse";
-export const APP_VERSION = "2.9"; // v2.9 = cooldown re-entry sadar-hasil (dilewati pasca-TP1) + analisa tetap tampil saat cooldown
-export const APP_UPDATED_WIB = "23 Sep 2026";
+export const APP_VERSION = "2.10"; // v2.10 = guard squeeze khusus short (bar sinyal < 15% x ATR14 = pasar terjepit)
+export const APP_UPDATED_WIB = "24 Sep 2026";
 
 // base64url -> Uint8Array<ArrayBuffer> untuk applicationServerKey
 export function urlBase64ToUint8Array(b64: string): Uint8Array<ArrayBuffer> {
