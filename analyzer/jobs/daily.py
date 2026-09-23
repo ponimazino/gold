@@ -1,7 +1,9 @@
 """Job harian (P5): statistik pola -> rekomendasi hari ini -> nilai hasil kemarin.
 
 Local:  python -m analyzer.jobs.daily
-GitHub: workflow daily.yml, grid 1 jam "37 0-15 * * 1-5" + "37 21-23 * * 0-4" (04:37-22:37 WIB, Sen-Jum).
+GitHub: workflow daily.yml, grid cron 1 jam "37 0-15 * * 1-5" + "37 21-23 * * 0-4"
+        (04:37-22:37 WIB, Sen-Jum) sebagai PENJALAN watch loop — loop internal
+        menganalisa tiap jam di menit :07 UTC (7 mnt setelah candle H1 close).
 
 Urutan langkah (penting):
   1. refresh statistik pola (walk-forward — selalu pakai data sampai detik ini)

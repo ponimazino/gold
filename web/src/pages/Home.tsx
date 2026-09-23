@@ -1184,7 +1184,7 @@ function RiwayatView({ data }: { data: DashboardData }) {
           <div className="empty-icon"><Clock3 size={20} /></div>
           <h3>Belum ada slot analisa untuk tanggal ini</h3>
           <p>{selDay === todayWib
-            ? "Analisa berjalan 04:37–22:37 WIB (Sen–Jum) tiap ±1 jam — coba lagi nanti atau pilih tanggal lain di atas."
+            ? "Analisa berjalan tiap jam menit :07–:08 WIB saat pasar aktif (Sen–Jum) — coba lagi nanti atau pilih tanggal lain di atas."
             : "Tanggal ini tidak punya log slot (pencatatan per-slot mulai aktif 2026-09-10)."}</p>
         </div>
       ) : (
@@ -1490,14 +1490,14 @@ const SCHEDULE_ROWS: Array<{
     sumber: "Twelve Data · workflow Hourly Sync",
     catatan: "gap-filling: jam yang terlewat otomatis dikejar di run berikutnya; slot cadangan menjaga data tetap segar kalau GitHub menunda jadwal",
     next: { kind: "hourly", minute: 17 } },
-  { icon: Sparkles, fitur: "Rekomendasi harian (entry/tunggu/netral)", jadwal: "Tiap 1 jam saat pasar aktif — 04:37 s.d. 22:37 WIB, Senin–Jumat (~19 slot/hari)",
+  { icon: Sparkles, fitur: "Rekomendasi harian (entry/tunggu/netral)", jadwal: "Tiap 1 jam tepat menit :07 saat pasar aktif, Senin–Jumat (~19 slot/hari)",
     sumber: "workflow Analisa Harian",
-    catatan: "grid 1 jam = tiap candle H1 baru dievaluasi ≤ 37 menit setelah close, tepat sekali sebagai bar terakhir (cadangan :52 kalau jadwal tertunda); nempel jam krusial: 04:37 pra-open Sydney, 14:37 open London, 20:37 open NY + rilis data AS; sekalian menilai rekomendasi lama vs harga aktual",
-    next: { kind: "grid", minute: 37, hours: [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22], tradingDaysOnly: true } },
-  { icon: FlaskConical, fitur: "Statistik backtest per pola", jadwal: "Tiap 1 jam (ikut analisa harian)",
+    catatan: "tiap candle H1 baru dievaluasi ~8 menit setelah close (loop di-jangkar menit :07 — candle closed terbukti tersedia dari API <1 menit setelah close, audit 23 Sep); iterasi pertama run baru tetap langsung jalan kalau loop sempat mati; sekalian menilai rekomendasi lama vs harga aktual",
+    next: { kind: "grid", minute: 7, hours: [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22], tradingDaysOnly: true } },
+  { icon: FlaskConical, fitur: "Statistik backtest per pola", jadwal: "Tiap jam menit :07 (ikut analisa harian)",
     sumber: "workflow Analisa Harian",
     catatan: "walk-forward 70/30, data sampai detik itu",
-    next: { kind: "grid", minute: 37, hours: [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22], tradingDaysOnly: true } },
+    next: { kind: "grid", minute: 7, hours: [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22], tradingDaysOnly: true } },
   { icon: CalendarDays, fitur: "Kalender ekonomi 3★ US", jadwal: "Tiap 3 jam, menit :13 WIB (+ cadangan :28)",
     sumber: "Trading Economics · workflow Fundamental",
     catatan: "hanya importance 3★, country US; jendela jeda event dihitung dari waktu event di kalender, jadi selalu akurat",

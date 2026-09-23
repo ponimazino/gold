@@ -3,12 +3,17 @@ name: Analisa Harian
 on:
   schedule:
     # Grid 1 jam (WIB) 04:37-22:37, Senin-Jumat, menit :37 (ganjil, anti
-    # antrean runner). Grid 1 jam + analisa hanya pakai candle CLOSED
-    # (recommend._closed_only membuang bar yang belum selesai) = tiap
-    # candle H1 baru dievaluasi <= 37 menit setelah close, tepat sekali
-    # sebagai bar terakhir — konsisten dengan backtest.
-    # Anchor jam krusial: 04:37 pra-open Sydney 05:00 · 14:37 open London
-    # · 20:37 open NY + rilis data AS 8:30 ET (19:30/20:30 WIB).
+    # antrean runner) + cadangan :52. Cron ini hanya PENJALAN LOOP — jam
+    # analisa TIDAK lagi mengikuti menit start runner. Loop internal
+    # (di-jangkar menit :07 UTC, lihat step di bawah) menganalisa tiap
+    # jam tepat 7 menit setelah candle H1 close, analisa hanya pakai
+    # candle CLOSED (`recommend._closed_only` membuang bar yang belum
+    # selesai) — konsisten dengan backtest.
+    # Kenapa tidak :37 lagi (audit 2026-09-23): GitHub menunda run
+    # terjadwal 10-50 menit (bukti API run list: cron :37/:52 start
+    # nyata :03-:44, tidak satu pun tepat waktu) + loop lama tidur
+    # 3600 detik dari akhir iterasi -> menit analisa = menit start
+    # acak + drift durasi iterasi (13-56 mnt setelah close).
     # Cron UTC = WIB-7: 04:37-06:37 WIB = 21:37-23:37 UTC hari sebelumnya
     # (baris kedua, Min-Kam UTC), 07:37-22:37 WIB = 00:37-15:37 UTC hari sama.
     # Catatan: open London/NY bergeser ±1 jam WIB sepanjang tahun (DST US/EU)
@@ -17,7 +22,7 @@ on:
     - cron: "37 21-23 * * 0-4"  # Min-Kam UTC 21:37-23:37 = 04:37-06:37 WIB hari berikutnya
     # Cadangan anti-drop: GitHub Actions terbukti DROP mayoritas run
     # terjadwal (2026-09-08: grid 10 slot jalan 0). Slot :52 memberi
-    # kesempatan kedua tiap grid; PLUS job ini sekarang ber-mode watch loop:
+    # kesempatan kedua tiap grid; PLUS job ini ber-mode watch loop:
     # begitu satu run lolos, runner tetap hidup ~6 jam dan tiap 1 jam
     # (sync dulu + analisa + commit). Job juga TIDAK lagi bergantung pada
     # workflow sync — tiap iterasi menjalankan sync sendiri sebelum analisa,
@@ -54,7 +59,7 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Watch loop — sync + analisa + commit tiap 1 jam (maks ~6 jam)
+      - name: Watch loop — sync + analisa + commit tiap jam menit :07 UTC (maks ~6 jam)
         env:
           TWELVEDATA_API_KEY: ${{ secrets.TWELVEDATA_API_KEY }}
           # Web Push ke PWA (2026-09-09): kosong = notif dilewati tanpa error.
@@ -70,6 +75,20 @@ jobs:
         run: |
           git config user.name "analyzer-bot"
           git config user.email "actions@users.noreply.github.com"
+          # JANGKAR MENIT TETAP (2026-09-23): iterasi analisa selalu dijalankan
+          # menit :07 UTC = 7 menit setelah candle H1 close. Bukti amannya:
+          # candle closed XAUUSD tersedia dari Twelve Data <1 menit setelah
+          # close (audit 400 commit sync historis: umur termuda 0.7 mnt, 15
+          # sampel <12 mnt) — buffer 7 menit cukup untuk API + sync, notif
+          # masuk konsisten ~8 mnt setelah close (dulu 13-56 mnt acak).
+          # Durasi iterasi ~1 mnt (research 1h ~10 dtk + 4h + sync + git).
+          ANCHOR_MIN=7
+          anchor_wait() {
+            m=$(date -u +%-M); s=$(date -u +%-S)
+            w=$(( (ANCHOR_MIN - m) * 60 - s ))
+            [ "$w" -le 0 ] && w=$(( w + 3600 ))
+            echo "$w"
+          }
           end=$(( $(date +%s) + 21000 ))  # ~5j50m, keluar bersih sebelum timeout
           iter=0
           while [ "$(date +%s)" -lt "$end" ]; do
@@ -113,6 +132,15 @@ jobs:
             fi
             now=$(date +%s)
             [ "$now" -ge "$end" ] && break
-            sleep $(( end - now < 3600 ? end - now : 3600 ))
+            # tidur sampai menit :07 UTC berikutnya (jangkar jam, BUKAN
+            # 3600 dtk dari sekarang — menit analisa tidak ikut drift
+            # durasi iterasi). Iterasi PERTAMA tetap langsung jalan saat
+            # run mulai (loop lama di-cancel, jangan ada jam kosong;
+            # dispatch manual verifikasi kode baru juga instan).
+            # Batas 5j50m: jangan tidur melewati end.
+            aw=$(anchor_wait)
+            left=$(( end - now ))
+            [ "$aw" -gt "$left" ] && aw=$left
+            sleep "$aw"
           done
           echo "[watch] selesai setelah $iter iterasi"
