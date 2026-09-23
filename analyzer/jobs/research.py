@@ -29,6 +29,12 @@ from ..config import INTERVALS
 # (inside_bar long +0.150R -> +0.182R, short +0.230R -> +0.186R); 1 bar
 # sudah terlalu bocor (short merosot, DD -44R). Cooldown live daily.py
 # mengikuti nilai ini (2 jam) supaya statistik gate = aturan live.
+# SADAR-HASIL (batch 7, 2026-09-23, audit scripts/audit_cooldown_outcome.py):
+# dedup DILEWATI kalau sinyal searah sebelumnya sudah mencapai TP1 sebelum
+# bar sinyal baru — re-entry pasca-TP1 EV net +0.211R (n=41 aligned) dan
+# live-nya juga dilewati (posisi searah terakhir win). Rantai while-running
+# tetap dibuang (DD inside_bar short -58R -> -79R bila dilepas + live memang
+# diblok aturan 1-posisi-aktif) — persis aturan live apply_cooldown.
 COOLDOWN_BARS = 2
 
 
@@ -62,17 +68,58 @@ def bars_to_df(bars: list[dict]) -> pd.DataFrame:
     return pd.DataFrame(bars).set_index("t")[["o", "h", "l", "c"]]
 
 
-def dedup_signals(signals: list[dict], cooldown: int = COOLDOWN_BARS) -> list[dict]:
+def _signal_hit_tp1(ind: pd.DataFrame, p: dict, s: dict) -> bool:
+    """True kalau sinyal p (searah) mencapai TP1 SEBELUM SL pada bar entry p
+    s.d. bar sinyal baru s (close bar s = momen analisa live). Persis rule
+    live: entry = open bar berikutnya, TP 1.5xATR / SL 1xATR + lantai
+    0.75x median ATR-100, SL dicek dulu per bar (konservatif, sama
+    backtest.evaluate). Dipakai dedup sadar-hasil."""
+    entry_idx = p["index"] + 1
+    if entry_idx >= len(ind) or entry_idx > s["index"]:
+        return False
+    entry = float(ind["o"].iloc[entry_idx])
+    atr = float(ind["atr14"].iloc[p["index"]])
+    if atr <= 0 or atr != atr:  # 0 / NaN (data terlalu awal)
+        return False
+    d = p["dir"]
+    sl_dist = backtest.DEFAULT_SL_ATR * atr
+    med = ind["atr_med100"].iloc[p["index"]] if "atr_med100" in ind.columns else float("nan")
+    med = float(med) if med == med else 0.0
+    if med > 0:
+        sl_dist = max(sl_dist, backtest.SL_FLOOR_MED_MULT * med)
+    sl = entry - d * sl_dist
+    tp = entry + d * backtest.DEFAULT_TP_ATR * atr
+    for j in range(entry_idx, s["index"] + 1):
+        bar = ind.iloc[j]
+        hit_sl = (bar["l"] <= sl) if d == 1 else (bar["h"] >= sl)
+        hit_tp = (bar["h"] >= tp) if d == 1 else (bar["l"] <= tp)
+        if hit_sl:
+            return False
+        if hit_tp:
+            return True
+    return False
+
+
+def dedup_signals(signals: list[dict], cooldown: int = COOLDOWN_BARS,
+                  ind: pd.DataFrame | None = None) -> list[dict]:
     """Buang sinyal yang tumpang tindih dengan sinyal SEARAH sebelumnya dalam
     `cooldown` bar (apa pun polanya) — sinyal pertama tiap klaster yang
-    dipakai. Hanya untuk statistik research, bukan sinyal live."""
-    last_idx: dict[int, int] = {}
+    dipakai. Hanya untuk statistik research, bukan sinyal live.
+
+    ind diberikan -> dedup SADAR-HASIL (batch 7, 2026-09-23): sinyal searah
+    < cooldown bar tetap DIPAKAI kalau sinyal sebelumnya sudah mencapai TP1
+    sebelum bar sinyal baru (re-entry pasca-TP1, persis aturan live
+    daily.apply_cooldown yang melewati cooldown setelah posisi searah
+    terakhir win). Tanpa ind -> dedup tak bersyarat (backward compat)."""
+    last: dict[int, dict] = {}
     out: list[dict] = []
     for s in signals:
         d = s["dir"]
-        if d in last_idx and s["index"] - last_idx[d] <= cooldown:
-            continue
-        last_idx[d] = s["index"]
+        p = last.get(d)
+        if p is not None and s["index"] - p["index"] <= cooldown:
+            if ind is None or not _signal_hit_tp1(ind, p, s):
+                continue  # sebelumnya belum TP1 (SL/timeout/masih jalan) -> buang
+        last[d] = s
         out.append(s)
     return out
 
@@ -83,10 +130,10 @@ def run(tf: str, horizon: int, dedup: bool = True) -> list[dict]:
         print(f"[research] {tf}: belum ada data, lewati (jalankan backfill/sync dulu)")
         return []
     df = bars_to_df(bars)
+    ind = patterns.add_indicators(df)
     signals = patterns.detect_signals(df, tf)
     if dedup:
-        signals = dedup_signals(signals)
-    ind = patterns.add_indicators(df)
+        signals = dedup_signals(signals, ind=ind)
     results = backtest.evaluate(ind, signals, horizon)
     print(f"[research] {tf}: {len(df)} bar, {len(signals)} sinyal, "
           f"{len(results)} terevaluasi")
@@ -104,12 +151,12 @@ def run_all(tf: str, horizon: int) -> tuple[list[dict], list[dict], list[dict], 
         print(f"[research] {tf}: belum ada data, lewati (jalankan backfill/sync dulu)")
         return [], [], [], []
     df = bars_to_df(bars)
-    signals = dedup_signals(patterns.detect_signals(df, tf))
+    ind = patterns.add_indicators(df)
+    signals = dedup_signals(patterns.detect_signals(df, tf), ind=ind)
     if tf == "1h":
         # statistik per arah dipakai gate sadar-arah -> wajib mengukur kolam
         # SEARAH H4 (aturan live), bukan semua sinyal H1-trend
         signals = _tag_h4_alignment(signals, df)
-    ind = patterns.add_indicators(df)
     std = backtest.evaluate(ind, signals, horizon)
     safe = backtest.evaluate(ind, signals, horizon,
                              tp_atr=backtest.SAFE_TP_ATR, sl_atr=backtest.SAFE_SL_ATR)
@@ -239,6 +286,7 @@ def build_payload(all_results: list[dict], horizon_map: dict,
             "safe_sl_atr": backtest.SAFE_SL_ATR,
             "cost_usd": backtest.COST_USD,
             "cooldown_bars": COOLDOWN_BARS,
+            "cooldown_outcome_aware": True,
         },
         "note": ("win_rate = TP 1.5xATR tercapai sebelum SL 1xATR dalam horizon bar "
                  "(interval kepercayaan 95%: win_rate_lo/hi); "
@@ -250,7 +298,10 @@ def build_payload(all_results: list[dict], horizon_map: dict,
                  "dihitung) — dipakai gate kualitas rekomendasi; "
                  "TP+SL di bar yang sama dihitung LOSS (konservatif); "
                  "oos_win_rate = 30% data terakhir (cek overfitting); "
-                 f"sinyal tumpang tindih dalam {COOLDOWN_BARS} bar didedup (n jujur); "
+                 f"sinyal tumpang tindih dalam {COOLDOWN_BARS} bar didedup "
+                 "(n jujur; sadar-hasil: re-entry searah tetap dihitung "
+                 "kalau sinyal sebelumnya sudah kena TP1 — persis aturan "
+                 "live, audit 2026-09-23); "
                  "*_long/*_short = statistik PER ARAH sinyal yang SEARAH "
                  "trend H4 as-of (aturan live, net of cost, OOS 30% per "
                  "arah) — dipakai gate sadar-arah: sinyal searah trend pun "

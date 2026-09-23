@@ -149,7 +149,7 @@ def test_dedup_signals():
     sigs = [
         {"dir": 1, "index": 10, "pattern": "a"},
         {"dir": 1, "index": 12, "pattern": "b"},   # overlap dgn idx 10 -> drop
-        {"dir": 1, "index": 15, "pattern": "c"},   # jarak 5 dari 10 -> keep
+        {"dir": 1, "index": 15, "pattern": "c"},  # jarak 5 dari 10 -> keep
         {"dir": -1, "index": 16, "pattern": "a"},  # arah beda -> keep
         {"dir": 1, "index": 18, "pattern": "d"},   # jarak 3 dari 15 -> drop
     ]
@@ -158,6 +158,46 @@ def test_dedup_signals():
     # tanpa dedup tak berubah
     assert research.dedup_signals(sigs, cooldown=0) == sigs
     print("ok: dedup sinyal overlap (kluster searah, keep first)")
+
+
+def test_dedup_signals_outcome_aware():
+    """Batch 7 (2026-09-23): dedup sadar-hasil — sinyal searah < cooldown bar
+    TETAP dipakai kalau sinyal sebelumnya sudah kena TP1 sebelum bar sinyal
+    baru; setelah SL / masih berjalan tetap dibuang. Persis aturan live
+    apply_cooldown (re-entry pasca-TP1)."""
+    from analyzer.jobs import research
+    # ind sintetis: ATR=1 (TP entry+1.5, SL entry-1, tanpa lantai median)
+    ind = pd.DataFrame({
+        "o": [100.0] * 6, "h": [101.0] * 6, "l": [99.5] * 6, "c": [100.0] * 6,
+        "atr14": [1.0] * 6, "atr_med100": [0.0] * 6,
+    })
+    ind.loc[2, "h"] = 102.0    # bar 2: TP1 sinyal A tersentuh (102 >= 101.5)
+    ind.loc[3, "l"] = 98.5     # bar 3: SL sinyal B kena (98.5 <= 99)
+    sigs = [
+        {"dir": 1, "index": 1, "pattern": "a"},   # A: keep (pertama)
+        {"dir": 1, "index": 2, "pattern": "b"},    # < 2 bar dari A, TAPI A sudah TP1 di bar 2 -> keep
+        {"dir": 1, "index": 3, "pattern": "c"},    # < 2 bar dari B, B kena SL di bar 3 -> drop
+        {"dir": 1, "index": 5, "pattern": "d"},    # jarak 3 dari marker B -> keep
+    ]
+    out = research.dedup_signals(sigs, cooldown=2, ind=ind)
+    assert [s["index"] for s in out] == [1, 2, 5], out
+    # sinyal yang dibuang TIDAK memperbarui penanda: c dihitung vs B, bukan vs A
+    # (kalau penanda salah, jarak A->c = 2 -> sama-sama drop; tes ini kunci
+    # bedanya dengan versi tak-bersyarat di mana b juga dibuang)
+    out_naive = research.dedup_signals(sigs, cooldown=2)
+    assert [s["index"] for s in out_naive] == [1, 5], out_naive
+    # masih berjalan (belum TP/SL di bar sinyal baru) -> tetap dibuang
+    ind2 = pd.DataFrame({
+        "o": [100.0] * 6, "h": [101.0] * 6, "l": [99.5] * 6, "c": [100.0] * 6,
+        "atr14": [1.0] * 6, "atr_med100": [0.0] * 6,
+    })  # semua bar netral: TP 101.5 / SL 99 tidak tersentuh
+    sigs2 = [
+        {"dir": 1, "index": 1, "pattern": "a"},
+        {"dir": 1, "index": 2, "pattern": "b"},    # A belum TP/SL -> drop
+    ]
+    out2 = research.dedup_signals(sigs2, cooldown=2, ind=ind2)
+    assert [s["index"] for s in out2] == [1], out2
+    print("ok: dedup sadar-hasil (re-entry pasca-TP1 dipakai, SL/berjalan dibuang)")
 
 
 def test_risk_stats():
@@ -186,6 +226,7 @@ def main() -> int:
     test_cost_evaluation()
     test_wilson_ci()
     test_dedup_signals()
+    test_dedup_signals_outcome_aware()
     test_risk_stats()
     print("\nALL P3 TESTS PASSED")
     return 0

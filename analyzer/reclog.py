@@ -65,10 +65,21 @@ def log_run(rec: dict, now: datetime | None = None,
                             "(aturan 1 posisi aktif)")
     elif rec.get("cooldown"):
         # sinyal ada TAPI tertunda cooldown re-entry (dedup 2 bar, batch 4
-        # 2026-09-21 — teks ini sempat basi "4 bar" lama setelah
-        # COOLDOWN_HOURS 4->2; tes hanya cek awalan "cooldown")
+        # 2026-09-21). Batch 7 (2026-09-23, permintaan user): analisa
+        # TETAP dicatat lengkap — pola/bias/level tampil di UI sebagai
+        # pencatatan, cuma tidak dieksekusi feedback loop. Teks ini
+        # sempat basi "4 bar" lama setelah COOLDOWN_HOURS 4->2; tes hanya
+        # cek awalan "cooldown"
+        slot["pattern"] = rec.get("pattern")
+        slot["bias"] = rec.get("bias")
+        slot["confidence"] = rec.get("confidence")
+        lv = rec.get("levels") or {}
+        slot["levels"] = {k: lv[k] for k in ("entry", "sl", "tp1") if k in lv}
+        slot["recorded"] = False
         slot["note"] = ("cooldown 2 bar: sinyal searah < 2 jam lalu — "
-                        "entry ditunda, konsisten dedup statistik gate")
+                        "tidak dieksekusi feedback loop; analisa dicatat "
+                        "sebagai informasi (cooldown dilewati bila posisi "
+                        "searah terakhir TP1)")
     elif rec.get("stale"):
         slot["note"] = "data belum segar (sync tertunda / pasar tutup) — analisa ditunda"
     else:

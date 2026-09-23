@@ -419,9 +419,11 @@ function SummaryView({ data, spot, now, onNavigate }: { data: DashboardData; spo
   const statusInfo =
     status === "entry"
       ? { title: "Ada peluang entry hari ini", tone: "green" as const, icon: TrendingUp, copy: `Sistem melihat pola yang layak dipertimbangkan. Arahnya ${plainDir(bias)}. Tapi ingat: "layak dipertimbangkan" bukan "pasti untung" — baca batas ruginya di bawah.` }
-      : status === "tunggu"
-        ? { title: "Tunda dulu — sedang ada rilis data besar", tone: "amber" as const, icon: TimerReset, copy: `Rilis ${rec.blackout?.title ?? "data ekonomi AS"} sedang/akan berlangsung. Harga emas biasanya bergerak liar saat ini, jadi sistem menahan semua rekomendasi. Tunggu sampai jeda berlalu.` }
-        : { title: "Tidak ada peluang hari ini — diam itu oke", tone: "slate" as const, icon: ShieldAlert, copy: `Aturan sistem (pola H1 searah tren H4) tidak terpenuhi hari ini — jadi memang tidak ada rekomendasi, bukan error atau data kosong. Tidak masuk pasar adalah keputusan yang valid, dan sering kali yang paling menguntungkan. Sistem cek ulang otomatis tiap 1 jam — terakhir ${rec.created_at_wib ?? "—"}.` };
+      : status === "tunggu" && rec.cooldown
+        ? { title: "Ada setup — tapi masih cooldown re-entry", tone: "amber" as const, icon: TimerReset, copy: "Sinyal searah yang sama baru muncul < 2 jam lalu, jadi sistem menahan entry baru (cegah kejar harga beruntun setelah SL). Analisa lengkapnya tetap tercantum di bawah sebagai pencatatan — dan begitu posisi searah terakhir kena TP1, cooldown otomatis dilewati." }
+        : status === "tunggu"
+          ? { title: "Tunda dulu — sedang ada rilis data besar", tone: "amber" as const, icon: TimerReset, copy: `Rilis ${rec.blackout?.title ?? "data ekonomi AS"} sedang/akan berlangsung. Harga emas biasanya bergerak liar saat ini, jadi sistem menahan semua rekomendasi. Tunggu sampai jeda berlalu.` }
+          : { title: "Tidak ada peluang hari ini — diam itu oke", tone: "slate" as const, icon: ShieldAlert, copy: `Aturan sistem (pola H1 searah tren H4) tidak terpenuhi hari ini — jadi memang tidak ada rekomendasi, bukan error atau data kosong. Tidak masuk pasar adalah keputusan yang valid, dan sering kali yang paling menguntungkan. Sistem cek ulang otomatis tiap 1 jam — terakhir ${rec.created_at_wib ?? "—"}.` };
 
   const marketExplain =
     rec.h4_context?.trend === "up" ? "Beberapa hari terakhir harga emas bergerak NAIK (uptrend) — pembeli masih lebih kuat."
@@ -461,7 +463,7 @@ function SummaryView({ data, spot, now, onNavigate }: { data: DashboardData; spo
 
     <section className="metric-grid">
       <MetricCard label="Arah pasar (H4)" value={bias === "bullish" ? "Naik" : bias === "bearish" ? "Turun" : "Mendatar"} icon={TrendingUp} tone={bias === "bullish" ? "lime" : bias === "bearish" ? "amber" : "slate"} footnote={marketExplain} />
-      <MetricCard label="Status rekomendasi" value={status === "entry" ? "Ada setup" : status === "tunggu" ? "Tunggu event" : "Tidak ada setup"} icon={statusInfo.icon} footnote={status === "entry" ? "Level aktif — lihat kartu di bawah" : status === "tunggu" ? "Jeda rilis −2 jam s/d +1 jam" : "Cek lagi nanti — analisa ulang tiap 1 jam"} />
+      <MetricCard label="Status rekomendasi" value={status === "entry" ? "Ada setup" : status === "tunggu" ? (rec.cooldown ? "Cooldown re-entry" : "Tunggu event") : "Tidak ada setup"} icon={statusInfo.icon} footnote={status === "entry" ? "Level aktif — lihat kartu di bawah" : status === "tunggu" ? (rec.cooldown ? "Sinyal searah < 2 jam lalu — analisa tetap tampil sebagai pencatatan" : "Jeda rilis −2 jam s/d +3 jam") : "Cek lagi nanti — analisa ulang tiap 1 jam"} />
       <MetricCard label="Peluang (menurut sejarah)" value={confidence != null ? `${confidence}%` : "—"} icon={Gauge} tone={confidence != null && confidence >= 55 ? "lime" : "amber"} footnote={verdict?.label ?? "Belum ada statistik"} />
       <MetricCard label="Rekam jejak sistem" value={hitRate != null ? `${hitRate}% kena target` : "Belum ada data"} icon={FileCheck2} tone="slate" footnote={`${stats?.resolved ?? 0} dari ${stats?.total ?? 0} rekomendasi sudah dinilai jujur`} />
     </section>
@@ -562,6 +564,7 @@ function Overview({ data, spot, now, onNavigate }: { data: DashboardData; spot: 
   const nextEv = rec.next_event ?? null;
 
   const headline =
+    status === "tunggu" && rec.cooldown ? <>Setup on <span>cooldown.</span></> :
     status === "tunggu" ? <>Gold waits for <span>the event.</span></> :
     bias === "bullish" ? <>Gold is holding <span>above structure.</span></> :
     bias === "bearish" ? <>Gold is pressing <span>below structure.</span></> :
@@ -581,7 +584,9 @@ function Overview({ data, spot, now, onNavigate }: { data: DashboardData; spot: 
 
   const entryZone = lv ? `${fmtUsd(lv.entry - lv.atr14 * 0.5, 0)} — ${fmtUsd(lv.entry + lv.atr14 * 0.5, 0)}` : null;
   const signalCopy =
-    status === "tunggu" && blk
+    status === "tunggu" && rec.cooldown
+      ? <>Setup <strong>{bias}</strong> terdeteksi tapi sinyal searah yang sama baru &lt; 2 jam lalu — sistem menahan entry (cooldown re-entry). Analisa tetap tercatat sebagai informasi; begitu posisi searah terakhir kena TP1, cooldown dilewati otomatis.</>
+      : status === "tunggu" && blk
       ? <>Event bintang-3 <strong>{blk.title}</strong> dalam jendela rilis — sistem menahan rekomendasi entry sampai jeda berlalu. Cek panel Fundamentals untuk jadwal.</>
       : status === "entry" && lv
         ? <>Setup aktif hari ini: bias <strong>{bias}</strong> dari pola H1 searah trend H4. Zona menarik di <strong>{entryZone}</strong>, invalidasi <strong>{fmtUsd(lv.sl)}</strong>.</>
@@ -604,7 +609,8 @@ function Overview({ data, spot, now, onNavigate }: { data: DashboardData; spot: 
       <div className="signal-mark"><TrendingUp size={20} /></div>
       <div className="signal-copy">
         <div className="signal-title">
-          {status === "tunggu" ? <>Event hold <StatusPill tone="amber">Jeda entry</StatusPill></>
+          {status === "tunggu" && rec.cooldown ? <>Setup on hold <StatusPill tone="amber">Cooldown re-entry</StatusPill></>
+            : status === "tunggu" ? <>Event hold <StatusPill tone="amber">Jeda entry</StatusPill></>
             : status === "entry" ? <>4H structure bias <StatusPill tone={bias === "bearish" ? "amber" : "green"}>{bias === "bearish" ? "Deteriorating" : "Constructive"}</StatusPill></>
             : <>4H structure bias <StatusPill tone="slate">{trend === "up" ? "Constructive" : trend === "down" ? "Deteriorating" : "Neutral"}</StatusPill></>}
         </div>
@@ -760,6 +766,7 @@ function AnalysisView({ data, now }: { data: DashboardData; now: number }) {
   const safeConf = rec.confidence_safe != null ? Math.round(rec.confidence_safe * 100) : null;
 
   const scenarioTitle =
+    status === "tunggu" && rec.cooldown ? "Cooldown re-entry" :
     status === "tunggu" ? "Event hold" :
     bias === "bullish" ? "Pullback continuation" :
     bias === "bearish" ? "Rejection continuation" : "Flat by design";
@@ -767,7 +774,9 @@ function AnalysisView({ data, now }: { data: DashboardData; now: number }) {
   const lead = status === "entry" && lv
     ? `Bias ${bias} di H1${patternName ? ` dari pola ${patternName}` : ""}, searah konteks H4 (${rec.h4_context?.trend ?? "—"}).`
       + " Setup terbersih adalah menunggu harga ke zona entry, lalu konfirmasi respons bullish/bearish sebelum eksekusi."
-    : status === "tunggu"
+    : status === "tunggu" && rec.cooldown
+      ? `Setup ${bias} terdeteksi${patternName ? ` (pola ${patternName})` : ""} tapi sinyal searah yang sama baru muncul < 2 jam lalu — entry ditunda cooldown re-entry (cegah kejar harga beruntun setelah SL; dilewati otomatis begitu posisi searah terakhir kena TP1). Level di bawah tercatat sebagai informasi, tidak dieksekusi feedback loop.`
+      : status === "tunggu"
       ? `Event bintang-3 (${rec.blackout?.title ?? "US data"}) sedang dalam jendela rilis. Sistem menahan semua rekomendasi entry sampai jeda berlalu — jangan mengejar pergerakan saat rilis.`
       : `Tidak ada pola H1 dalam 2 bar terakhir yang searah trend H4 — jadi memang tidak ada rekomendasi hari ini; ini keputusan sistem, bukan error atau data kosong. Flat adalah posisi yang valid, dan sistem mengecek ulang otomatis tiap 1 jam (terakhir ${rec.created_at_wib ?? "—"}).`;
 
@@ -1194,11 +1203,34 @@ function RiwayatView({ data }: { data: DashboardData }) {
             const st = s.status ?? "netral";
             if (st !== "entry") {
               const isTunggu = st === "tunggu";
-              const blocked = s.note?.startsWith("cooldown")
+              const isCooldown = !!s.note?.startsWith("cooldown");
+              const blocked = isCooldown
                 ? "cooldown re-entry"
                 : s.note?.startsWith("data belum segar")
                   ? "data basi"
                   : s.note ? "disaring" : isTunggu ? "jeda event 3★" : "tanpa setup";
+              // slot cooldown dengan level (batch 7): analisa TETAP
+              // ditampilkan lengkap — cooldown cuma status pencatatan,
+              // sinyalnya tidak dieksekusi feedback loop
+              if (isCooldown && s.levels?.entry != null) {
+                const lvlCd = s.levels;
+                return (
+                  <div className="ledger-row" key={i}>
+                    <Clock3 size={15} className="muted-icon" />
+                    <div>
+                      <b>{s.t_wib ?? "—"} WIB · {PATTERN_NAMES[s.pattern ?? ""] ?? s.pattern ?? "pola"} · {s.bias ?? "netral"} · cooldown re-entry</b>
+                      <span>{s.note ?? ""}</span>
+                      <div className="hist-detail">
+                        {lvlCd.entry != null && <span className="lvl">Entry {fmtUsd(lvlCd.entry)}</span>}
+                        {lvlCd.sl != null && <span className="lvl bad">SL {fmtUsd(lvlCd.sl)}</span>}
+                        {lvlCd.tp1 != null && <span className="lvl good">TP1 {fmtUsd(lvlCd.tp1)}</span>}
+                        {s.confidence != null && <span>Confidence {Math.round(s.confidence * 100)}%</span>}
+                      </div>
+                    </div>
+                    <StatusPill tone="amber">Cooldown</StatusPill>
+                  </div>
+                );
+              }
               return (
                 <div className="ledger-row" key={i}>
                   {isTunggu

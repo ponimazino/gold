@@ -45,6 +45,13 @@ WIB = ZoneInfo("Asia/Jakarta")
 # 3 tahun — sinyal +27%, EV net OOS stabil/naik (inside_bar long +0.150R
 # -> +0.182R); biayanya DD 11R -> 16R & streak 9 -> 14 (diterima user
 # sebagai naik risiko yang masih aman demi frekuensi entry).
+# SADAR-HASIL (batch 7, 2026-09-23, usulan user + audit 3 tahun): cooldown
+# DILEWATI kalau posisi searah terakhir resolve TP1 (win) — re-entry
+# pasca-TP1 terbukti EV net +0.211R (n=41 aligned, inside_bar long/short
+# positif dua-duanya). Tetap diblok: setelah SL (revenge re-entry), setelah
+# timeout, dan saat posisi masih berjalan (rantai while-running = DD
+# inside_bar short melebar -58R -> -79R di kolam statistik + memang sudah
+# diblok aturan 1-posisi-aktif).
 COOLDOWN_HOURS = 2
 
 
@@ -74,13 +81,29 @@ def record_entry(rec: dict, tracking: dict) -> bool:
     return True
 
 
+def _last_same_dir_win(tracking: dict, direction: int) -> bool:
+    """True kalau posisi POSISI searah terakhir di history resolve TP1
+    (status "win"). Entry history lama tanpa field 'direction' (pra gate
+    sadar-arah) dianggap bukan bukti -> False (cooldown tetap berlaku)."""
+    for h in reversed(tracking.get("history", [])):
+        if h.get("direction") == direction:
+            return h.get("status") == "win"
+    return False
+
+
 def apply_cooldown(rec: dict, tracking: dict, now: datetime) -> bool:
     """Tunda sinyal entry searah yang muncul < COOLDOWN_HOURS dari sinyal
     searah sebelumnya (dicatat di tracking['last_signal'], dicatat JUGA untuk
     sinyal yang tidak jadi posisi — persis dedup research yang menghitung
     sinyal, bukan posisi). Sinyal yang tertunda cooldown TIDAK memperbarui
     last_signal: dedup research menghitung jarak dari sinyal yang DIPAKAI.
-    Return True kalau entry ini tertunda."""
+
+    SADAR-HASIL (batch 7, 2026-09-23): cooldown DILEWATI kalau posisi
+    searah terakhir resolve TP1 — re-entry pasca-TP1 terbukti EV-positif
+    (audit 3 tahun: +0.211R net, n=41). Setelah SL / timeout / saat masih
+    berjalan tetap diblok. Analisa (pola, bias, level) TETAP di rec saat
+    diblok — ditampilkan di UI sebagai pencatatan, cuma tidak dieksekusi
+    feedback loop. Return True kalau entry ini tertunda."""
     if rec.get("status") != "entry":
         return False
     last = tracking.get("last_signal") or {}
@@ -88,6 +111,12 @@ def apply_cooldown(rec: dict, tracking: dict, now: datetime) -> bool:
         return False
     age_h = (now - store.parse(last["t"])).total_seconds() / 3600
     if age_h >= COOLDOWN_HOURS:
+        return False
+    if _last_same_dir_win(tracking, rec.get("direction")):
+        rec.setdefault("rationale", []).append(
+            f"COOLDOWN {COOLDOWN_HOURS} bar DILEWATI: posisi searah terakhir "
+            f"resolve TP1 — re-entry pasca-TP1 terbukti EV net positif "
+            f"(audit 2026-09-23), tidak menunggu cooldown")
         return False
     rec["status"] = "tunggu"
     rec["cooldown"] = True

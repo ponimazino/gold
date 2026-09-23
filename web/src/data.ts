@@ -14,7 +14,7 @@ export const VAPID_PUBLIC_KEY =
 // yang di-push (aturan user 2026-09-20): tampil di kartu versi sidebar bawah
 // supaya kelihatan versi & terakhir kali kode berubah (bukan jam sync data).
 export const APP_NAME = "GoldPulse";
-export const APP_VERSION = "2.8"; // v2.8 = jangkar analisa menit :07 (notif ~8 mnt setelah candle close, audit 23 Sep)
+export const APP_VERSION = "2.9"; // v2.9 = cooldown re-entry sadar-hasil (dilewati pasca-TP1) + analisa tetap tampil saat cooldown
 export const APP_UPDATED_WIB = "23 Sep 2026";
 
 // base64url -> Uint8Array<ArrayBuffer> untuk applicationServerKey
@@ -80,6 +80,10 @@ export interface Recommendation {
   blackout?: { title?: string; t_utc?: string; minutes_to_event?: number } | null;
   next_event?: { title?: string; t_utc?: string } | null;
   rationale?: string[];
+  // true = sinyal ada tapi ditunda cooldown re-entry searah 2 jam —
+  // analisa (pola/bias/level) tetap tampil sebagai pencatatan, tidak
+  // dieksekusi feedback loop (batch 7, 2026-09-23)
+  cooldown?: boolean;
   // true = entry EKSPERIMEN (gate sadar-arah): arah ini punya bukti
   // bermakna tapi EV backtest-nya negatif — dinilai terpisah
   experiment?: boolean;

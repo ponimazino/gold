@@ -250,6 +250,57 @@ def test_cooldown_blocks_and_updates():
     print("ok: cooldown 2 jam searah — blok, update last_signal, arah bebas")
 
 
+def test_cooldown_outcome_aware():
+    """Batch 7 (2026-09-23): cooldown DILEWATI kalau posisi searah terakhir
+    resolve TP1 (win); tetap diblok setelah loss/timeout/saat masih aktif."""
+    _isolate()
+    now = datetime(2026, 9, 17, 1, 0, tzinfo=timezone.utc)
+
+    def mk(history):
+        return {"history": history,
+                "last_signal": {"d": -1, "t": iso(now - timedelta(hours=1))}}
+
+    def rec():
+        return {"status": "entry", "direction": -1,
+                "created_at": iso(now), "rationale": []}
+
+    win_hist = [{"direction": -1, "status": "win",
+                 "created_at": iso(now - timedelta(hours=2))}]
+    r = rec()
+    assert daily.apply_cooldown(r, mk(win_hist), now) is False
+    assert r["status"] == "entry", r
+    assert any("DILEWATI" in x for x in r["rationale"]), r["rationale"]
+    print("ok: cooldown dilewati — posisi searah terakhir TP1 (re-entry boleh)")
+
+    for st in ("loss", "timeout", "active"):
+        r = rec()
+        hist = [{"direction": -1, "status": st,
+                 "created_at": iso(now - timedelta(hours=2))}]
+        assert daily.apply_cooldown(r, mk(hist), now) is True, st
+        assert r["status"] == "tunggu", (st, r)
+        assert r.get("cooldown") is True, (st, r)
+    print("ok: cooldown tetap blok setelah SL / timeout / saat masih berjalan")
+
+    # posisi WIN tapi arah beda -> bukan bukti, cooldown tetap berlaku
+    r = rec()
+    hist = [{"direction": 1, "status": "win",
+             "created_at": iso(now - timedelta(hours=2))}]
+    assert daily.apply_cooldown(r, mk(hist), now) is True
+    # entry lama tanpa field direction (pra gate sadar-arah) -> konservatif blok
+    r = rec()
+    hist = [{"status": "win", "created_at": iso(now - timedelta(hours=2))}]
+    assert daily.apply_cooldown(r, mk(hist), now) is True
+    # posisi searah terakhir win TAPI ada yang lebih baru kena SL ->
+    # yang dinilai = posisi TERBARU searah
+    r = rec()
+    hist = [{"direction": -1, "status": "win",
+             "created_at": iso(now - timedelta(hours=5))},
+            {"direction": -1, "status": "loss",
+             "created_at": iso(now - timedelta(hours=2))}]
+    assert daily.apply_cooldown(r, mk(hist), now) is True
+    print("ok: bukti win harus dari posisi searah TERBARU (arah beda / SL lebih baru tetap blok)")
+
+
 # ------------------------------------------- 5. window resolusi track.py
 def test_resolve_starts_after_signal_bar():
     """SL kena di bar PERTAMA posisi (bar yang sedang berjalan saat run) —
@@ -355,11 +406,24 @@ def test_reclog_cooldown_and_stale_notes():
     log = reclog.log_run({"status": "tunggu", "cooldown": True}, now=now)
     slot = log["days"][0]["slots"][0]
     assert slot["note"] and slot["note"].startswith("cooldown"), slot
-    log = reclog.log_run({"status": "netral", "stale": True},
+    # batch 7: slot cooldown membawa analisa lengkap (pencatatan di UI)
+    log = reclog.log_run({"status": "tunggu", "cooldown": True,
+                          "pattern": "inside_bar", "bias": "bearish",
+                          "confidence": 0.55,
+                          "levels": {"entry": 4342.28, "sl": 4329.0,
+                                     "tp1": 4362.0, "atr14": 13.0}},
                          now=now + timedelta(minutes=61))
     slot = log["days"][0]["slots"][-1]
+    assert slot["pattern"] == "inside_bar", slot
+    assert slot["bias"] == "bearish", slot
+    assert slot["recorded"] is False, slot
+    assert slot["levels"] == {"entry": 4342.28, "sl": 4329.0, "tp1": 4362.0}, slot
+    assert slot["confidence"] == 0.55, slot
+    log = reclog.log_run({"status": "netral", "stale": True},
+                         now=now + timedelta(minutes=122))
+    slot = log["days"][0]["slots"][-1]
     assert slot["note"] and "belum segar" in slot["note"], slot
-    print("ok: slot cooldown & data basi diberi note khusus")
+    print("ok: slot cooldown diberi note + analisa lengkap (pencatatan UI); data basi diberi note khusus")
 
 
 if __name__ == "__main__":
@@ -370,6 +434,7 @@ if __name__ == "__main__":
     test_momentum_guard_allows_short_continuation()
     test_momentum_guard_skips_long()
     test_cooldown_blocks_and_updates()
+    test_cooldown_outcome_aware()
     test_resolve_starts_after_signal_bar()
     test_timeout_needs_closed_horizon()
     test_reclog_recorded_flag_and_note()
