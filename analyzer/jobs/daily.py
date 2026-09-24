@@ -14,11 +14,14 @@ Urutan langkah (penting):
      TP1/SL/timeout — boleh re-entry sehari yang sama, tidak ada overlap)
   5. catat slot run ini ke rec_log.json (jam WIB + status — supaya riwayat
      harian per 1 jam lengkap, jam tanpa setup kelihatan 'skip')
-  6. web push (PWA, Web Push VAPID): notif entry + agenda event 3★ (H-3, 1x/hari).
-     Butuh secrets PUSH_* di workflow — kalau kosong, dilewati tanpa error.
+  6. web push (PWA, Web Push VAPID): notif entry + analisa setup yang tertunda
+     cooldown (apa adanya, tanpa dedup — permintaan user 2026-09-24) + agenda
+     event 3★ (H-3, 1x/hari). Butuh secrets PUSH_* di workflow — kalau kosong,
+     dilewati tanpa error.
   7. WhatsApp via Fonnte (2026-09-20, kanal tambahan): pesan yang sama persis
-     (entry + agenda, dedup terpisah di data/wa_state.json). Butuh secrets
-     FONNTE_TOKEN + FONNTE_TARGET — kalau kosong, dilewati tanpa error.
+     (entry + cooldown + agenda, dedup terpisah di data/wa_state.json —
+     cooldown tanpa dedup). Butuh secrets FONNTE_TOKEN + FONNTE_TARGET —
+     kalau kosong, dilewati tanpa error.
 
 Notifikasi = Web Push PWA + WhatsApp Fonnte (permintaan user 2026-09-09 +
 2026-09-20); Telegram tetap terlarang. Output utama tetap di web, dibuka user

@@ -8,6 +8,10 @@ Dua notifikasi (teks WIB, storage UTC):
      hari itu, isi = daftar SEMUA event 3★ hari yang sama (kalau run
      pertama yang lolos sudah lewat H-3, kirim segera — sisa event hari
      itu masih berguna).
+  3. COOLDOWN — setup valid tapi TERTUNDA cooldown re-entry: analisa
+     (pola/level) tetap dinotifikasi apa adanya, label "COOLDOWN"
+     (permintaan user 2026-09-24). TANPA dedup — cooldown maks 2 jam
+     jadi paling banter 2-3 notif per sinyal yang terblok.
 
 Credential TIDAK pernah di repo (repo public):
   env PUSH_VAPID_PRIVATE_KEY  — private key VAPID (GitHub Secrets)
@@ -118,6 +122,34 @@ def entry_payload(rec: dict) -> dict:
     }
 
 
+def cooldown_payload(rec: dict) -> dict:
+    """Payload notif untuk setup yang TERTUNDA cooldown re-entry.
+
+    Analisa lengkap (pola/bias/level/peluang) tetap dikirim apa adanya
+    persis payload entry, hanya judul + baris penjelasan cooldown yang
+    beda (permintaan user 2026-09-24: "kirimkan apa adanya", tanpa
+    dedup — sinyal terblok paling banter bertahan 2 jam di jendela
+    2 bar, jadi ~2-3 notif per sinyal)."""
+    lv = rec.get("levels") or {}
+    pola = PATTERN_LABELS.get(rec.get("pattern") or "", rec.get("pattern") or "pola H1")
+    arah = ARAH.get(rec.get("bias") or "", rec.get("bias") or "netral")
+    conf = rec.get("confidence")
+    body = (f"{pola} searah trend H4 — bias {arah}.\n"
+            f"Entry ±{lv.get('entry', 0):,.2f} · SL {lv.get('sl', 0):,.2f} · "
+            f"TP1 {lv.get('tp1', 0):,.2f} (USD/oz).")
+    if conf is not None:
+        body += f"\nPeluang historis {round(conf * 100)}%."
+    body += ("\nTERTUNDA cooldown re-entry: sinyal searah < 2 jam lalu — "
+             "tidak dieksekusi feedback loop (otomatis dilewati bila "
+             "posisi searah terakhir kena TP1).")
+    return {
+        "title": "GoldPulse — setup TERTUNDA (cooldown)",
+        "body": body,
+        "tag": "cooldown",
+        "url": "#/analysis",
+    }
+
+
 def agenda_payload(events: list[dict]) -> dict:
     """Payload notif agenda: daftar event 3★ hari itu (t_wib sudah diisi)."""
     lines = []
@@ -170,7 +202,9 @@ def _send(subs: list[dict], payload: dict, claims: dict) -> str:
 
 def dispatch(rec: dict, now: datetime | None = None,
              entry_recorded: bool = True) -> None:
-    """Pintu job daily: notif ENTRY + AGENDA (dedup + status push_state.json).
+    """Pintu job daily: notif ENTRY + COOLDOWN + AGENDA (dedup + status
+    push_state.json — cooldown satu-satunya yang tanpa dedup, keputusan
+    user 2026-09-24).
 
     entry_recorded=False → sinyal entry tidak dinotifikasi (posisi masih
     aktif — aturan 1 posisi, lihat jobs/daily.record_entry).
@@ -202,6 +236,18 @@ def dispatch(rec: dict, now: datetime | None = None,
             print("[push] notif entry terkirim")
         else:
             print("[push] notif entry GAGAL — subscription expired")
+
+    # --- 1b. notif cooldown (permintaan user 2026-09-24): setup valid tapi
+    #     tertunda cooldown re-entry — analisa dikirim APA ADANYA, tanpa
+    #     dedup (sinyal terblok maks bertahan 2 jam di jendela 2 bar) ---
+    if rec.get("status") == "tunggu" and rec.get("cooldown"):
+        st = _send(subs, cooldown_payload(rec), claims)
+        status = st or status
+        sent_wib = sent_wib or now.astimezone(WIB).strftime("%Y-%m-%d %H:%M WIB")
+        if st != "expired":
+            print("[push] notif cooldown terkirim")
+        else:
+            print("[push] notif cooldown GAGAL — subscription expired")
 
     # --- 2. notif agenda event (1x per hari WIB, H-3 event pertama) ---
     events_today = _events_today(now)

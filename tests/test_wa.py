@@ -118,6 +118,45 @@ def test_dispatch_entry_dedup() -> None:
           "re-entry dapat pesan baru, posisi aktif = senyap)")
 
 
+def test_cooldown_message() -> None:
+    m = wa.cooldown_message(_rec(status="tunggu"))
+    assert "GoldPulse — Daily Recommendation (COOLDOWN)" in m, m
+    # analisa lengkap apa adanya — persis pesan entry
+    assert "Bias: TURUN (sell)" in m, m
+    assert "Pola: Inside Bar searah trend H4" in m, m
+    assert "Entry: 2,300.00 USD/oz" in m, m
+    assert "\nSL: 2,290.00" in m and "\nTP1: 2,315.00" in m, m
+    assert "Peluang historis: 45%" in m, m
+    assert "cooldown re-entry" in m, m
+    print("ok: pesan cooldown (label COOLDOWN + analisa lengkap apa adanya)")
+
+
+def test_dispatch_cooldown_no_dedup() -> None:
+    _isolate(); _env()
+    calls: list[str] = []
+    orig = wa._send
+    wa._send = lambda m: (calls.append(m), "ok")[1]
+    now = datetime(2026, 9, 9, 10, 0, tzinfo=timezone.utc)
+    _write_calendar([])
+    rec = _rec(status="tunggu"); rec["cooldown"] = True
+    wa.dispatch(rec, now=now)
+    assert len(calls) == 1 and "COOLDOWN" in calls[0], calls
+    state = wa.load_state()
+    assert state["last_status"] == "ok", state
+    assert "entry_notified_id" not in state, state  # tak menyentuh dedup entry
+    # keputusan user 2026-09-24: TANPA anti-spam — iterasi berikutnya sinyal
+    # masih cooldown (created_at baru, sinyal sama) -> kirim lagi apa adanya
+    rec2 = _rec(status="tunggu"); rec2["cooldown"] = True
+    wa.dispatch(rec2, now=now + timedelta(hours=1))
+    assert len(calls) == 2, calls
+    # tunggu karena blackout event (tanpa flag cooldown) -> senyap
+    wa.dispatch(_rec(status="tunggu"), now=now + timedelta(hours=2))
+    assert len(calls) == 2, calls
+    wa._send = orig
+    print("ok: pesan cooldown tanpa dedup (kirim apa adanya); tunggu "
+          "blackout senyap; dedup entry tak tersentuh")
+
+
 def test_dispatch_agenda_window() -> None:
     _isolate(); _env()
     calls: list[str] = []
@@ -183,8 +222,10 @@ def test_dispatch_failed_send_can_retry() -> None:
 def main() -> int:
     test_entry_message()
     test_agenda_message()
+    test_cooldown_message()
     test_dispatch_skips_without_secrets()
     test_dispatch_entry_dedup()
+    test_dispatch_cooldown_no_dedup()
     test_dispatch_agenda_window()
     test_dispatch_agenda_only_that_day()
     test_dispatch_failed_send_can_retry()

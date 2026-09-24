@@ -67,6 +67,43 @@ def test_agenda_payload() -> None:
     print("ok: payload agenda (daftar event WIB + catatan jeda)")
 
 
+def test_cooldown_payload() -> None:
+    p = push.cooldown_payload(_rec(status="tunggu"))
+    assert "TERTUNDA (cooldown)" in p["title"], p
+    # analisa lengkap apa adanya — persis payload entry
+    assert "Inside Bar" in p["body"] and "2,300.00" in p["body"], p
+    assert "45%" in p["body"], p
+    assert "TERTUNDA cooldown re-entry" in p["body"], p
+    assert p["tag"] == "cooldown" and p["url"] == "#/analysis", p
+    print("ok: payload cooldown (analisa lengkap + label + penjelasan)")
+
+
+def test_dispatch_cooldown_no_dedup() -> None:
+    _isolate(); _env()
+    calls: list[str] = []
+    orig = push._send
+    push._send = lambda subs, payload, claims: (calls.append(payload["tag"]), "ok")[1]
+    now = datetime(2026, 9, 9, 10, 0, tzinfo=timezone.utc)
+    _write_calendar([])
+    rec = _rec(status="tunggu"); rec["cooldown"] = True
+    push.dispatch(rec, now=now)
+    assert calls == ["cooldown"], calls
+    state = push.load_state()
+    assert state["last_status"] == "ok", state
+    assert "entry_notified_id" not in state, state  # tak menyentuh dedup entry
+    # keputusan user 2026-09-24: TANPA anti-spam — iterasi berikutnya sinyal
+    # masih cooldown (created_at baru, sinyal sama) -> kirim lagi apa adanya
+    rec2 = _rec(status="tunggu"); rec2["cooldown"] = True
+    push.dispatch(rec2, now=now + timedelta(hours=1))
+    assert calls == ["cooldown", "cooldown"], calls
+    # tunggu karena blackout event (tanpa flag cooldown) -> senyap
+    push.dispatch(_rec(status="tunggu"), now=now + timedelta(hours=2))
+    assert len(calls) == 2, calls
+    push._send = orig
+    print("ok: notif cooldown tanpa dedup (kirim apa adanya); tunggu "
+          "blackout senyap; state entry tak tersentuh")
+
+
 def test_dispatch_entry_dedup() -> None:
     _isolate(); _env()
     calls: list[str] = []
@@ -199,7 +236,9 @@ def test_send_expired_marking() -> None:
 def main() -> int:
     test_entry_payload()
     test_agenda_payload()
+    test_cooldown_payload()
     test_dispatch_entry_dedup()
+    test_dispatch_cooldown_no_dedup()
     test_dispatch_agenda_window()
     test_dispatch_agenda_late_and_other_day()
     test_send_expired_marking()

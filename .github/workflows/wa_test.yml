@@ -1,7 +1,8 @@
 name: WA Preview
 
-# Dispatch ONLY — kirim 2 pesan CONTOH ke nomor WA terdaftar lewat copywriting
-# asli analyzer/wa.py (entry_message + agenda_message), untuk review teks.
+# Dispatch ONLY — kirim 3 pesan CONTOH ke nomor WA terdaftar lewat copywriting
+# asli analyzer/wa.py (entry_message + cooldown_message + agenda_message),
+# untuk review teks.
 # Tidak menulis wa_state.json (dedup produksi tidak tersenggol): pesan dikirim
 # via wa._send langsung, bukan wa.dispatch. Jalankan: tab Actions > WA Preview
 # > Run workflow. Aman dihapus kapan pun tanpa efek ke produksi.
@@ -25,7 +26,7 @@ jobs:
       - name: Install requests
         run: pip install requests
 
-      - name: Kirim 2 pesan preview (agenda + entry)
+      - name: Kirim 3 pesan preview (agenda + entry + cooldown)
         env:
           FONNTE_TOKEN: ${{ secrets.FONNTE_TOKEN }}
           FONNTE_TARGET: ${{ secrets.FONNTE_TARGET }}
@@ -59,14 +60,22 @@ jobs:
           }
           msg_entry = wa.entry_message(rec)
 
+          # pesan 3: COOLDOWN — setup valid tapi tertunda cooldown re-entry
+          # (permintaan user 2026-09-24) — analisa apa adanya + label
+          rec_cd = dict(rec, status="tunggu", cooldown=True)
+          msg_cooldown = wa.cooldown_message(rec_cd)
+
           print("--- pesan agenda ---")
           print(msg_agenda)
           print("--- pesan entry ---")
           print(msg_entry)
+          print("--- pesan cooldown ---")
+          print(msg_cooldown)
           print("--- kirim ---")
           s1 = wa._send(msg_agenda)
           s2 = wa._send(msg_entry)
-          print(f"agenda -> {s1}, entry -> {s2}")
-          if s1 != "ok" or s2 != "ok":
+          s3 = wa._send(msg_cooldown)
+          print(f"agenda -> {s1}, entry -> {s2}, cooldown -> {s3}")
+          if s1 != "ok" or s2 != "ok" or s3 != "ok":
               raise SystemExit(1)
           EOF

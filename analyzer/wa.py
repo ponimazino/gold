@@ -8,6 +8,10 @@ Dua pesan saja (teks WIB, storage UTC — semantik IDENTIK push.dispatch):
   2. AGENDA — 1x per hari WIB: H-3 jam sebelum event bintang-3 PERTAMA
      hari itu, isi = daftar SEMUA event 3★ hari yang sama. Kalau hari itu
      tidak ada event 3★ → tidak ada pesan.
+  3. COOLDOWN — setup valid tapi TERTUNDA cooldown re-entry: analisa
+     (pola/level) tetap dikirim apa adanya dengan label COOLDOWN
+     (permintaan user 2026-09-24). TANPA dedup — sinyal terblok maks
+     bertahan 2 jam di jendela 2 bar, jadi ~2-3 pesan per sinyal.
 
 Doc Fonnte memakai contoh PHP, tapi API-nya HTTP POST biasa — cukup
 `requests` (pola sama pywebpush di push.py).
@@ -97,6 +101,30 @@ def entry_message(rec: dict) -> str:
     return out
 
 
+def cooldown_message(rec: dict) -> str:
+    """Pesan WA untuk setup yang TERTUNDA cooldown re-entry — analisa
+    lengkap (bias/pola/level/peluang) dikirim apa adanya persis pesan
+    entry, hanya judul + baris penjelasan cooldown yang beda (permintaan
+    user 2026-09-24: label COOLDOWN, tanpa dedup)."""
+    lv = rec.get("levels") or {}
+    pola = PATTERN_LABELS.get(rec.get("pattern") or "", rec.get("pattern") or "pola H1")
+    arah = ARAH.get(rec.get("bias") or "", rec.get("bias") or "netral")
+    out = (f"GoldPulse — Daily Recommendation (COOLDOWN)\n\n"
+           f"Bias: {arah}\n"
+           f"Pola: {pola} searah trend H4\n"
+           f"Entry: {lv.get('entry', 0):,.2f} USD/oz\n"
+           f"SL: {lv.get('sl', 0):,.2f}\n"
+           f"TP1: {lv.get('tp1', 0):,.2f}")
+    conf = rec.get("confidence")
+    if conf is not None:
+        out += f"\nPeluang historis: {round(conf * 100)}%."
+    out += ("\n\nTertunda cooldown re-entry — sinyal searah < 2 jam lalu. "
+            "Analisa dicatat sebagai informasi, tidak dieksekusi feedback "
+            "loop (cooldown otomatis dilewati bila posisi searah terakhir "
+            "kena TP1).")
+    return out
+
+
 def agenda_message(events: list[dict], now: datetime | None = None) -> str:
     """Pesan WA agenda: daftar event 3★ hari itu (t_wib sudah diisi).
     Judul menyebut tanggal hari itu (WIB) — event 3★ itu langka, tanggal
@@ -145,7 +173,8 @@ def _send(message: str) -> str:
 
 def dispatch(rec: dict, now: datetime | None = None,
              entry_recorded: bool = True) -> None:
-    """Pintu job daily: pesan ENTRY + AGENDA (dedup wa_state.json).
+    """Pintu job daily: pesan ENTRY + COOLDOWN + AGENDA (dedup wa_state.json
+    — cooldown satu-satunya yang tanpa dedup, keputusan user 2026-09-24).
 
     entry_recorded=False → sinyal entry tidak dikirim (posisi masih aktif —
     aturan 1 posisi, lihat jobs/daily.record_entry). Tidak pernah raise.
@@ -171,6 +200,18 @@ def dispatch(rec: dict, now: datetime | None = None,
             print("[wa] pesan entry terkirim")
         else:
             print("[wa] pesan entry GAGAL — bisa dicoba ulang iterasi berikut")
+
+    # --- 1b. pesan cooldown (permintaan user 2026-09-24): setup valid tapi
+    #     tertunda cooldown re-entry — analisa dikirim APA ADANYA, tanpa
+    #     dedup (sinyal terblok maks bertahan 2 jam di jendela 2 bar) ---
+    if rec.get("status") == "tunggu" and rec.get("cooldown"):
+        st = _send(cooldown_message(rec))
+        status = st or status
+        if st == "ok":
+            sent_wib = sent_wib or now.astimezone(WIB).strftime("%Y-%m-%d %H:%M WIB")
+            print("[wa] pesan cooldown terkirim")
+        else:
+            print("[wa] pesan cooldown GAGAL — bisa dicoba ulang iterasi berikut")
 
     # --- 2. pesan agenda event (1x per hari WIB, H-3 event pertama) ---
     events_today = _events_today(now)
