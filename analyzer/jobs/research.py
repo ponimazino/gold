@@ -281,6 +281,7 @@ def build_payload(all_results: list[dict], horizon_map: dict,
             "horizon": horizon_map,
             "tp_atr": backtest.DEFAULT_TP_ATR,
             "sl_atr": backtest.DEFAULT_SL_ATR,
+            "long_scale": backtest.LONG_SCALE,
             "sl_floor_med": backtest.SL_FLOOR_MED_MULT,
             "safe_tp_atr": backtest.SAFE_TP_ATR,
             "safe_sl_atr": backtest.SAFE_SL_ATR,
@@ -290,6 +291,8 @@ def build_payload(all_results: list[dict], horizon_map: dict,
         },
         "note": ("win_rate = TP 1.5xATR tercapai sebelum SL 1xATR dalam horizon bar "
                  "(interval kepercayaan 95%: win_rate_lo/hi); "
+                 "LONG memakai stop lebar: barrier long = 1.5x parameter "
+                 "(TP 2.25xATR / SL 1.5xATR; aman 1.5x/1.125x) — audit 2026-09-24; "
                  "safe_win_rate = rule mode aman TP 1xATR / SL 0.75xATR; "
                  "cost_*/safe_cost_* = NET of cost (spread "
                  f"${backtest.COST_USD:.2f}/oz: barrier TP lebih jauh, SL lebih "

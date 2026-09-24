@@ -14,7 +14,7 @@ export const VAPID_PUBLIC_KEY =
 // yang di-push (aturan user 2026-09-20): tampil di kartu versi sidebar bawah
 // supaya kelihatan versi & terakhir kali kode berubah (bukan jam sync data).
 export const APP_NAME = "GoldPulse";
-export const APP_VERSION = "2.11"; // v2.11 = notif COOLDOWN (analisa setup tertunda tetap dikirim ke Web Push + WA, tanpa dedup) + fix commit events_hist fundamental
+export const APP_VERSION = "2.12"; // v2.12 = SL lebar khusus long (TP 2,25xATR / SL 1,5xATR, short tidak berubah — audit 3 tahun)
 export const APP_UPDATED_WIB = "24 Sep 2026";
 
 // base64url -> Uint8Array<ArrayBuffer> untuk applicationServerKey

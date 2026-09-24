@@ -352,11 +352,12 @@ def test_safe_mode_levels_and_stats():
     lv, ls = rec["levels"], rec["levels_safe"]
     assert ls["entry"] == lv["entry"], (lv, ls)
     atr = lv["atr14"]
-    assert abs((ls["tp1"] - ls["entry"]) - 1.0 * atr) < 0.05, ls
-    assert abs((ls["entry"] - ls["sl"]) - 0.75 * atr) < 0.05, ls
+    # LONG (batch 10): mode aman ikut diskalakan — TP 1.5xATR / SL 1.125xATR
+    assert abs((ls["tp1"] - ls["entry"]) - 1.5 * atr) < 0.05, ls
+    assert abs((ls["entry"] - ls["sl"]) - 1.125 * atr) < 0.05, ls
     assert rec["confidence"] == 0.58 and rec["confidence_safe"] == 0.70, rec
     assert any("mode aman" in r for r in rec["rationale"]), rec["rationale"]
-    print("ok: level mode aman (TP 1xATR / SL 0.75xATR) + win-rate terpisah")
+    print("ok: level mode aman long (TP 1,5xATR / SL 1,125xATR) + win-rate terpisah")
 
 
 def test_research_payload_safe_stats():

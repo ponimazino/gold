@@ -806,8 +806,8 @@ function AnalysisView({ data, now }: { data: DashboardData; now: number }) {
           <p className="analysis-lead">{lead}{rec.confidence_note ? ` ${rec.confidence_note}.` : ""}</p>
           <div className="level-grid">
             <div className="level-card entry"><span>Entry zone</span><strong>{lv ? `${fmtUsd(lv.entry - lv.atr14 * 0.5, 0)} — ${fmtUsd(lv.entry + lv.atr14 * 0.5, 0)}` : "—"}</strong><small>{lv ? "Tunggu respons di zona; jangan kejar" : "Tidak ada level aktif hari ini"}</small></div>
-            <div className="level-card target"><span>First objective</span><strong>{lv ? fmtUsd(lv.tp1) : "—"}</strong><small>TP1 · 1,5× ATR dari entry</small></div>
-            <div className="level-card invalidation"><span>Invalidation</span><strong>{lv ? fmtUsd(lv.sl) : "—"}</strong><small>SL · 1× ATR; close {bias === "bearish" ? "di atas" : "di bawah"} batalkan setup</small></div>
+            <div className="level-card target"><span>First objective</span><strong>{lv ? fmtUsd(lv.tp1) : "—"}</strong><small>TP1 · {bias === "bullish" ? "2,25" : "1,5"}× ATR dari entry</small></div>
+            <div className="level-card invalidation"><span>Invalidation</span><strong>{lv ? fmtUsd(lv.sl) : "—"}</strong><small>SL · {bias === "bullish" ? "1,5" : "1"}× ATR; close {bias === "bearish" ? "di atas" : "di bawah"} batalkan setup</small></div>
           </div>
           {!lv && (
             <div className="risk-note" style={{ marginTop: 14 }}>
@@ -816,7 +816,7 @@ function AnalysisView({ data, now }: { data: DashboardData; now: number }) {
           )}
           {lvSafe && (
             <div className="risk-note" style={{ marginTop: 14 }}>
-              <ShieldAlert size={15} /><span><b>Mode aman (untuk "beberapa pips asal aman"):</b> TP1 {fmtUsd(lvSafe.tp1)} · SL {fmtUsd(lvSafe.sl)} — target 1× ATR (lebih dekat), SL 0,75× ATR (lebih ketat), entry sama. Peluang historis {safeConf != null ? `${safeConf}%` : "—"}{confidence != null ? ` vs ${confidence}% standar` : ""} — dinilai dari backtest 3 tahun dengan rule terpisah; feedback loop harian masih menilai level standar.</span>
+              <ShieldAlert size={15} /><span><b>Mode aman (untuk "beberapa pips asal aman"):</b> TP1 {fmtUsd(lvSafe.tp1)} · SL {fmtUsd(lvSafe.sl)} — target {bias === "bullish" ? "1,5" : "1"}× ATR (lebih dekat), SL {bias === "bullish" ? "1,125" : "0,75"}× ATR (lebih ketat), entry sama. Peluang historis {safeConf != null ? `${safeConf}%` : "—"}{confidence != null ? ` vs ${confidence}% standar` : ""} — dinilai dari backtest 3 tahun dengan rule terpisah; feedback loop harian masih menilai level standar.</span>
             </div>
           )}
           <div className="reasoning-ledger">
@@ -957,7 +957,7 @@ function BacktestView({ data }: { data: DashboardData }) {
   const current = useMemo(() =>
     results.find((r) => r.pattern === selected) ?? results[0] ?? null,
     [results, selected]);
-  const params = data.patterns?.params as { tp_atr?: number; sl_atr?: number; sl_floor_med?: number; horizon?: Record<string, number>; cost_usd?: number; cooldown_bars?: number } | undefined;
+  const params = data.patterns?.params as { tp_atr?: number; sl_atr?: number; sl_floor_med?: number; long_scale?: number; horizon?: Record<string, number>; cost_usd?: number; cooldown_bars?: number } | undefined;
   const cov = data.meta?.coverage?.["1h"];
 
   return (<>
@@ -965,7 +965,7 @@ function BacktestView({ data }: { data: DashboardData }) {
       <div>
         <div className="eyebrow"><FlaskConical size={13} /> Backtest lab <span className="eyebrow-separator">/</span> Historical replay</div>
         <h1>Test the rules. <span>Keep the caveats.</span></h1>
-        <p className="hero-subtitle">Statistik nyata dari engine backtest: sinyal pola searah trend, TP 1,5×ATR vs SL 1×ATR, aturan konservatif, uji out-of-sample 70/30.</p>
+        <p className="hero-subtitle">Statistik nyata dari engine backtest: sinyal pola searah trend, short TP 1,5×ATR vs SL 1×ATR · long stop lebar TP 2,25×ATR vs SL 1,5×ATR, aturan konservatif, uji out-of-sample 70/30.</p>
       </div>
       <StatusPill tone="violet"><Database size={12} />{cov ? `${cov.bars?.toLocaleString("en-US")} bar H1` : "—"}</StatusPill>
     </section>
@@ -982,10 +982,10 @@ function BacktestView({ data }: { data: DashboardData }) {
           <option value="1h">H1 · secondary</option>
         </select></label>
         <label>Lookback<input value={cov?.from ? `${cov.from.slice(0, 10)} — ${cov.to?.slice(0, 10)}` : "—"} readOnly /></label>
-        <label>Parameter tersimpan<div className="range-row"><input type="range" min={10} max={35} value={((params?.sl_atr ?? 1) * 10).toFixed(0)} readOnly /><b>SL {(params?.sl_atr ?? 1).toFixed(1)}× · TP {(params?.tp_atr ?? 1.5).toFixed(1)}× ATR</b></div></label>
+        <label>Parameter tersimpan<div className="range-row"><input type="range" min={10} max={35} value={((params?.sl_atr ?? 1) * 10).toFixed(0)} readOnly /><b>Short SL {(params?.sl_atr ?? 1).toFixed(1)}× · TP {(params?.tp_atr ?? 1.5).toFixed(1)}× · long ×{(params?.long_scale ?? 1.5).toFixed(1)}</b></div></label>
         <div className="assumption-box">
           <div><CircleHelp size={14} /><b>Definisi aturan</b></div>
-          <p>Entry saat pola muncul di bar H1/H4 searah trend EMA. SL {params?.sl_atr ?? 1}×ATR dengan lantai {params?.sl_floor_med != null ? params.sl_floor_med : 0.75}× median ATR-100 saat ATR collapse (proteksi squeeze), TP {params?.tp_atr ?? 1.5}×ATR dalam horizon {params?.horizon?.[tf] ?? "—"} bar. TP+SL di bar sama dihitung LOSS (konservatif). Kolom "net biaya" memotong spread ${params?.cost_usd != null ? params.cost_usd.toFixed(2) : "0.35"}/oz; sinyal searah yang tumpang tindih dalam {params?.cooldown_bars ?? 2} bar didedup supaya n jujur. Statistik di-refresh tiap 1 jam oleh GitHub Actions.</p>
+          <p>Entry saat pola muncul di bar H1/H4 searah trend EMA. Short: SL {params?.sl_atr ?? 1}×ATR / TP {params?.tp_atr ?? 1.5}×ATR. Long: stop lebar (skala ×{params?.long_scale ?? 1.5} — SL 1,5×ATR / TP 2,25×ATR, audit Sep 2026: survive noise pullback di drift naik, rasio R tetap 1,5). Lantai SL {params?.sl_floor_med != null ? params.sl_floor_med : 0.75}× median ATR-100 saat ATR collapse (proteksi squeeze), horizon {params?.horizon?.[tf] ?? "—"} bar. TP+SL di bar sama dihitung LOSS (konservatif). Kolom "net biaya" memotong spread ${params?.cost_usd != null ? params.cost_usd.toFixed(2) : "0.35"}/oz; sinyal searah yang tumpang tindih dalam {params?.cooldown_bars ?? 2} bar didedup supaya n jujur. Statistik di-refresh tiap 1 jam oleh GitHub Actions.</p>
         </div>
         <div style={{ fontSize: 9, color: "#666674", lineHeight: 1.5 }}>Engine berjalan serverless (schedule harian) — panel ini menampilkan hasil tersimpan terbaru, bukan simulasi lokal.</div>
       </div>

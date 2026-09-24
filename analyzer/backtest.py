@@ -21,6 +21,22 @@ DEFAULT_HORIZON = {"1h": 24, "4h": 12}  # bar
 SAFE_TP_ATR = 1.0
 SAFE_SL_ATR = 0.75
 
+# SL LEBAR KHUSUS LONG (batch 10, audit 2026-09-24): barrier sinyal LONG
+# diskalakan LONG_SCALE x parameter dasar (standar 1.5/1.0 -> TP 2.25xATR /
+# SL 1.5xATR; mode aman 1.0/0.75 -> TP 1.5xATR / SL 1.125xATR). Rasio R
+# tetap konstan (TP/SL = 1.5). Bukti 3 tahun kolam produksi (dedup
+# sadar-hasil + searah H4 as-of + lantai SL + net cost): inside_bar long
+# EV OOS +0.087 -> +0.118 (win 44.8% -> 47.3%, positif 4/4 tahun),
+# bullish_engulfing long -0.082 -> +0.165 (dari borderline gugur jadi
+# tegal bukti, 4/4 tahun positif); plateau parameter 1.25-2.0 semuanya
+# lebih baik dari produksi (bukan puncak tunggal cherry-picked); tahan
+# spread buruk ($0.35 -> $0.50: +0.123 -> +0.116); DD/streak nyaris tetap.
+# SHORT TIDAK disentuh — sudah diuji: SL lebar short = wash (+0.015/
+# -0.016/+0.028 OOS di 1.0/1.25/1.5x) dan cuma 1 dari 4 loss live
+# terakhir yang selamat di 1.5x — loss short adalah harga EV+ short,
+# bukan bug SL. Lantai SL (SL_FLOOR_MED_MULT) tetap berlaku dua arah.
+LONG_SCALE = 1.5
+
 # Lantai SL (batch 5, audit 2026-09-22 "SL FLOOR"): SL = max(sl_atr*ATR14,
 # SL_FLOOR_MED_MULT * median ATR14 100 bar sebelumnya). ATR14 collapse saat
 # pasar sepi (konsolidasi Asia pasca-dump, e.g. 22 Sep 2026: ATR $20 -> $13,
@@ -78,8 +94,11 @@ def evaluate(
         if atr <= 0:
             continue
         d = s["dir"]
-        tp_dist = tp_atr * atr
-        sl_dist = sl_atr * atr
+        # SL lebar khusus LONG (batch 10): barrier long diskalakan LONG_SCALE x
+        # parameter dasar — rasio R konstan, short memakai parameter apa adanya
+        scale = LONG_SCALE if d == 1 else 1.0
+        tp_dist = tp_atr * scale * atr
+        sl_dist = sl_atr * scale * atr
         med = df["atr_med100"].iloc[i]
         med = float(med) if med == med else 0.0  # NaN awal series -> tanpa floor
         if med > 0:

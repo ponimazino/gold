@@ -58,22 +58,24 @@ def test_patterns():
 
 
 def test_backtest_math():
-    # df dengan atr stabil ~10: bar-bar normal lalu sinyal manual
+    # df dengan atr stabil ~10: bar-bar normal lalu sinyal manual.
+    # SHORT dipakai untuk matematika barrier dasar (1.5xATR/1.0xATR — tidak
+    # berubah batch 10); LONG lebar diuji terpisah di case 5 + test_slwide.
     rows = [(100, 110, 90, 100)] * 40
     df = patterns.add_indicators(df_of(rows))
     atr_val = float(df["atr14"].iloc[10])
     assert 18 < atr_val < 21, atr_val  # TR=20
 
-    # entry idx 11, open=100, ATR~20 -> tp=+1.5*atr, sl=-1.0*atr
-    sig = {"t": df.index[10], "tf": "1h", "pattern": "x", "dir": 1, "index": 10}
+    # entry idx 11, open=100, ATR~20 -> short: tp=-1.5*atr (~70), sl=+1.0*atr (~120)
+    sig = {"t": df.index[10], "tf": "1h", "pattern": "x", "dir": -1, "index": 10}
 
     # case 1: bar entry menusuk SL saja -> loss, r=-1
-    rows[11] = (100, 105, 60, 95)  # low 60 << sl, high < tp
+    rows[11] = (100, 125, 99, 120)  # high 125 >= sl 120, low 99 > tp 70
     res = backtest.evaluate(patterns.add_indicators(df_of(rows)), [sig], 5)
     assert res[0]["outcome"] == "loss" and res[0]["r"] == -1.0, res
 
     # case 2: menusuk TP saja -> win, r=1.5
-    rows[11] = (100, 140, 99, 135)
+    rows[11] = (100, 105, 65, 90)  # low 65 <= tp 70, high 105 < sl 120
     res = backtest.evaluate(patterns.add_indicators(df_of(rows)), [sig], 5)
     assert res[0]["outcome"] == "win" and res[0]["r"] == 1.5, res
 
@@ -82,12 +84,21 @@ def test_backtest_math():
     res = backtest.evaluate(patterns.add_indicators(df_of(rows)), [sig], 5)
     assert res[0]["outcome"] == "loss", res
 
-    # case 4: tidak kena apa pun -> timeout dengan R parsial (close bar entry 110)
-    rows[11] = (100, 110, 95, 110)
+    # case 4: tidak kena apa pun -> timeout dengan R parsial (close bar entry 90)
+    rows[11] = (100, 110, 95, 90)
     res = backtest.evaluate(patterns.add_indicators(df_of(rows)), [sig], 1)  # horizon 1 bar
     assert res[0]["outcome"] == "timeout", res
-    assert 0 < res[0]["r"] < 1.5, res  # (110-100)/atr ≈ 0.5
-    print("ok: matematika backtest (win/loss/timeout, aturan konservatif, R parsial)")
+    assert 0 < res[0]["r"] < 1.5, res  # (100-90)/sl_dist = 10/20 = 0.5
+
+    # case 5 (batch 10): LONG pakai stop lebar — tp=+2.25*atr (~145), sl=-1.5*atr (~70)
+    sig_l = {**sig, "dir": 1}
+    rows[11] = (100, 146, 99, 140)  # high 146 >= tp 145
+    res = backtest.evaluate(patterns.add_indicators(df_of(rows)), [sig_l], 5)
+    assert res[0]["outcome"] == "win" and res[0]["r"] == 1.5, res
+    rows[11] = (100, 140, 60, 95)  # low 60 <= sl 70 -> loss walau high 140 dekat tp lama
+    res = backtest.evaluate(patterns.add_indicators(df_of(rows)), [sig_l], 5)
+    assert res[0]["outcome"] == "loss" and res[0]["r"] == -1.0, res
+    print("ok: matematika backtest (win/loss/timeout, konservatif, R parsial, long lebar)")
 
 
 def test_oos_split():
@@ -104,25 +115,35 @@ def test_cost_evaluation():
     R nominal per trade tetap (biaya masuk ke probabilitas, bukan ukuran)."""
     rows = [(100, 110, 90, 100)] * 40
     df = patterns.add_indicators(df_of(rows))
-    sig = {"t": df.index[10], "tf": "1h", "pattern": "x", "dir": 1, "index": 10}
+    # SHORT: barrier dasar (tidak tersenggol batch 10) — gross tp ~70 (1.5xatr),
+    # sl ~120 (1.0xatr); net (cost 5): tp ~65, sl ~115
+    sig = {"t": df.index[10], "tf": "1h", "pattern": "x", "dir": -1, "index": 10}
 
-    # gross: tp=+30 (1.5*atr~20), sl=-20; net (cost 5): tp=+35, sl=-15
-    # bar high 131: gross KENA TP (r=1.5), net TIDAK kena TP (butuh 135)
-    rows[11] = (100, 131, 99, 125)
+    # bar low 67: gross KENA TP (~70), net TIDAK (butuh <= 65)
+    rows[11] = (100, 105, 67, 90)
     res_gross = backtest.evaluate(patterns.add_indicators(df_of(rows)), [sig], 5)
     res_net = backtest.evaluate(patterns.add_indicators(df_of(rows)), [sig], 5,
                                 cost_usd=5.0)
     assert res_gross[0]["outcome"] == "win" and res_gross[0]["r"] == 1.5, res_gross
-    assert res_net[0]["outcome"] != "win", res_net  # TP net di 135, high 131 kurang
+    assert res_net[0]["outcome"] != "win", res_net  # TP net di 65, low 67 kurang
 
-    # bar low 82: gross TIDAK kena SL (butuh <=80), net KENA SL (85)
-    rows[11] = (100, 105, 82, 95)
+    # bar high 118: gross TIDAK kena SL (butuh >=120), net KENA SL (115)
+    rows[11] = (100, 118, 99, 110)
     res_gross = backtest.evaluate(patterns.add_indicators(df_of(rows)), [sig], 5)
     res_net = backtest.evaluate(patterns.add_indicators(df_of(rows)), [sig], 5,
                                 cost_usd=5.0)
-    assert res_gross[0]["outcome"] != "loss", res_gross  # SL gross di 80, low 82 lolos
+    assert res_gross[0]["outcome"] != "loss", res_gross  # SL gross di 120, high 118 lolos
     assert res_net[0]["outcome"] == "loss" and res_net[0]["r"] == -1.0, res_net
-    print("ok: evaluasi net of cost (TP lebih jauh, SL lebih dekat, R tetap)")
+
+    # LONG lebar (batch 10): gross tp ~145 (2.25xatr), net tp ~150
+    sig_l = {**sig, "dir": 1}
+    rows[11] = (100, 147, 99, 140)
+    res_gross = backtest.evaluate(patterns.add_indicators(df_of(rows)), [sig_l], 5)
+    res_net = backtest.evaluate(patterns.add_indicators(df_of(rows)), [sig_l], 5,
+                                cost_usd=5.0)
+    assert res_gross[0]["outcome"] == "win", res_gross  # high 147 >= tp gross 145
+    assert res_net[0]["outcome"] != "win", res_net     # tp net di 150, high 147 kurang
+    print("ok: evaluasi net of cost (TP lebih jauh, SL lebih dekat, R tetap, dua arah)")
 
 
 def test_wilson_ci():

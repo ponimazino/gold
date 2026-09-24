@@ -448,7 +448,8 @@ def build(now: datetime | None = None) -> dict:
         story.append(_table(rows, [13 * mm, 40 * mm, 12 * mm, 15 * mm, 20 * mm,
                                    13 * mm, 16 * mm, 17 * mm, 15 * mm]))
         story.append(Paragraph(
-            "Aturan entry backtest: pola searah trend EMA, SL 1.0x ATR, TP 1.5x ATR, "
+            "Aturan entry backtest: pola searah trend EMA, short SL 1.0x ATR / TP 1.5x ATR, "
+            "long stop lebar SL 1.5x ATR / TP 2.25x ATR (audit 2026-09-24), "
             "SL dianggap duluan bila TP & SL tersentuh di bar sama (konservatif). "
             "95% CI = interval kepercayaan Wilson untuk Win%. Net OOS% = win-rate "
             f"out-of-sample SETELAH biaya spread ${backtest.COST_USD:.2f}/oz. "
@@ -516,7 +517,8 @@ def build(now: datetime | None = None) -> dict:
                 story.append(_table(rows, [40 * mm, 20 * mm, 24 * mm, 24 * mm]))
                 story.append(Paragraph(
                     "Max DD dan loss runtun dihitung dari ekuitas kumulatif R "
-                    "(sinyal dedup, urut waktu, rule standar SL 1xATR / TP1 1.5xATR). "
+                    "(sinyal dedup, urut waktu, rule standar — short SL 1xATR / TP1 1.5xATR, "
+                    "long SL 1.5xATR / TP1 2.25xATR). "
                     "Sistem TP1-only: posisi selesai di TP1 (2026-09-20).", S_SMALL))
 
     # 6. Feedback loop

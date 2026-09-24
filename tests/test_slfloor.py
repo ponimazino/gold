@@ -67,12 +67,13 @@ def test_backtest_floor_active():
             "dir": 1, "index": i}]
     res = evaluate(df2, sig, 24)[0]
     assert res["outcome"] == "win", res
-    # R nominal mengecil jujur: tp_dist/sl_dist, bukan 1.5 kaku
-    assert abs(res["r"] - round(1.5 * atr / floor, 3)) < 0.01, res
-    # konfirmasi lantai benar-benar lebih lebar dari SL 1xATR
+    # R nominal mengecil jujur: tp_dist/sl_dist, bukan 1.5 kaku.
+    # LONG batch 10: TP = 2.25xATR (stop lebar), lantai tetap menggenjang SL
+    assert abs(res["r"] - round(2.25 * atr / floor, 3)) < 0.01, res
+    # konfirmasi lantai benar-benar lebih lebar dari SL 1.5xATR (long)
     assert entry - res["entry"] < 0.01  # entry = open bar berikutnya
     print("ok: lantai SL aktif saat ATR collapse — dip 0.7x lantai tak menyapu, "
-          f"R jujur {res['r']} (= 1.5xATR/lantai)")
+          f"R jujur {res['r']} (= 2.25xATR/lantai)")
 
 
 def test_backtest_floor_inactive():
@@ -89,14 +90,14 @@ def test_backtest_floor_inactive():
     t0 = pd.Timestamp(df.index[i])
     entry_t = (t0 + pd.Timedelta(hours=1)).isoformat()
     hit = {"t": entry_t, "o": entry, "h": entry + 0.5,
-           "l": entry - atr - 1.0, "c": entry - atr}
+           "l": entry - 1.5 * atr - 1.0, "c": entry - 1.5 * atr}
     df2 = pd.concat([df, pd.DataFrame([hit]).set_index("t")])
     sig = [{"t": df.index[i], "tf": "1h", "pattern": "inside_bar",
             "dir": 1, "index": i}]
     res = evaluate(df2, sig, 24)[0]
     assert res["outcome"] == "loss", res
     assert res["r"] == -1.0, res
-    print("ok: ATR normal -> lantai diam, SL 1xATR bekerja seperti biasa")
+    print("ok: ATR normal -> lantai diam, SL 1.5xATR (long) bekerja seperti biasa")
 
 
 def _seed_squeeze(now: datetime) -> None:
@@ -148,11 +149,12 @@ def test_recommend_sl_floor():
     dist = entry - sl
     # ATR14 collapse ~ $2, median ATR ~ $20 -> lantai 0.75*20 = $15
     assert 10 < dist < 20, lv
-    assert abs((lv["tp1"] - entry) - 1.5 * lv["atr14"]) < 0.05, lv  # TP tetap 1.5xATR
+    # LONG batch 10: TP = 2.25xATR (stop lebar), SL digenjangkan lantai
+    assert abs((lv["tp1"] - entry) - 2.25 * lv["atr14"]) < 0.05, lv
     assert any("digenjangkan" in r for r in rec["rationale"]), rec["rationale"]
     assert rec["params"]["sl_floor_med"] == SL_FLOOR_MED_MULT, rec["params"]
     print(f"ok: rekomendasi live — SL digenjangkan ${dist:.2f} saat squeeze "
-          f"(1xATR cuma ~${lv['atr14']:.2f}), rationale menyebut lantai")
+          f"(1.5xATR long cuma ~${1.5 * lv['atr14']:.2f}), rationale menyebut lantai")
 
 
 def test_recommend_floor_inert_normal_atr():
@@ -186,10 +188,10 @@ def test_recommend_floor_inert_normal_atr():
     assert rec["status"] == "entry", rec
     lv = rec["levels"]
     atr = lv["atr14"]
-    # ATR belum collapse -> SL ~ 1xATR (lantai 0.75x median < 1xATR)
-    assert abs((lv["entry"] - lv["sl"]) - atr) < 3, lv
+    # ATR belum collapse -> SL long ~ 1.5xATR (lantai 0.75x median di bawahnya)
+    assert abs((lv["entry"] - lv["sl"]) - 1.5 * atr) < 3, lv
     assert not any("digenjangkan" in r for r in rec["rationale"]), rec["rationale"]
-    print("ok: ATR normal -> SL 1xATR, lantai diam di rekomendasi live")
+    print("ok: ATR normal -> SL long 1.5xATR, lantai diam di rekomendasi live")
 
 
 if __name__ == "__main__":
