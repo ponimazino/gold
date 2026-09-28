@@ -85,11 +85,8 @@ body::before { content: ""; position: fixed; inset: 0; pointer-events: none; opa
 @media (prefers-reduced-motion: reduce) { body::before { display: none; } .content-wrap > *, .status-pill, .health-bar span, .chart-panel .recharts-area-area, .chart-panel .recharts-line-curve { animation: none !important; } .live-dot { animation: none !important; } }
 @media (max-width: 760px) { body { background-size: 32px 32px, 32px 32px, auto, auto; }.metric-card:hover, .panel:hover { transform: none; }.content-wrap > * { animation-duration: .42s; } }
 
-/* Chart tools: toggle Line/Candle + zoom (dirancang rapi di mobile) */
+/* Chart tools: zoom (dirancang rapi di mobile) — mode candle dihapus 2026-09-28 */
 .chart-tools { margin-left: auto; display: flex; align-items: center; gap: 6px; min-width: 0; flex-wrap: wrap; justify-content: flex-end; }
-.chart-mode-seg { display: flex; border: 1px solid var(--line); border-radius: 7px; overflow: hidden; background: #18181f; }
-.chart-mode-seg button { border: 0; background: transparent; color: #777783; font-weight: 650; font-size: 9px; height: 25px; padding: 0 9px; cursor: pointer; }
-.chart-mode-seg button.active { background: #2d2d37; color: var(--lime); }
 .zoom-btn { width: 25px; height: 25px; display: inline-grid; place-items: center; color: #b0b0bb; background: #1a1a21; border: 1px solid var(--line); border-radius: 7px; font-size: 13px; line-height: 1; cursor: pointer; padding: 0; }
 .zoom-btn:hover { background: #25252d; color: #fff; }
 .zoom-btn:active { transform: scale(.9); }
@@ -98,7 +95,6 @@ body::before { content: ""; position: fixed; inset: 0; pointer-events: none; opa
   .chart-legend-row { row-gap: 8px; }
   .chart-tools { margin-left: 0; flex-basis: 100%; justify-content: space-between; }
   .chart-tools .chart-range { flex-basis: 100%; margin-left: 0; font-size: 8px; order: 2; }
-  .chart-mode-seg button { padding: 0 8px; }
 }
 
 /* PDF viewer: lihat laporan harian langsung di dalam app (iframe) */
@@ -113,18 +109,20 @@ body::before { content: ""; position: fixed; inset: 0; pointer-events: none; opa
 /* render pdf.js (iOS): halaman ke kanvas, scroll vertikal */
 .pdf-js-box { overflow-y: auto; padding: 8px; display: flex; flex-direction: column; gap: 8px; }
 .pdf-js-box canvas { border-radius: 6px; background: #fff; }
-/* view Jadwal: carousel kartu jadwal update (scroll horizontal) */
-.sched-carousel { display: flex; gap: 12px; overflow-x: auto; scroll-snap-type: x mandatory; padding: 14px; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
-.sched-carousel::-webkit-scrollbar { display: none; }
-.sched-card { flex: 0 0 clamp(230px, 72vw, 320px); scroll-snap-align: start; display: grid; gap: 8px; align-content: start; border: 1px solid rgba(255,255,255,.065); background: rgba(32,32,41,.76); border-radius: 12px; padding: 14px; }
-.sched-fitur { display: flex; gap: 9px; align-items: center; color: #fff; }
-.sched-fitur b { line-height: 1.3; }
+/* view Jadwal: tabel jadwal update (semua baris sekali lihat, biar gampang
+   dibandingkan — dulu carousel; permintaan user 2026-09-28) */
+.sched-table-wrap { overflow-x: auto; padding: 10px 8px 12px; -webkit-overflow-scrolling: touch; }
+.sched-table { width: 100%; min-width: 720px; border-collapse: collapse; }
+.sched-table th { text-align: left; font-size: 8.5px; text-transform: uppercase; letter-spacing: .1em; color: #666674; font-weight: 650; padding: 9px 10px; border-bottom: 1px solid rgba(255,255,255,.08); white-space: nowrap; }
+.sched-table td { padding: 10px; border-bottom: 1px solid rgba(255,255,255,.05); vertical-align: top; }
+.sched-table tbody tr:last-child td { border-bottom: 0; }
+.sched-fit-cell { display: flex; gap: 9px; align-items: center; color: #fff; }
+.sched-fit-cell b { line-height: 1.3; font-size: 11px; }
 .sched-ico { width: 26px; height: 26px; flex: 0 0 26px; border-radius: 8px; display: grid; place-items: center; background: #20202a; color: #d5ff3f; }
 .sched-note { display: block; margin-top: 2px; font-size: 9px; color: #8e8e9b; line-height: 1.5; }
 .sched-when { color: #c9c9d1; font-size: 10px; line-height: 1.5; }
-.sched-next { display: inline-flex; align-items: center; gap: 6px; width: fit-content; color: #f1d68c; font-size: 10px; font-weight: 650; background: rgba(255,200,90,.07); border: 1px solid rgba(255,200,90,.22); padding: 4px 9px; border-radius: 7px; }
+.sched-next { display: inline-flex; align-items: center; gap: 6px; width: fit-content; color: #f1d68c; font-size: 10px; font-weight: 650; background: rgba(255,200,90,.07); border: 1px solid rgba(255,200,90,.22); padding: 4px 9px; border-radius: 7px; white-space: nowrap; }
 .sched-next svg { color: var(--amber); }
-.sched-lab { font-size: 8px; text-transform: uppercase; letter-spacing: .1em; color: #666674; }
 .sched-src { display: block; color: #8e8e9b; font-size: 9px; }
 .sched-last { font-family: "DM Mono", monospace; font-size: 10px; color: #d5ff3f; background: rgba(213,255,63,.08); border: 1px solid rgba(213,255,63,.22); padding: 3px 8px; border-radius: 6px; white-space: nowrap; width: fit-content; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
 /* mobile: footnote kartu metric jangan dipotong jadi 1 baris */

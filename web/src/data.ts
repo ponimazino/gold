@@ -14,8 +14,8 @@ export const VAPID_PUBLIC_KEY =
 // yang di-push (aturan user 2026-09-20): tampil di kartu versi sidebar bawah
 // supaya kelihatan versi & terakhir kali kode berubah (bukan jam sync data).
 export const APP_NAME = "GoldPulse";
-export const APP_VERSION = "2.12"; // v2.12 = SL lebar khusus long (TP 2,25xATR / SL 1,5xATR, short tidak berubah — audit 3 tahun)
-export const APP_UPDATED_WIB = "24 Sep 2026";
+export const APP_VERSION = "2.13"; // v2.13 = UI: riwayat urut terbaru, notice bar statis dihapus, chart line only, Jadwal jadi tabel
+export const APP_UPDATED_WIB = "28 Sep 2026";
 
 // base64url -> Uint8Array<ArrayBuffer> untuk applicationServerKey
 export function urlBase64ToUint8Array(b64: string): Uint8Array<ArrayBuffer> {
@@ -339,14 +339,11 @@ export const PATTERN_NAMES: Record<string, string> = {
   inside_bar: "Inside Bar",
 };
 
-// candle untuk recharts: label WIB + ema20/50 overlay
+// bar harga untuk recharts: label WIB + ema20/50 overlay (mode line only,
+// mode candle dihapus 2026-09-28 atas permintaan user)
 export interface ChartRow {
   ts: number; label: string; open: number; high: number; low: number;
   close: number; ema20: number; ema50: number;
-  up: boolean;
-  // 4 segmen candle SATU stack (bawah → atas): base transparan, sumbu
-  // bawah, badan, sumbu atas — recharts menumpuknya jadi 1 candle per bar.
-  cBase: number; cWickLower: number; cBody: number; cWickUpper: number;
 }
 
 export function toChartRows(bars: Bar[]): ChartRow[] {
@@ -356,20 +353,10 @@ export function toChartRows(bars: Bar[]): ChartRow[] {
   const fmtDay = new Intl.DateTimeFormat("en-GB", {
     timeZone: WIB, day: "2-digit", month: "short",
   });
-  return bars.map((b, i) => {
-    const up = b.c >= b.o;
-    return {
-      ts: utcStringToTs(b.t),
-      label: fmtDay.format(utcStringToTs(b.t)),
-      open: b.o, high: b.h, low: b.l, close: b.c,
-      ema20: e20[i], ema50: e50[i],
-      up,
-      // segmen candle untuk satu stack: 0→low (transparan), low→min(o,c),
-      // min(o,c)→max(o,c), max(o,c)→high
-      cBase: b.l,
-      cWickLower: Math.min(b.o, b.c) - b.l,
-      cBody: Math.abs(b.c - b.o),
-      cWickUpper: b.h - Math.max(b.o, b.c),
-    };
-  });
+  return bars.map((b, i) => ({
+    ts: utcStringToTs(b.t),
+    label: fmtDay.format(utcStringToTs(b.t)),
+    open: b.o, high: b.h, low: b.l, close: b.c,
+    ema20: e20[i], ema50: e50[i],
+  }));
 }

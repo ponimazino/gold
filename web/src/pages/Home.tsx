@@ -165,36 +165,15 @@ function useWibClock() {
 // ---- chart harga nyata (H4 prioritas / H1) — bisa digeser & di-zoom ----
 //
 // Interaksi: scroll = zoom (anchor di posisi kursor), klik-tarik = geser
-// periode, tombol +/-/reset untuk sentuh (mobile). Jendela default: 90 bar
-// untuk line, 48 bar untuk candle (badan lebih lebar).
+// periode, tombol +/-/reset untuk sentuh (mobile). Jendela default: 90 bar.
+// (Mode candle dihapus 2026-09-28 atas permintaan user — line only.)
 
 const CHART_LOAD = 1200;  // bar maksimum yang dimuat ke grafik
 const CHART_MIN_BARS = 15;
-const LINE_BARS = 90;   // jendela default mode line
-const CANDLE_BARS = 48; // jendela candle lebih pendek supaya badan lebih lebar
-
-// Bentuk candlestick: semua segmen dalam satu stack berbagi lebar band yang
-// sama (recharts mengabaikan barSize per-Bar dalam satu stack), jadi sumbu
-// dipaksa tipis lewat custom shape. Data bar di-spread ke props shape,
-// termasuk flag `up`.
-type CandleShapeProps = { x?: number; y?: number; width?: number; height?: number; up?: boolean };
-const candleFill = (p: CandleShapeProps) => (p.up ? "#d5ff3f" : "#ff7799");
-
-function CandleBody(p: CandleShapeProps) {
-  const w = p.width ?? 0;
-  const h = Math.max(p.height ?? 0, 1.5); // doji tetap terlihat 1.5px
-  return <rect x={p.x ?? 0} y={p.y ?? 0} width={w} height={h} fill={candleFill(p)} />;
-}
-
-function CandleWick(p: CandleShapeProps) {
-  const bw = p.width ?? 0;
-  const w = Math.max(1.2, Math.min(2.2, bw * 0.16));
-  return <rect x={(p.x ?? 0) + (bw - w) / 2} y={p.y ?? 0} width={w} height={p.height ?? 0} fill={candleFill(p)} />;
-}
+const LINE_BARS = 90;   // jendela default
 
 function PriceChart({ data, spot }: { data: DashboardData; spot: Spot | null }) {
   const [timeframe, setTimeframe] = useState<Timeframe>("4H");
-  const [mode, setMode] = useState<"line" | "candle">("line");
   const chartBoxRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<{ chartX: number; start: number } | null>(null);
 
@@ -205,7 +184,7 @@ function PriceChart({ data, spot }: { data: DashboardData; spot: Spot | null }) 
   }, [data, timeframe]);
 
   const MAX = allRows.length;
-  const defaultCount = Math.min(mode === "candle" ? CANDLE_BARS : LINE_BARS, MAX);
+  const defaultCount = Math.min(LINE_BARS, MAX);
   const defaultRange = useMemo(() => ({ start: Math.max(0, MAX - defaultCount), count: defaultCount }), [MAX, defaultCount]);
   const [range, setRange] = useState(defaultRange);
   useEffect(() => setRange(defaultRange), [defaultRange]); // reset saat ganti TF / data baru
@@ -226,13 +205,6 @@ function PriceChart({ data, spot }: { data: DashboardData; spot: Spot | null }) 
       last.close = spot.price;
       last.high = Math.max(last.high, spot.price);
       last.low = Math.min(last.low, spot.price);
-      // segmen candle ikut nilai baru supaya mode candle tidak basi
-      const bodyLow = Math.min(last.open, last.close);
-      const bodyHigh = Math.max(last.open, last.close);
-      last.cBase = last.low;
-      last.cWickLower = bodyLow - last.low;
-      last.cBody = bodyHigh - bodyLow;
-      last.cWickUpper = last.high - bodyHigh;
     }
     return arr;
   }, [allRows, range, spot?.price, MAX]);
@@ -286,19 +258,10 @@ function PriceChart({ data, spot }: { data: DashboardData; spot: Spot | null }) 
   return (
     <div className="chart-wrap">
       <div className="chart-legend-row">
-        {mode === "line" ? (<>
-          <div className="legend-item"><span className="legend-line lime" />Price</div>
-          <div className="legend-item"><span className="legend-line purple" />EMA 20</div>
-          <div className="legend-item"><span className="legend-line gray" />EMA 50</div>
-        </>) : (<>
-          <div className="legend-item"><span className="legend-line lime" />Up candle</div>
-          <div className="legend-item"><span className="legend-line red" />Down candle</div>
-        </>)}
+        <div className="legend-item"><span className="legend-line lime" />Price</div>
+        <div className="legend-item"><span className="legend-line purple" />EMA 20</div>
+        <div className="legend-item"><span className="legend-line gray" />EMA 50</div>
         <div className="chart-tools">
-          <div className="chart-mode-seg" role="group" aria-label="Tipe chart">
-            <button className={mode === "line" ? "active" : ""} onClick={() => setMode("line")}>Line</button>
-            <button className={mode === "candle" ? "active" : ""} onClick={() => setMode("candle")}>Candle</button>
-          </div>
           <button className="zoom-btn" aria-label="Zoom out" onClick={() => zoomBy(1.3)}>−</button>
           <button className="zoom-btn" aria-label="Zoom in" onClick={() => zoomBy(0.7)}>+</button>
           <button className="zoom-btn" aria-label="Reset jendela" onClick={() => setRange(defaultRange)}>⟲</button>
@@ -329,23 +292,7 @@ function PriceChart({ data, spot }: { data: DashboardData; spot: Spot | null }) 
             {lv && timeframe === "4H" && atRightEdge && (
               <ReferenceArea y1={lv.entry - lv.atr14 * 0.5} y2={lv.entry + lv.atr14 * 0.5} fill="#d5ff3f" fillOpacity={0.08} strokeOpacity={0} />
             )}
-            {/* NOTE: jangan bungkus <Bar> dalam fragment <></> — recharts
-                (react-is 18 di bawah React 19) tidak me-flatten fragment,
-                sehingga bar tidak terdeteksi. Pakai child kondisional langsung. */}
-            {mode === "line" ? (
-              <Area type="monotone" dataKey="close" stroke="#d5ff3f" strokeWidth={2.4} fill="url(#priceFill)" dot={false} activeDot={{ r: 4, fill: "#d5ff3f", stroke: "#16161c", strokeWidth: 2 }} />
-            ) : (
-              <Bar dataKey="cBase" stackId="candle" fill="transparent" isAnimationActive={false} />
-            )}
-            {mode === "candle" && (
-              <Bar dataKey="cWickLower" stackId="candle" isAnimationActive={false} shape={CandleWick} />
-            )}
-            {mode === "candle" && (
-              <Bar dataKey="cBody" stackId="candle" isAnimationActive={false} shape={CandleBody} />
-            )}
-            {mode === "candle" && (
-              <Bar dataKey="cWickUpper" stackId="candle" isAnimationActive={false} shape={CandleWick} />
-            )}
+            <Area type="monotone" dataKey="close" stroke="#d5ff3f" strokeWidth={2.4} fill="url(#priceFill)" dot={false} activeDot={{ r: 4, fill: "#d5ff3f", stroke: "#16161c", strokeWidth: 2 }} />
             <Line type="monotone" dataKey="ema20" stroke="#a58bff" strokeWidth={1.4} dot={false} />
             <Line type="monotone" dataKey="ema50" stroke="#7a7a86" strokeWidth={1.2} strokeDasharray="5 5" dot={false} />
             {atRightEdge && (
@@ -1149,7 +1096,7 @@ function RiwayatView({ data }: { data: DashboardData }) {
   const selSlots = useMemo(
     () => [...(rDays.find((d) => d.date === selDay)?.slots ?? [])]
       .filter((s) => !s.experiment) // slot eksperimen lama ikut disembunyikan
-      .sort((a, b) => (a.t_wib ?? "").localeCompare(b.t_wib ?? "")),
+      .sort((a, b) => (b.t_wib ?? "").localeCompare(a.t_wib ?? "")), // jam terbaru dulu (permintaan 2026-09-28)
     [rDays, selDay]);
   const dayOptions = useMemo(() => {
     const set = new Set<string>([todayWib]);
@@ -1572,27 +1519,46 @@ function JadwalView({ data, now }: { data: DashboardData; now: number }) {
     </section>
     <div className="panel" style={{ padding: 0 }}>
       <div className="panel-header" style={{ padding: "16px 16px 0" }}>
-        <div><div className="panel-kicker">Perkiraan update berikutnya</div><h2>Geser untuk lihat semua</h2></div>
+        <div><div className="panel-kicker">Perkiraan update berikutnya</div><h2>Semua jadwal — satu tabel</h2></div>
       </div>
-      <div className="sched-carousel">
-        {SCHEDULE_ROWS.map((r) => {
-          const Icon = r.icon;
-          return (
-            <div className="sched-card" key={r.fitur}>
-              <div className="sched-fitur"><span className="sched-ico"><Icon size={14} /></span><b>{r.fitur}</b></div>
-              <div className="sched-when">{r.jadwal}</div>
-              {r.next ? (
-                <div className="sched-next"><TimerReset size={12} /> {nextUpdateLabel(now, r.next)}</div>
-              ) : (
-                <div className="sched-next"><TimerReset size={12} /> berjalan di browser</div>
-              )}
-              <div className="sched-lab">Terakhir</div>
-              <span className="sched-last">{lastRun[r.fitur] ?? "—"}</span>
-              <small className="sched-note">{r.catatan}</small>
-              <small className="sched-src">{r.sumber}</small>
-            </div>
-          );
-        })}
+      {/* tabel (permintaan user 2026-09-28): semua baris terlihat sekaligus
+          biar gampang dibandingkan — dulu carousel harus digeser-geser */}
+      <div className="sched-table-wrap">
+        <table className="sched-table">
+          <thead>
+            <tr>
+              <th>Fitur</th>
+              <th>Jadwal</th>
+              <th>Update berikutnya</th>
+              <th>Terakhir</th>
+              <th>Catatan &amp; sumber</th>
+            </tr>
+          </thead>
+          <tbody>
+            {SCHEDULE_ROWS.map((r) => {
+              const Icon = r.icon;
+              return (
+                <tr key={r.fitur}>
+                  <td>
+                    <div className="sched-fit-cell">
+                      <span className="sched-ico"><Icon size={14} /></span>
+                      <b>{r.fitur}</b>
+                    </div>
+                  </td>
+                  <td className="sched-when">{r.jadwal}</td>
+                  <td>
+                    <div className="sched-next"><TimerReset size={12} /> {r.next ? nextUpdateLabel(now, r.next) : "berjalan di browser"}</div>
+                  </td>
+                  <td><span className="sched-last">{lastRun[r.fitur] ?? "—"}</span></td>
+                  <td>
+                    <small className="sched-note">{r.catatan}</small>
+                    <small className="sched-src">{r.sumber}</small>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
     </div>
     <div className="panel assumption-box" style={{ marginTop: 14 }}>
@@ -1787,11 +1753,11 @@ export default function Home() {
           </div>
         </header>
         <div className="content-wrap">
-          {!noticeHidden && (
+          {data?.push?.last_status === "expired" && !noticeHidden && (
             <div className="demo-notice">
               <div>
                 <AlertTriangle size={14} />
-                <span>{data?.push?.last_status === "expired" && <b style={{ color: "#e2b26a" }}>⚠ Notifikasi putus — aktifkan ulang di tab Jadwal (salin JSON langganan, perbarui Secret PUSH_SUBSCRIPTIONS). </b>}<b>Bukan grafik real-time.</b> Harga live di kartu atas (tiap 30 dtk) hanya tampilan — grafik menampilkan candle final per jam: bar terakhir disinkron tiap jam :17 WIB (terakhir {data?.meta?.updated_at_wib ?? "—"}), rekomendasi dibuat ulang tiap 1 jam saat pasar aktif ({rec?.created_at_wib ?? "—"}). Probabilitas statistik, bukan saran finansial.</span>
+                <span><b style={{ color: "#e2b26a" }}>⚠ Notifikasi putus</b> — aktifkan ulang di tab Jadwal (salin JSON langganan, perbarui Secret PUSH_SUBSCRIPTIONS).</span>
               </div>
               <button aria-label="Dismiss notice" onClick={() => setNoticeHidden(true)}><X size={14} /></button>
             </div>
