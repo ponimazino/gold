@@ -147,7 +147,17 @@ function useDashboard() {
     const spotTimer = setInterval(() => fetchSpot().then((s) => s && setSpot(s)), 30_000);
     const clockTimer = setInterval(() => setNow(Date.now()), 30_000);
     const dataTimer = setInterval(refresh, 10 * 60_000);
-    return () => { clearInterval(spotTimer); clearInterval(clockTimer); clearInterval(dataTimer); };
+    // refresh saat app kembali terlihat (2026-09-28): klik notif ke PWA yang
+    // sudah terbuka cuma fokus (navigasi hash sama = TIDAK reload halaman)
+    // — tanpa ini data di layar bisa 0-10 menit basi padahal notif baru masuk
+    const onVisible = () => {
+      if (document.visibilityState === "visible") refresh();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      clearInterval(spotTimer); clearInterval(clockTimer); clearInterval(dataTimer);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, []);
 
   return { data, spot, loading, now, refresh };

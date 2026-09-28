@@ -14,7 +14,7 @@ export const VAPID_PUBLIC_KEY =
 // yang di-push (aturan user 2026-09-20): tampil di kartu versi sidebar bawah
 // supaya kelihatan versi & terakhir kali kode berubah (bukan jam sync data).
 export const APP_NAME = "GoldPulse";
-export const APP_VERSION = "2.13"; // v2.13 = UI: riwayat urut terbaru, notice bar statis dihapus, chart line only, Jadwal jadi tabel
+export const APP_VERSION = "2.14"; // v2.14 = data selalu segar: cache-buster CDN (?_=epoch) + refresh saat app kembali terlihat
 export const APP_UPDATED_WIB = "28 Sep 2026";
 
 // base64url -> Uint8Array<ArrayBuffer> untuk applicationServerKey
@@ -173,9 +173,20 @@ export interface DashboardData {
 
 // ---- fetch helpers ----
 
+// cache-buster (2026-09-28): CDN raw.githubusercontent menyimpan tiap file
+// per-URL selama 5 menit (Cache-Control: max-age=300) — opsi fetch
+// "no-store" hanya melewati cache BROWSER, bukan cache CDN, dan tiap file
+// di-cache terpisah (recommendation.json bisa segar sementara rec_log.json
+// masih versi lama = Riwayat telat walau analisa sudah keluar). Query unik
+// per permintaan memaksa CDN selalu ambil dari origin (cache key CDN
+// termasuk query string). PDF laporan TIDAK lewat sini (link langsung
+// browser, sudah punya ?v= ukuran-file sendiri).
+const cacheBust = (url: string) =>
+  `${url}${url.includes("?") ? "&" : "?"}_=${Date.now()}`;
+
 async function getJson<T>(url: string): Promise<T | null> {
   try {
-    const res = await fetch(url, { cache: "no-store" });
+    const res = await fetch(cacheBust(url), { cache: "no-store" });
     if (!res.ok) return null;
     return (await res.json()) as T;
   } catch {
