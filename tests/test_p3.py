@@ -185,15 +185,19 @@ def test_dedup_signals_outcome_aware():
     """Batch 7 (2026-09-23): dedup sadar-hasil — sinyal searah < cooldown bar
     TETAP dipakai kalau sinyal sebelumnya sudah kena TP1 sebelum bar sinyal
     baru; setelah SL / masih berjalan tetap dibuang. Persis aturan live
-    apply_cooldown (re-entry pasca-TP1)."""
+    apply_cooldown (re-entry pasca-TP1).
+    Fixture diupdate 2026-09-30: sinyal tes ini LONG — barrier kini ikut
+    aturan live batch 10 (LONG_SCALE: TP 2.25xATR / SL 1.5xATR), bukan lagi
+    pra-batch-10 (TP 1.5 / SL 1)."""
     from analyzer.jobs import research
-    # ind sintetis: ATR=1 (TP entry+1.5, SL entry-1, tanpa lantai median)
+    # ind sintetis: ATR=1 (LONG lebar: TP entry+2.25, SL entry-1.5, tanpa
+    # lantai median)
     ind = pd.DataFrame({
         "o": [100.0] * 6, "h": [101.0] * 6, "l": [99.5] * 6, "c": [100.0] * 6,
         "atr14": [1.0] * 6, "atr_med100": [0.0] * 6,
     })
-    ind.loc[2, "h"] = 102.0    # bar 2: TP1 sinyal A tersentuh (102 >= 101.5)
-    ind.loc[3, "l"] = 98.5     # bar 3: SL sinyal B kena (98.5 <= 99)
+    ind.loc[2, "h"] = 102.5    # bar 2: TP1 lebar sinyal A tersentuh (102.5 >= 102.25)
+    ind.loc[3, "l"] = 98.4     # bar 3: SL lebar sinyal B kena (98.4 <= 98.5)
     sigs = [
         {"dir": 1, "index": 1, "pattern": "a"},   # A: keep (pertama)
         {"dir": 1, "index": 2, "pattern": "b"},    # < 2 bar dari A, TAPI A sudah TP1 di bar 2 -> keep
@@ -211,7 +215,7 @@ def test_dedup_signals_outcome_aware():
     ind2 = pd.DataFrame({
         "o": [100.0] * 6, "h": [101.0] * 6, "l": [99.5] * 6, "c": [100.0] * 6,
         "atr14": [1.0] * 6, "atr_med100": [0.0] * 6,
-    })  # semua bar netral: TP 101.5 / SL 99 tidak tersentuh
+    })  # semua bar netral: TP lebar 102.25 / SL lebar 98.5 tidak tersentuh
     sigs2 = [
         {"dir": 1, "index": 1, "pattern": "a"},
         {"dir": 1, "index": 2, "pattern": "b"},    # A belum TP/SL -> drop
@@ -219,6 +223,49 @@ def test_dedup_signals_outcome_aware():
     out2 = research.dedup_signals(sigs2, cooldown=2, ind=ind2)
     assert [s["index"] for s in out2] == [1], out2
     print("ok: dedup sadar-hasil (re-entry pasca-TP1 dipakai, SL/berjalan dibuang)")
+
+
+def test_dedup_hit_tp1_long_scale():
+    """Audit 2026-09-30: barrier dedup sadar-hasil HARUS sadar LONG_SCALE
+    (batch 10) — persis aturan live backtest.evaluate. Versi lama menilai
+    klaster long dengan barrier pra-batch-10 (TP 1.5xATR / SL 1xATR),
+    sehingga klaster long di kolam statistik tidak persis yang live."""
+    from analyzer.jobs import research
+    # ATR=1, entry=100. LONG live: TP 102.25 / SL 98.5. SHORT live: TP 98.5 /
+    # SL 101 (tanpa skala — barrier pra-batch-10 IDENTIK utk short).
+    base = {
+        "o": [100.0] * 5, "h": [101.0] * 5, "l": [99.0] * 5, "c": [100.0] * 5,
+        "atr14": [1.0] * 5, "atr_med100": [0.0] * 5,
+    }
+    mk = lambda: pd.DataFrame({k: list(v) for k, v in base.items()})
+    sigs = [{"dir": 1, "index": 0, "pattern": "a"},
+            {"dir": 1, "index": 2, "pattern": "b"}]
+
+    # (1) harga menyentuh 102.0 — TP versi LAMA (101.5) tapi BUKAN TP lebar
+    #     live (102.25), tidak menyentuh SL 98.5 -> posisi long MASIH
+    #     BERJALAN menurut aturan live -> sinyal lanjutan DIBUANG.
+    ind = mk()
+    ind.loc[1, "h"] = 102.0
+    out = research.dedup_signals(sigs, cooldown=2, ind=ind)
+    assert [s["index"] for s in out] == [0], out
+
+    # (2) harga menyentuh TP lebar 102.3 >= 102.25 -> re-entry pasca-TP1
+    #     DIPAKAI (sinyal lanjutan lolos dedup).
+    ind2 = mk()
+    ind2.loc[1, "h"] = 102.3
+    out2 = research.dedup_signals(sigs, cooldown=2, ind=ind2)
+    assert [s["index"] for s in out2] == [0, 2], out2
+
+    # (3) SHORT tidak diskalakan: naik ke 101.2 menyapu SL 1xATR (101.0)
+    #     -> sinyal lanjutan dibuang; kalau scale salah diterapkan ke short
+    #     (SL 101.5), 101.2 tidak menyentuhnya dan tes ini gagal.
+    ind3 = mk()
+    ind3.loc[1, "h"] = 101.2
+    sigs_s = [{"dir": -1, "index": 0, "pattern": "a"},
+              {"dir": -1, "index": 2, "pattern": "b"}]
+    out3 = research.dedup_signals(sigs_s, cooldown=2, ind=ind3)
+    assert [s["index"] for s in out3] == [0], out3
+    print("ok: dedup sadar-hasil sadar LONG_SCALE (long lebar 2.25/1.5, short tetap 1.5/1)")
 
 
 def test_risk_stats():
@@ -248,6 +295,7 @@ def main() -> int:
     test_wilson_ci()
     test_dedup_signals()
     test_dedup_signals_outcome_aware()
+    test_dedup_hit_tp1_long_scale()
     test_risk_stats()
     print("\nALL P3 TESTS PASSED")
     return 0

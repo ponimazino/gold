@@ -330,8 +330,23 @@ def _monthly_narrative(months: list[dict]) -> str:
     return txt or "Belum cukup data bulanan untuk direkap."
 
 
+def _report_now(now: datetime) -> datetime:
+    """Tanggal laporan = hari TRADING WIB yang baru selesai, bukan sekadar
+    tanggal jam dinding saat dibangun. Cron EOD 23:07 WIB membangun untuk
+    hari yang sama; TAPI workflow backup (report.yml) terbukti dieksekusi
+    GitHub 4-6 jam terlambat (audit 2026-09-30: mendarat 00:00-05:00 WIB
+    hari berikutnya, 3 hari beruntun) — tanpa guard, nama file bergeser
+    sehari (daily-2026-09-29.pdf berisi akhir sesi 28 Sep; "hari ini"
+    jadi parsial 3-5 jam). Guard: dibangun sebelum 05:00 WIB -> laporkan
+    kemarin (yang barusan selesai), setelah itu -> hari ini (jalur
+    normal 23:07 WIB)."""
+    if now.astimezone(WIB).hour < 5:
+        return now - timedelta(days=1)
+    return now
+
+
 def build(now: datetime | None = None) -> dict:
-    now = now or datetime.now(timezone.utc)
+    now = _report_now(now or datetime.now(timezone.utc))
     bars1h = store.load("1h")
     bars4h = store.load("4h")
     patterns = _read_json("patterns.json")

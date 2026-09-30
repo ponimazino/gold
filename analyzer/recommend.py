@@ -261,7 +261,11 @@ def build_recommendation(now: datetime | None = None) -> dict:
             f"{blk['minutes_to_event']:+d} menit — rekomendasi ditunda")
     if nxt:
         rec["next_event"] = {"title": nxt[0]["title"], "t_utc": nxt[0]["t_utc"]}
-    else:
+    elif not blk:
+        # JANGAN tampilkan "tidak ada event 24 jam" saat sedang blackout:
+        # event yang baru lewat otomatis keluar dari daftar upcoming, jadi
+        # baris ini kontradiktif dengan "JEDA ENTRY ... rilis dalam -X menit"
+        # di atasnya (audit 2026-09-30, kasus pasca-Core PCE).
         rec["rationale"].append("tidak ada event bintang-3 US dalam 24 jam")
 
     if blk:

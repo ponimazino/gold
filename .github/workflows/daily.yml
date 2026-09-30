@@ -109,6 +109,19 @@ jobs:
             python -m analyzer.jobs.sync || echo "[watch] sync gagal — analisa pakai data tersimpan"
             # 2. research + rekomendasi + feedback loop
             python -m analyzer.jobs.daily || echo "[watch] analisa gagal — coba iterasi berikutnya"
+            # 2b. Laporan EOD PDF di iterasi 16:07 UTC (23:07 WIB) — persis
+            #     setelah slot grid terakhir (22:37 WIB), log EOD tracking
+            #     barusan selesai ditulis. Cron workflow Laporan Harian
+            #     terbukti SELALU dieksekusi GitHub 4-6 jam terlambat (audit
+            #     2026-09-30: PDF mendarat 03:00-05:00 WIB + nama file
+            #     bergeser sehari) — di dalam loop yang sudah hidup, jam ini
+            #     tidak tergantung scheduler. report.yml tetap jalan sebagai
+            #     backup (idempotent, nama file per-tanggal sama; report.py
+            #     kini meng-guard tanggal utk run telat yang mendarat pagi
+            #     buta). data/reports/ ikut ke-commit oleh "git add data".
+            if [ "$(date -u +%-H)" -eq 16 ]; then
+              python -m analyzer.jobs.report || echo "[watch] report gagal — tidak fatal"
+            fi
             git add data
             if git diff --cached --quiet; then
               echo "Tidak ada perubahan — tidak commit."

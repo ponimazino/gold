@@ -71,9 +71,16 @@ def bars_to_df(bars: list[dict]) -> pd.DataFrame:
 def _signal_hit_tp1(ind: pd.DataFrame, p: dict, s: dict) -> bool:
     """True kalau sinyal p (searah) mencapai TP1 SEBELUM SL pada bar entry p
     s.d. bar sinyal baru s (close bar s = momen analisa live). Persis rule
-    live: entry = open bar berikutnya, TP 1.5xATR / SL 1xATR + lantai
-    0.75x median ATR-100, SL dicek dulu per bar (konservatif, sama
-    backtest.evaluate). Dipakai dedup sadar-hasil."""
+    live: entry = open bar berikutnya; barrier sesuai backtest.evaluate —
+    SHORT TP 1.5xATR / SL 1xATR, LONG 1.5x lebih lebar dua-duanya (batch 10
+    LONG_SCALE: TP 2.25xATR / SL 1.5xATR) + lantai 0.75x median ATR-100,
+    SL dicek dulu per bar (konservatif, sama backtest.evaluate). Dipakai
+    dedup sadar-hasil.
+    (Audit 2026-09-30: fungsi ini sempat memakai barrier pra-batch-10 utk
+    LONG — kolam statistik long tidak persis aturan live, pelanggaran
+    invariant "statistik gate = aturan live". Efek fix di data 3 tahun:
+    pool long berubah 38/2741 sinyal, IB long 807->804 / BE long 403->397,
+    KEDUA rute tetap lolos gate, short identik bit-level.)"""
     entry_idx = p["index"] + 1
     if entry_idx >= len(ind) or entry_idx > s["index"]:
         return False
@@ -82,13 +89,14 @@ def _signal_hit_tp1(ind: pd.DataFrame, p: dict, s: dict) -> bool:
     if atr <= 0 or atr != atr:  # 0 / NaN (data terlalu awal)
         return False
     d = p["dir"]
-    sl_dist = backtest.DEFAULT_SL_ATR * atr
+    scale = backtest.LONG_SCALE if d == 1 else 1.0
+    sl_dist = backtest.DEFAULT_SL_ATR * scale * atr
     med = ind["atr_med100"].iloc[p["index"]] if "atr_med100" in ind.columns else float("nan")
     med = float(med) if med == med else 0.0
     if med > 0:
         sl_dist = max(sl_dist, backtest.SL_FLOOR_MED_MULT * med)
     sl = entry - d * sl_dist
-    tp = entry + d * backtest.DEFAULT_TP_ATR * atr
+    tp = entry + d * backtest.DEFAULT_TP_ATR * scale * atr
     for j in range(entry_idx, s["index"] + 1):
         bar = ind.iloc[j]
         hit_sl = (bar["l"] <= sl) if d == 1 else (bar["h"] >= sl)
