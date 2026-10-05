@@ -35,6 +35,7 @@ from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 from .config import DATA_DIR
+from .recommend import signal_age_label
 from .store import write_json
 
 WIB = ZoneInfo("Asia/Jakarta")
@@ -122,14 +123,17 @@ def entry_payload(rec: dict) -> dict:
     }
 
 
-def cooldown_payload(rec: dict) -> dict:
+def cooldown_payload(rec: dict, now: datetime | None = None) -> dict:
     """Payload notif untuk setup yang TERTUNDA cooldown re-entry.
 
     Analisa lengkap (pola/bias/level/peluang) tetap dikirim apa adanya
     persis payload entry, hanya judul + baris penjelasan cooldown yang
     beda (permintaan user 2026-09-24: "kirimkan apa adanya", tanpa
     dedup — sinyal terblok paling banter bertahan 2 jam di jendela
-    2 bar, jadi ~2-3 notif per sinyal)."""
+    2 bar, jadi ~2-3 notif per sinyal).
+
+    Label umur sinyal (audit 2026-10-06): sinyal basi dari jendela 2 bar
+    ditandai candle asalnya supaya tidak kebaca analisa baru."""
     lv = rec.get("levels") or {}
     pola = PATTERN_LABELS.get(rec.get("pattern") or "", rec.get("pattern") or "pola H1")
     arah = ARAH.get(rec.get("bias") or "", rec.get("bias") or "netral")
@@ -139,6 +143,9 @@ def cooldown_payload(rec: dict) -> dict:
             f"TP1 {lv.get('tp1', 0):,.2f} (USD/oz).")
     if conf is not None:
         body += f"\nPeluang historis {round(conf * 100)}%."
+    age = signal_age_label(rec, now or datetime.now(timezone.utc))
+    if age:
+        body += f"\n{age[0].upper()}{age[1:]}."
     body += ("\nTERTUNDA cooldown re-entry: sinyal searah < 2 jam lalu — "
              "tidak dieksekusi feedback loop (otomatis dilewati bila "
              "posisi searah terakhir kena TP1).")

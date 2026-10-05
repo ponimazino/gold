@@ -78,6 +78,28 @@ def test_cooldown_payload() -> None:
     print("ok: payload cooldown (analisa lengkap + label + penjelasan)")
 
 
+def test_cooldown_payload_age() -> None:
+    # sinyal basi (jendela 2 bar): pola candle 05:00Z (12:00 WIB), level
+    # di-refresh ke close 06:00Z (13:00 WIB), slot 07:07Z (14:07 WIB) —
+    # label umur WAJIB tampil (audit 2026-10-06, kasus 5 Okt: tampilan
+    # basi kebaca "analisa baru yang menyuruh short")
+    rec = _rec(status="tunggu")
+    rec["pattern_bar_t"] = "2026-10-05T05:00:00Z"
+    rec["signal_bar_t"] = "2026-10-05T06:00:00Z"
+    p = push.cooldown_payload(rec, now=datetime(2026, 10, 5, 7, 7, tzinfo=timezone.utc))
+    assert "Sinyal dari candle 12:00 WIB (umur 2 jam)" in p["body"], p
+    assert "close candle 13:00 WIB" in p["body"], p
+    assert "bukan analisa baru" in p["body"], p
+    # sinyal fresh (pola = candle closed terakhir) -> tanpa label umur
+    rec2 = _rec(status="tunggu")
+    rec2["pattern_bar_t"] = rec2["signal_bar_t"] = "2026-10-05T05:00:00Z"
+    p2 = push.cooldown_payload(rec2, now=datetime(2026, 10, 5, 6, 7, tzinfo=timezone.utc))
+    assert "bukan analisa baru" not in p2["body"], p2
+    # rec lama tanpa field basis -> tanpa label (backward compat)
+    assert "bukan analisa baru" not in push.cooldown_payload(_rec(status="tunggu"))["body"]
+    print("ok: payload cooldown beri label umur sinyal basi; fresh/rec lama tanpa label")
+
+
 def test_dispatch_cooldown_no_dedup() -> None:
     _isolate(); _env()
     calls: list[str] = []
@@ -237,6 +259,7 @@ def main() -> int:
     test_entry_payload()
     test_agenda_payload()
     test_cooldown_payload()
+    test_cooldown_payload_age()
     test_dispatch_entry_dedup()
     test_dispatch_cooldown_no_dedup()
     test_dispatch_agenda_window()

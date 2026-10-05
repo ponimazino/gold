@@ -99,10 +99,38 @@ def test_entry_note_when_not_recorded():
     print("ok: entry yang dicatat tetap tanpa note (kompatibel)")
 
 
+def test_cooldown_note_age():
+    """Slot cooldown sinyal basi (jendela 2 bar) menyertakan label umur
+    sinyal (audit 2026-10-06) supaya tidak kebaca analisa baru."""
+    _isolate()
+    from datetime import datetime, timezone
+    now = datetime(2026, 10, 5, 7, 7, tzinfo=timezone.utc)  # 14:07 WIB
+    rec = {
+        "status": "tunggu", "cooldown": True, "pattern": "inside_bar",
+        "bias": "bearish", "confidence": 0.38,
+        "levels": {"entry": 4154.38, "sl": 4169.18, "tp1": 4132.17},
+        "pattern_bar_t": "2026-10-05T05:00:00Z",   # candle pola: 12:00 WIB
+        "signal_bar_t": "2026-10-05T06:00:00Z",    # basis entry: 13:00 WIB
+    }
+    log = reclog.log_run(rec, now=now)
+    note = log["days"][0]["slots"][0]["note"]
+    assert note.startswith("cooldown 2 bar"), note
+    assert "sinyal dari candle 12:00 WIB (umur 2 jam)" in note, note
+    assert "close candle 13:00 WIB" in note and "bukan analisa baru" in note, note
+    # sinyal fresh -> note tetap format lama, tanpa label umur
+    rec2 = dict(rec)
+    rec2["pattern_bar_t"] = rec2["signal_bar_t"] = "2026-10-05T06:00:00Z"
+    reclog.log_run(rec2, now=now.replace(hour=6))  # 13:07 WIB, candle terakhir
+    note2 = reclog.load()["days"][0]["slots"][-1]["note"]
+    assert note2.startswith("cooldown 2 bar") and "bukan analisa baru" not in note2, note2
+    print("ok: note slot cooldown menyertakan label umur sinyal basi")
+
+
 def main():
     test_entry_and_netral_slots()
     test_dedup_minute_and_trim()
     test_entry_note_when_not_recorded()
+    test_cooldown_note_age()
     print("\nALL RECLOG TESTS PASSED")
 
 

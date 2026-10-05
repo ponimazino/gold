@@ -399,6 +399,12 @@ def build_recommendation(now: datetime | None = None) -> dict:
         # sinyal, persis backtest (audit 2026-09-20: filter created_at
         # membuat bar pertama posisi terlewati dari pengecekan).
         "signal_bar_t": h1_bars[-1]["t"],
+        # Bar tempat POLA terdeteksi — BEDA dari signal_bar_t (= bar closed
+        # terakhir = basis entry & resolusi track). Sinyal di jendela 2 bar
+        # bisa tampil ulang di slot berikutnya dengan level entry yang
+        # di-refresh ke close terbaru; pattern_bar_t dipakai signal_age_label
+        # supaya tampilan basi tidak kebaca analisa baru (audit 2026-10-06).
+        "pattern_bar_t": sig["t"],
     })
 
     # stats sudah diambil saat cek gate (qualified/eksperimen) — pasti ada
@@ -447,3 +453,29 @@ def build_recommendation(now: datetime | None = None) -> dict:
            "survive noise pullback di drift naik, rasio R tetap 1.5"
            if d == 1 else ""))
     return rec
+
+
+def signal_age_label(rec: dict, now: datetime) -> str | None:
+    """Label umur sinyal untuk tampilan cooldown/notif (audit 2026-10-06).
+    Kasus 5 Okt 14:07: sinyal inside_bar candle 12:00 tampil ULANG di
+    jendela 2 bar dengan entry di-refresh ke close candle 13:00 — pembaca
+    menyangkanya analisa baru yang "menyuruh short" padahal arsip sinyal
+    lama yang sedang diblok cooldown. Return None bila sinyal masih dari
+    candle closed terakhir (fresh) atau field basis tidak ada (rec lama /
+    blackout — analisa memang berhenti sebelum deteksi pola)."""
+    pt = rec.get("pattern_bar_t")
+    st = rec.get("signal_bar_t")
+    if not pt or not st or pt == st:
+        return None
+    try:
+        p_dt = store.parse(pt)
+        age_h = (now - p_dt).total_seconds() / 3600
+    except (TypeError, ValueError):
+        return None
+    if age_h < 1.75:  # candle pola masih bar closed terakhir — belum basi
+        return None
+    p_wib = p_dt.astimezone(WIB).strftime("%H:%M")
+    s_wib = store.parse(st).astimezone(WIB).strftime("%H:%M")
+    jam = max(1, int(round(age_h)))
+    return (f"sinyal dari candle {p_wib} WIB (umur {jam} jam) — level entry "
+            f"di-refresh ke close candle {s_wib} WIB, bukan analisa baru")

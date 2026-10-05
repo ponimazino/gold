@@ -37,6 +37,7 @@ from zoneinfo import ZoneInfo
 
 from .config import DATA_DIR
 from .push import AGENDA_LEAD_H, ARAH, PATTERN_LABELS, _events_today
+from .recommend import signal_age_label
 from .store import write_json
 
 WIB = ZoneInfo("Asia/Jakarta")
@@ -101,11 +102,14 @@ def entry_message(rec: dict) -> str:
     return out
 
 
-def cooldown_message(rec: dict) -> str:
+def cooldown_message(rec: dict, now: datetime | None = None) -> str:
     """Pesan WA untuk setup yang TERTUNDA cooldown re-entry — analisa
     lengkap (bias/pola/level/peluang) dikirim apa adanya persis pesan
     entry, hanya judul + baris penjelasan cooldown yang beda (permintaan
-    user 2026-09-24: label COOLDOWN, tanpa dedup)."""
+    user 2026-09-24: label COOLDOWN, tanpa dedup).
+
+    Label umur sinyal (audit 2026-10-06): sinyal basi dari jendela 2 bar
+    ditandai candle asalnya supaya tidak kebaca analisa baru."""
     lv = rec.get("levels") or {}
     pola = PATTERN_LABELS.get(rec.get("pattern") or "", rec.get("pattern") or "pola H1")
     arah = ARAH.get(rec.get("bias") or "", rec.get("bias") or "netral")
@@ -118,6 +122,9 @@ def cooldown_message(rec: dict) -> str:
     conf = rec.get("confidence")
     if conf is not None:
         out += f"\nPeluang historis: {round(conf * 100)}%."
+    age = signal_age_label(rec, now or datetime.now(timezone.utc))
+    if age:
+        out += f"\n{age[0].upper()}{age[1:]}."
     out += ("\n\nTertunda cooldown re-entry — sinyal searah < 2 jam lalu. "
             "Analisa dicatat sebagai informasi, tidak dieksekusi feedback "
             "loop (cooldown otomatis dilewati bila posisi searah terakhir "

@@ -14,8 +14,8 @@ export const VAPID_PUBLIC_KEY =
 // yang di-push (aturan user 2026-09-20): tampil di kartu versi sidebar bawah
 // supaya kelihatan versi & terakhir kali kode berubah (bukan jam sync data).
 export const APP_NAME = "GoldPulse";
-export const APP_VERSION = "2.15"; // v2.15 = EOD PDF tepat waktu (iterasi 23:07 WIB loop daily + guard tanggal) + dedup statistik long sadar SL lebar + teks blackout pasca-event
-export const APP_UPDATED_WIB = "30 Sep 2026";
+export const APP_VERSION = "2.16"; // v2.16 = label umur sinyal di notif/slot cooldown (sinyal basi jendela 2 bar ditandai candle asalnya, bukan analisa baru)
+export const APP_UPDATED_WIB = "6 Okt 2026";
 
 // base64url -> Uint8Array<ArrayBuffer> untuk applicationServerKey
 export function urlBase64ToUint8Array(b64: string): Uint8Array<ArrayBuffer> {

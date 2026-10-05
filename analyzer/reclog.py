@@ -12,6 +12,7 @@ from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 
 from . import store
+from .recommend import signal_age_label
 
 WIB = ZoneInfo("Asia/Jakarta")
 KEEP_DAYS = 30  # riwayat slot disimpan 30 hari (~19 slot/hari kerja, grid 1 jam)
@@ -76,10 +77,17 @@ def log_run(rec: dict, now: datetime | None = None,
         lv = rec.get("levels") or {}
         slot["levels"] = {k: lv[k] for k in ("entry", "sl", "tp1") if k in lv}
         slot["recorded"] = False
-        slot["note"] = ("cooldown 2 bar: sinyal searah < 2 jam lalu — "
-                        "tidak dieksekusi feedback loop; analisa dicatat "
-                        "sebagai informasi (cooldown dilewati bila posisi "
-                        "searah terakhir TP1)")
+        note = ("cooldown 2 bar: sinyal searah < 2 jam lalu — "
+                "tidak dieksekusi feedback loop; analisa dicatat "
+                "sebagai informasi (cooldown dilewati bila posisi "
+                "searah terakhir TP1)")
+        # label umur sinyal (audit 2026-10-06): sinyal basi dari jendela
+        # 2 bar tampil ulang dengan level di-refresh — tandai candle asalnya
+        # supaya slot tidak kebaca analisa baru
+        age = signal_age_label(rec, now)
+        if age:
+            note += f"; {age}"
+        slot["note"] = note
     elif rec.get("stale"):
         slot["note"] = "data belum segar (sync tertunda / pasar tutup) — analisa ditunda"
     else:

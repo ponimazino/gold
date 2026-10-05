@@ -131,6 +131,23 @@ def test_cooldown_message() -> None:
     print("ok: pesan cooldown (label COOLDOWN + analisa lengkap apa adanya)")
 
 
+def test_cooldown_message_age() -> None:
+    # sinyal basi jendela 2 bar: label umur wajib tampil (audit 2026-10-06)
+    rec = _rec(status="tunggu")
+    rec["pattern_bar_t"] = "2026-10-05T05:00:00Z"
+    rec["signal_bar_t"] = "2026-10-05T06:00:00Z"
+    m = wa.cooldown_message(rec, now=datetime(2026, 10, 5, 7, 7, tzinfo=timezone.utc))
+    assert "Sinyal dari candle 12:00 WIB (umur 2 jam)" in m, m
+    assert "close candle 13:00 WIB" in m and "bukan analisa baru" in m, m
+    # fresh / rec lama -> tanpa label
+    rec2 = _rec(status="tunggu")
+    rec2["pattern_bar_t"] = rec2["signal_bar_t"] = "2026-10-05T05:00:00Z"
+    m2 = wa.cooldown_message(rec2, now=datetime(2026, 10, 5, 6, 7, tzinfo=timezone.utc))
+    assert "bukan analisa baru" not in m2, m2
+    assert "bukan analisa baru" not in wa.cooldown_message(_rec(status="tunggu"))
+    print("ok: pesan cooldown beri label umur sinyal basi; fresh/rec lama tanpa label")
+
+
 def test_dispatch_cooldown_no_dedup() -> None:
     _isolate(); _env()
     calls: list[str] = []
@@ -223,6 +240,7 @@ def main() -> int:
     test_entry_message()
     test_agenda_message()
     test_cooldown_message()
+    test_cooldown_message_age()
     test_dispatch_skips_without_secrets()
     test_dispatch_entry_dedup()
     test_dispatch_cooldown_no_dedup()
