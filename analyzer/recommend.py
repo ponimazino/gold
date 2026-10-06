@@ -166,6 +166,48 @@ def _squeeze_blocked(df: pd.DataFrame, i: int, d: int) -> bool:
     return rng / atr < SQUEEZE_RATIO_MAX
 
 
+def _regime_chop_blocked(df1: pd.DataFrame, df4: pd.DataFrame,
+                         i: int, d: int) -> bool:
+    """True kalau REGIME CHOP aktif di bar sinyal i (definisi pre-registered
+    audit total 2026-10-06): trend H4 as-of == -1 DAN close H1 < EMA50 H4
+    as-of DAN ATR14 < median ATR14 100 bar sebelumnya (atr_med100, shift-1).
+
+    KEPUTUSAN 2026-10-06 (user, opsi 1 'blokir'): guard ini PREFERENSI RISIKO
+    user, BUKAN bukti statistik — kolam 3 tahun justru bilang in-regime OOS
+    +0.160 (IB short, n=191; per-tahun campur, 2024 -0.534) dan long
+    counter-trend in-regime -0.123 (dua arah lemah di sampel penuh, tapi
+    rata-rata short masih positif). Biaya yang disadari user: 2 win 28 Sep
+    2026 (+3R) terjadi DI DALAM regime ini dan akan ikut terblok; net minggu
+    28 Sep-6 Okt tidak berubah (0R). Guard diterima demi "tidak tahan lihat
+    streak, rela miss win" — dicatat jujur supaya review nanti tahu asalnya.
+
+    Dinamis by design: semua kondisi dievaluasi as-of per run dari data
+    segar — regime berakhir (harga close >= EMA50 H4, ATR14 pulih ke atas
+    median-100, atau H4 flip) -> guard langsung tidak blok di run berikutnya
+    (paling lambat 1 jam), tanpa state/timeout. LONG tidak tersentuh:
+    long di regime ini memang anti-trend H4-down dan sudah dibuang sebelum
+    sampai guard. Fail-open kalau indikator belum terbentuk (awal data)."""
+    if d != -1 or i < 1:
+        return False
+    atr = float(df1["atr14"].iloc[i])
+    med = float(df1["atr_med100"].iloc[i])
+    if not atr or atr != atr or med != med:  # 0 / NaN -> fail-open
+        return False
+    # H4 as-of bar sinyal: candle H4 CLOSED terakhir sebelum bar sinyal
+    # selesai (sinyal t, close t+1h; H4 bar t4 close t4+4h) — persis
+    # h4_asof di audit, bukan sekadar bar H4 terakhir file.
+    t_sig = pd.to_datetime(df1.index[i], utc=True) + pd.Timedelta(hours=1)
+    closes4 = pd.to_datetime(df4.index, utc=True) + pd.Timedelta(hours=4)
+    j = closes4.searchsorted(t_sig, side="right") - 1
+    if j < 0:
+        return False
+    if int(df4["trend"].iloc[j]) != -1:
+        return False
+    if float(df1["c"].iloc[i]) >= float(df4["ema50"].iloc[j]):
+        return False
+    return atr < med
+
+
 def _gate_check(stats: dict | None,
                 direction: int | None = None) -> tuple[bool, str, dict]:
     """Kembalikan (lolos, alasan, meta) untuk satu pola + arahnya. Meta dipakai
@@ -275,11 +317,14 @@ def build_recommendation(now: datetime | None = None) -> dict:
 
     # --- lapisan teknikal (P3) ---
     matched = [s for s in sigs1 if s["dir"] == t4] if t4 != 0 else []
-    # --- guard momentum-lawan + guard squeeze, khusus SHORT (bukti 3 tahun,
-    # lihat _counter_momentum / _squeeze_blocked): short saat bounce H1 dan
-    # short saat pasar terjepit = dua subset EV terburuk.
+    # --- guard momentum-lawan + guard squeeze + guard regime chop, khusus
+    # SHORT: short saat bounce H1, short saat pasar terjepit, dan short saat
+    # regime chop (H4 down + harga < EMA50 H4 + ATR14 < median-100) tiga
+    # kondisi EV terburuk. Chop = preferensi risiko user 2026-10-06 (lihat
+    # _regime_chop_blocked), dua lainnya bukti 3 tahun.
     momentum_blocked: list[dict] = []
     squeeze_blocked: list[dict] = []
+    chop_blocked: list[dict] = []
     if t4 == -1:
         kept = []
         for s in matched:
@@ -287,6 +332,8 @@ def build_recommendation(now: datetime | None = None) -> dict:
                 momentum_blocked.append(s)
             elif _squeeze_blocked(df1, s["index"], s["dir"]):
                 squeeze_blocked.append(s)
+            elif _regime_chop_blocked(df1, df4, s["index"], s["dir"]):
+                chop_blocked.append(s)
             else:
                 kept.append(s)
         matched = kept
@@ -303,6 +350,14 @@ def build_recommendation(now: datetime | None = None) -> dict:
                 f"sinyal terlalu sempit (< {SQUEEZE_RATIO_MAX:.0%} x ATR14) — "
                 f"short saat pasar terjepit terbukti subset terburuk di data "
                 f"3 tahun (squeeze-release menyapu SL sebelum TP1)")
+        if chop_blocked:
+            names = ", ".join(sorted({s["pattern"] for s in chop_blocked}))
+            rec["rationale"].append(
+                f"pola {names} searah trend TAPI disaring guard regime chop: "
+                f"H4 turun + harga < EMA50 H4 + ATR14 < median-100 (pasar "
+                f"sempit) — historis regime ini lemah dua arah; guard aktif "
+                f"selama regime berlangsung, otomatis lepas begitu regime "
+                f"berakhir (harga atau volatilitas pulih)")
     if not matched:
         if t4 == 0:
             rec["rationale"].append("H4 sideways — tanpa arah, tidak ada dasar entry")
@@ -320,6 +375,15 @@ def build_recommendation(now: datetime | None = None) -> dict:
                            "reason": "guard squeeze: bar sinyal < 15% x ATR14 "
                                      "(pasar terjepit) — short saat squeeze "
                                      "terbukti EV terburuk di data 3 tahun"}
+        elif chop_blocked:
+            last = chop_blocked[-1]
+            rec["gate"] = {"pattern": last["pattern"], "passed": False,
+                           "chop_block": True,
+                           "reason": "guard regime chop: H4 turun + harga "
+                                     "< EMA50 H4 + ATR14 < median-100 "
+                                     "(regime sempit dua arah lemah) — "
+                                     "entry short ditunda sampai regime "
+                                     "berakhir"}
         elif sigs1:
             rec["rationale"].append("pola H1 terakhir tidak searah trend H4 — dilewati")
         return rec  # netral

@@ -14,7 +14,7 @@ export const VAPID_PUBLIC_KEY =
 // yang di-push (aturan user 2026-09-20): tampil di kartu versi sidebar bawah
 // supaya kelihatan versi & terakhir kali kode berubah (bukan jam sync data).
 export const APP_NAME = "GoldPulse";
-export const APP_VERSION = "2.16"; // v2.16 = label umur sinyal di notif/slot cooldown (sinyal basi jendela 2 bar ditandai candle asalnya, bukan analisa baru)
+export const APP_VERSION = "2.17"; // v2.17 = guard regime chop khusus short (H4 down + harga < EMA50 H4 + ATR14 < median-100 → blok s.d. regime berakhir; preferensi risiko user 6 Okt 2026)
 export const APP_UPDATED_WIB = "6 Okt 2026";
 
 // base64url -> Uint8Array<ArrayBuffer> untuk applicationServerKey

@@ -104,11 +104,15 @@ def test_squeeze_guard_allows_normal_short():
     _isolate()
     base = NOW - timedelta(hours=84)
     bars = []
+    # range MEMBESAR dari bar ke bar (volatilitas naik): ATR14 di atas
+    # median-100 -> guard regime chop (batch 2026-10-06) tidak ikut blok,
+    # tes ini tetap menguji guard squeeze saja
     for i in range(83):
         c = 2200 - i * 5
+        r = 2.0 + i * 0.06
         bars.append({"t": iso(base + timedelta(hours=i)), "o": c + 2,
-                     "h": c + 3, "l": c - 3, "c": c})
-    # inside bar range 3.0 (0.375xATR) — sehat, harus tetap jadi entry
+                     "h": c + r, "l": c - r, "c": c})
+    # inside bar range 3.0 (~0.45xATR) — sehat, harus tetap jadi entry
     bars.append({"t": iso(base + timedelta(hours=83)), "o": 1790.0,
                  "h": 1791.5, "l": 1788.5, "c": 1790.5})
     store.save("1h", bars)
